@@ -74,6 +74,7 @@ class Message {
     let conversation_id : RecordId
     let user_id : RecordId
     var text = String()
+    var image : UIImage?
     var last_modified = Date()
     
     init(threadId: RecordId, user_id: RecordId) {
