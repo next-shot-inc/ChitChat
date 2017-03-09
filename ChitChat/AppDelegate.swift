@@ -17,6 +17,32 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplicationLaunchOptionsKey: Any]?) -> Bool {
         // Override point for customization after application launch.
+        
+        var asLoginInfo = false
+
+        let managedContext = persistentContainer.viewContext
+        let fetchRequest = NSFetchRequest<NSManagedObject>(entityName: "UserInfo")
+        do {
+            let entities = try managedContext.fetch(fetchRequest)
+            if( entities.count >= 1 ) {
+               let userInfo = entities[0] as? UserInfo
+               if( userInfo != nil ) {
+                   asLoginInfo = true
+               }
+            }
+        } catch let error as NSError {
+            print("Could not fetch. \(error), \(error.userInfo)")
+        }
+        
+        if ( !asLoginInfo ) {
+            //get access to login view
+            let storyboard = UIStoryboard(name: "Main", bundle: nil)
+            let viewController =  storyboard.instantiateViewController(withIdentifier: "signupView") as UIViewController;
+            
+            // Then push login view
+            let rootViewController = self.window!.rootViewController as! UINavigationController;
+            rootViewController.pushViewController(viewController, animated: true)
+        }
         return true
     }
 

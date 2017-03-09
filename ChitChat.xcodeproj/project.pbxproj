@@ -15,6 +15,15 @@
 		2F32DFDC1E6E5B0700EF34E8 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 2F32DFDA1E6E5B0700EF34E8 /* LaunchScreen.storyboard */; };
 		2F32DFE71E6E5B0700EF34E8 /* ChitChatTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F32DFE61E6E5B0700EF34E8 /* ChitChatTests.swift */; };
 		2F32DFF21E6E5B0700EF34E8 /* ChitChatUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F32DFF11E6E5B0700EF34E8 /* ChitChatUITests.swift */; };
+		2F32E0001E6E5D0400EF34E8 /* GroupViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F32DFFF1E6E5D0400EF34E8 /* GroupViewController.swift */; };
+		2F32E0021E6E5D4E00EF34E8 /* ThreadsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F32E0011E6E5D4E00EF34E8 /* ThreadsViewController.swift */; };
+		2F32E0041E6E892400EF34E8 /* MessagesViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F32E0031E6E892400EF34E8 /* MessagesViewController.swift */; };
+		2F32E0061E6F1C9100EF34E8 /* GrowingTextViewInternal.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F32E0051E6F1C9100EF34E8 /* GrowingTextViewInternal.swift */; };
+		2F32E0091E6F1D6F00EF34E8 /* GrowingTextView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F32E0081E6F1D6F00EF34E8 /* GrowingTextView.swift */; };
+		2F32E00B1E6F5AE300EF34E8 /* Model.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F32E00A1E6F5AE300EF34E8 /* Model.swift */; };
+		2FF9BE291E7061F5000DF9A8 /* ContactsController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FF9BE281E7061F5000DF9A8 /* ContactsController.swift */; };
+		2FF9BE2B1E70B6D9000DF9A8 /* Login.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FF9BE2A1E70B6D9000DF9A8 /* Login.swift */; };
+		2FF9BE311E710D69000DF9A8 /* Utilities.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FF9BE301E710D69000DF9A8 /* Utilities.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -49,6 +58,15 @@
 		2F32DFED1E6E5B0700EF34E8 /* ChitChatUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ChitChatUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		2F32DFF11E6E5B0700EF34E8 /* ChitChatUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChitChatUITests.swift; sourceTree = "<group>"; };
 		2F32DFF31E6E5B0700EF34E8 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		2F32DFFF1E6E5D0400EF34E8 /* GroupViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = GroupViewController.swift; sourceTree = "<group>"; };
+		2F32E0011E6E5D4E00EF34E8 /* ThreadsViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ThreadsViewController.swift; sourceTree = "<group>"; };
+		2F32E0031E6E892400EF34E8 /* MessagesViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MessagesViewController.swift; sourceTree = "<group>"; };
+		2F32E0051E6F1C9100EF34E8 /* GrowingTextViewInternal.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = GrowingTextViewInternal.swift; path = GrowingTextView/GrowingTextViewInternal.swift; sourceTree = SOURCE_ROOT; };
+		2F32E0081E6F1D6F00EF34E8 /* GrowingTextView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = GrowingTextView.swift; sourceTree = "<group>"; };
+		2F32E00A1E6F5AE300EF34E8 /* Model.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Model.swift; sourceTree = "<group>"; };
+		2FF9BE281E7061F5000DF9A8 /* ContactsController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ContactsController.swift; sourceTree = "<group>"; };
+		2FF9BE2A1E70B6D9000DF9A8 /* Login.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Login.swift; sourceTree = "<group>"; };
+		2FF9BE301E710D69000DF9A8 /* Utilities.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Utilities.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -102,10 +120,18 @@
 				2F32DFCE1E6E5B0700EF34E8 /* AppDelegate.swift */,
 				2F32DFD01E6E5B0700EF34E8 /* ViewController.swift */,
 				2F32DFD21E6E5B0700EF34E8 /* Main.storyboard */,
+				2FF9BE301E710D69000DF9A8 /* Utilities.swift */,
+				2FF9BE2A1E70B6D9000DF9A8 /* Login.swift */,
+				2FF9BE281E7061F5000DF9A8 /* ContactsController.swift */,
+				2F32E00A1E6F5AE300EF34E8 /* Model.swift */,
+				2F32E0031E6E892400EF34E8 /* MessagesViewController.swift */,
+				2F32DFFF1E6E5D0400EF34E8 /* GroupViewController.swift */,
+				2F32E0011E6E5D4E00EF34E8 /* ThreadsViewController.swift */,
 				2F32DFD81E6E5B0700EF34E8 /* Assets.xcassets */,
 				2F32DFDA1E6E5B0700EF34E8 /* LaunchScreen.storyboard */,
 				2F32DFDD1E6E5B0700EF34E8 /* Info.plist */,
 				2F32DFD51E6E5B0700EF34E8 /* ChitChat.xcdatamodeld */,
+				2F32E0071E6F1CF300EF34E8 /* GrowingTextView */,
 			);
 			path = ChitChat;
 			sourceTree = "<group>";
@@ -126,6 +152,15 @@
 				2F32DFF31E6E5B0700EF34E8 /* Info.plist */,
 			);
 			path = ChitChatUITests;
+			sourceTree = "<group>";
+		};
+		2F32E0071E6F1CF300EF34E8 /* GrowingTextView */ = {
+			isa = PBXGroup;
+			children = (
+				2F32E0051E6F1C9100EF34E8 /* GrowingTextViewInternal.swift */,
+				2F32E0081E6F1D6F00EF34E8 /* GrowingTextView.swift */,
+			);
+			name = GrowingTextView;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -265,8 +300,17 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				2F32E00B1E6F5AE300EF34E8 /* Model.swift in Sources */,
+				2F32E0041E6E892400EF34E8 /* MessagesViewController.swift in Sources */,
+				2F32E0001E6E5D0400EF34E8 /* GroupViewController.swift in Sources */,
+				2F32E0061E6F1C9100EF34E8 /* GrowingTextViewInternal.swift in Sources */,
 				2F32DFD71E6E5B0700EF34E8 /* ChitChat.xcdatamodeld in Sources */,
+				2F32E0021E6E5D4E00EF34E8 /* ThreadsViewController.swift in Sources */,
+				2FF9BE311E710D69000DF9A8 /* Utilities.swift in Sources */,
+				2FF9BE291E7061F5000DF9A8 /* ContactsController.swift in Sources */,
+				2F32E0091E6F1D6F00EF34E8 /* GrowingTextView.swift in Sources */,
 				2F32DFD11E6E5B0700EF34E8 /* ViewController.swift in Sources */,
+				2FF9BE2B1E70B6D9000DF9A8 /* Login.swift in Sources */,
 				2F32DFCF1E6E5B0700EF34E8 /* AppDelegate.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -518,6 +562,7 @@
 				2F32DFF81E6E5B0700EF34E8 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 		2F32DFF91E6E5B0700EF34E8 /* Build configuration list for PBXNativeTarget "ChitChatTests" */ = {
 			isa = XCConfigurationList;
@@ -526,6 +571,7 @@
 				2F32DFFB1E6E5B0700EF34E8 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 		2F32DFFC1E6E5B0700EF34E8 /* Build configuration list for PBXNativeTarget "ChitChatUITests" */ = {
 			isa = XCConfigurationList;
@@ -534,6 +580,7 @@
 				2F32DFFE1E6E5B0700EF34E8 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 

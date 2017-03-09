@@ -1,0 +1,210 @@
+//
+//  ContactsController.swift
+//  ChitChat
+//
+//  Created by next-shot on 3/8/17.
+//  Copyright © 2017 next-shot. All rights reserved.
+//
+
+import Foundation
+import UIKit
+import Contacts
+import ContactsUI
+
+class Contact {
+    let label : String
+    var phoneNumber = String()
+    
+    init(label: String) {
+        self.label =  label
+    }
+}
+
+class ContactCell : UITableViewCell {
+    @IBOutlet weak var label: UILabel!
+    @IBOutlet weak var checkButton: UIButton!
+    @IBOutlet weak var phoneNumber: UILabel!
+}
+
+class ContactData : NSObject, UITableViewDataSource {
+    var contacts = [Contact]()
+    
+    override init() {
+    }
+    
+    func update() {
+    }
+    
+    func numberOfSections(in tableView: UITableView) -> Int {
+        return 1
+    }
+    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+        return contacts.count
+    }
+    
+    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        let cell = tableView.dequeueReusableCell(withIdentifier: "ContactCell") as! ContactCell
+        
+        let contact = contacts[indexPath.row]
+        cell.label.text = contact.label
+        cell.phoneNumber.text = contact.phoneNumber
+        
+        cell.checkButton.setImage(UIImage(named: "checked"), for: .selected)
+        cell.checkButton.setImage(UIImage(named: "unchecked"), for: .normal)
+        
+        cell.checkButton.isSelected = !contact.phoneNumber.isEmpty
+        return cell
+    }
+}
+
+class NewGroupController : UIViewController, CNContactPickerDelegate, UIImagePickerControllerDelegate, UINavigationControllerDelegate, UITextFieldDelegate {
+    var contactsController: ContactsController?
+    
+    @IBOutlet weak var groupName: UITextField!
+    @IBOutlet weak var contactsView: UITableView!
+    @IBOutlet weak var groupIconButton: UIButton!
+    @IBOutlet weak var createButton: UIButton!
+    
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        // Do any additional setup after loading the view, typically from a nib.
+        
+        contactsController = ContactsController()
+        contactsController?.tableView = contactsView
+        contactsView.delegate = contactsController
+        contactsView.dataSource = contactsController?.data
+        
+        createButton.applyGradient(withColours: [UIColor.white, UIColor.lightGray], gradientOrientation: .vertical)
+        createButton.isEnabled = false
+        
+        groupName.delegate = self
+    }
+    
+    // Contacts Picker (done selected)
+    func contactPicker(_ picker: CNContactPickerViewController, didSelect contacts: [CNContact]) {
+        let formatter = CNContactFormatter()
+        formatter.style = .fullName
+        
+        contactsController?.data.contacts.removeAll()
+        
+        for contact in contacts {
+            let lc = Contact(label: formatter.string(from: contact) ?? "???")
+            
+            // Get phone number
+            if( contact.phoneNumbers.count == 1 ) {
+                lc.phoneNumber = contact.phoneNumbers[0].value.stringValue
+            } else {
+               for phn in contact.phoneNumbers {
+                   if( phn.label?.lowercased(with: nil) == "iphone" ||
+                       phn.label?.lowercased(with: nil) == "mobile"
+                   ) {
+                       lc.phoneNumber = phn.value.stringValue
+                   }
+               }
+                if( lc.phoneNumber.isEmpty ) {
+                    lc.phoneNumber = contact.phoneNumbers[0].value.stringValue
+                }
+            }
+            contactsController?.data.contacts.append(lc)
+        }
+        
+        contactsController?.tableView.reloadData()
+        createButton.isEnabled = !(groupName.text?.isEmpty)! && contacts.count > 0
+    }
+    
+    func contactPickerDidCancel(_ picker: CNContactPickerViewController) {
+        contactsController?.data.contacts.removeAll()
+        
+        contactsController?.tableView.reloadData()
+    }
+    
+    // Image picker
+    func imagePickerController(
+        _ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [String : Any]
+    ) {
+        let chosenImage = info[UIImagePickerControllerOriginalImage] as! UIImage
+        groupIconButton.setImage(chosenImage.resize(newSize: CGSize(width: 32, height: 32)), for: .normal)
+        
+        dismiss(animated: true, completion: nil)
+    }
+    
+    func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+        dismiss(animated: true, completion: nil)
+    }
+    
+    // TextField delegate
+    func textFieldDidEndEditing(_ textField: UITextField) {
+        createButton.isEnabled = !(groupName.text?.isEmpty)! && (contactsController?.data.contacts.count)! > 0
+    }
+    
+    // Display the Contact Picker
+    @IBAction func selectMembers(_ sender: Any) {
+        let contactPicker = CNContactPickerViewController()
+        contactPicker.delegate = self
+        self.present(contactPicker, animated: true, completion: nil)
+    }
+    
+    // Display the Image Picker
+    @IBAction func selectGroupIcon(_ sender: Any) {
+        let picker = UIImagePickerController()
+        picker.delegate = self
+        picker.allowsEditing = false
+        picker.sourceType = .photoLibrary
+        present(picker, animated: true, completion: nil)
+    }
+    
+    @IBAction func createGroup(_ sender: Any) {
+        if( groupName.text != nil ) {
+            // Creeate Group
+            let group = Group(id: RecordId(), name: groupName.text!)
+            group.icon = groupIconButton.image(for: .normal)
+            
+            for c in contactsController!.data.contacts {
+                var user = db_model.getUser(phoneNumber: c.phoneNumber)
+                if( user == nil ) {
+                    // Create user
+                    user = User(
+                        id: RecordId(), label: c.label, phoneNumber: c.phoneNumber
+                    )
+                    db_model.users.append(user!)
+                }
+                group.user_ids.append(user!.id)
+            }
+            group.user_ids.append(db_model.me().id)
+            db_model.groups.append(group)
+            
+            // Create default thread
+            let cthread = ConversationThread(id: RecordId(), group_id: group.id)
+            cthread.title = "Main"
+            db_model.conversations.append(cthread)
+            
+            // Create first message
+            let message = Message(threadId: cthread.id, user_id: db_model.me().id)
+            message.text = "Welcome to ChitChat's group " + groupName.text!
+            db_model.messages.append(message)
+            
+            // Pop this controller.
+            _ = navigationController?.popViewController(animated: true)
+        }
+    }
+}
+
+
+class ContactsController : UITableViewController {
+    var data = ContactData()
+    
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        // Do any additional setup after loading the view, typically from a nib.
+        
+        tableView.dataSource = data
+    }
+    
+    override func didReceiveMemoryWarning() {
+        super.didReceiveMemoryWarning()
+        // Dispose of any resources that can be recreated.
+    }
+
+    
+    
+}
