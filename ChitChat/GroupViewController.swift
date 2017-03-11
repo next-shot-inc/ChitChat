@@ -17,13 +17,8 @@ class GroupCell : UITableViewCell {
 }
 
 class GroupData : NSObject, UITableViewDataSource {
-    var groups : [Group]
+    var groups = [Group]()
     override init() {
-        groups = db_model.getGroupForUser(userId: db_model.me().id)
-    }
-    
-    func update() {
-        groups = db_model.getGroupForUser(userId: db_model.me().id)
     }
     
     func numberOfSections(in tableView: UITableView) -> Int {
@@ -39,30 +34,37 @@ class GroupData : NSObject, UITableViewDataSource {
         let group = groups[indexPath.row]
         cell.label.text = group.name
         
-        let count = db_model.groupMessageUnread(groupId: group.id, userId: db_model.me().id)
-        if( count != 0 ) {
-            cell.label.text = group.name + " (" + String(count) + ")"
-        }
+        model.getThreadsForGroup(group: group, completion: { (cthreads) -> Void in
+            let count = model.groupMessageUnread(group: group, cthreads: cthreads)
+            if( count != 0 ) {
+                DispatchQueue.main.async(execute: { () -> Void in
+                    cell.label.text = group.name + " (" + String(count) + ")"
+                })
+            }
+
+        })
         
         cell.icon.image = group.icon
         if( cell.icon.image == nil ) {
             cell.icon.image = UIImage(named: "group-32")
         }
         
-        var details = String()
-        for userId in group.user_ids {
-            let user = db_model.getUser(userId: userId)
-            if( user != nil ) {
+        model.getUsersForGroup(group: group, completion: { (users) -> Void in
+            var details = String()
+            for user in users {
                 if( !details.isEmpty ) {
                     details += ", "
                 }
-                if( user!.label != nil ) {
-                    details += user!.label!
+                if( user.label != nil ) {
+                    details += user.label!
                     details += " "
                 }
             }
-        }
-        cell.details.text = details
+            DispatchQueue.main.async(execute: { () -> Void in
+                  cell.details.text = details
+            })
+        })
+        
         return cell
     }
 }
@@ -74,11 +76,47 @@ class GroupViewController: UITableViewController {
         super.viewDidLoad()
         // Do any additional setup after loading the view, typically from a nib.
         
-        DBModelTest.setup()
+        let restart = false
+        //let memoryDB = InMemoryDB()
+        let cloudDB = CloudDBModel()
+        if( restart ) {
+            cloudDB.deleteAllRecords {
+                // Once all records have been deleted.
+                self.doSetup(db: cloudDB, restart: restart)
+            }
+        } else {
+            let cloudDB = CloudDBModel()
+            doSetup(db: cloudDB, restart: restart)
+        }
+    }
+    
+    func doSetup(db: DBProtocol, restart: Bool) {
         
-        data = GroupData()
+        model = DataModel(db_model: db)
         
-        tableView.dataSource = data
+        let modelView = ModelView()
+        modelView.notify_new_group = self.groupAdded
+        model.views.append(modelView)
+        
+        model.getUserInfo {
+            // Once the initial user setup is done
+            
+            if( restart ) {
+                // Populate the DB with test data
+                DBModelTest.setup()
+            }
+            
+            self.data = GroupData()
+            self.tableView.dataSource = self.data
+            
+            // Fetch the groups and update
+            model.getGroups(completion: ({ (groups) -> () in
+                DispatchQueue.main.async(execute: { () -> Void in
+                    self.data!.groups = groups
+                    self.tableView.reloadData()
+                })
+            }))
+        }
     }
     
     override func didReceiveMemoryWarning() {
@@ -87,8 +125,7 @@ class GroupViewController: UITableViewController {
     }
     
     override func viewWillAppear(_ animated: Bool) {
-        data?.update()
-        tableView.reloadData()
+        self.tableView.reloadData()
     }
     
     override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
@@ -105,6 +142,16 @@ class GroupViewController: UITableViewController {
         if( segue.identifier! == "newGroupSegue" ) {
             
         }
+    }
+    
+    // Called after a new group has been added.
+    func groupAdded() {
+        model.getGroups(completion: ({ (groups) -> () in
+            DispatchQueue.main.async(execute: { () -> Void in
+                self.data!.groups = groups
+                self.tableView.reloadData()
+            })
+        }))
     }
 
 }

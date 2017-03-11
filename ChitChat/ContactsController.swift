@@ -94,14 +94,14 @@ class NewGroupController : UIViewController, CNContactPickerDelegate, UIImagePic
             if( contact.phoneNumbers.count == 1 ) {
                 lc.phoneNumber = contact.phoneNumbers[0].value.stringValue
             } else {
-               for phn in contact.phoneNumbers {
-                   if( phn.label?.lowercased(with: nil) == "iphone" ||
-                       phn.label?.lowercased(with: nil) == "mobile"
-                   ) {
-                       lc.phoneNumber = phn.value.stringValue
-                   }
-               }
-                if( lc.phoneNumber.isEmpty ) {
+                for phn in contact.phoneNumbers {
+                    if( phn.label?.lowercased(with: nil) == "iphone" ||
+                        phn.label?.lowercased(with: nil) == "mobile"
+                    ) {
+                        lc.phoneNumber = phn.value.stringValue
+                    }
+                }
+                if( lc.phoneNumber.isEmpty && contact.phoneNumbers.count > 0 ) {
                     lc.phoneNumber = contact.phoneNumbers[0].value.stringValue
                 }
             }
@@ -158,30 +158,29 @@ class NewGroupController : UIViewController, CNContactPickerDelegate, UIImagePic
             // Creeate Group
             let group = Group(id: RecordId(), name: groupName.text!)
             group.icon = groupIconButton.image(for: .normal)
+            model.saveGroup(group: group)
             
             for c in contactsController!.data.contacts {
-                var user = db_model.getUser(phoneNumber: c.phoneNumber)
-                if( user == nil ) {
-                    // Create user
-                    user = User(
+                // Create user
+                if( !c.phoneNumber.isEmpty ) {
+                    let user = User(
                         id: RecordId(), label: c.label, phoneNumber: c.phoneNumber
                     )
-                    db_model.users.append(user!)
+                    model.saveUser(user: user)
+                    model.addUserToGroup(group: group, user: user)
                 }
-                group.user_ids.append(user!.id)
             }
-            group.user_ids.append(db_model.me().id)
-            db_model.groups.append(group)
+            model.addUserToGroup(group: group, user: model.me())
             
             // Create default thread
             let cthread = ConversationThread(id: RecordId(), group_id: group.id)
             cthread.title = "Main"
-            db_model.conversations.append(cthread)
+            model.saveConversationThread(conversationThread: cthread)
             
             // Create first message
-            let message = Message(threadId: cthread.id, user_id: db_model.me().id)
+            let message = Message(threadId: cthread.id, user_id: model.me().id)
             message.text = "Welcome to ChitChat's group " + groupName.text!
-            db_model.messages.append(message)
+            model.saveMessage(message: message)
             
             // Pop this controller.
             _ = navigationController?.popViewController(animated: true)

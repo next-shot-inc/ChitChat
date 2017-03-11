@@ -34,17 +34,19 @@ class ThreadRowDelegate: NSObject, UICollectionViewDelegate {
 
 class ThreadRowData : NSObject, UICollectionViewDataSource {
     var messages = [Message]()
-    let thread_id : RecordId
+    let cthread : ConversationThread
     
-    init(thread_id: RecordId) {
-        messages = db_model.getMessagesForThread(threadId: thread_id)
-        self.thread_id = thread_id
+    init(cthread: ConversationThread) {
+        self.cthread = cthread
     }
     
-    func update() -> Bool {
-        let old = messages.count
-        messages = db_model.getMessagesForThread(threadId: thread_id)
-        return messages.count != old
+    func update( completion: @escaping (Bool) -> Void ) {
+        model.getMessagesForThread(threadId: cthread.id, completion: { (messages) -> Void in
+            let old = self.messages.count
+            self.messages = messages
+            
+            completion(messages.count != old)
+        })
     }
     
     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
@@ -92,23 +94,23 @@ class ThreadsDataSource : NSObject, UITableViewDataSource {
         
         super.init()
         
-        let threads = db_model.getThreadsForGroup(groupId: group)
+        let threads = model.getThreadsForGroup(groupId: group)
         for (i,thread) in threads.enumerated() {
             var title = thread.title
             
-            let activity = db_model.getActivity(userId: db_model.me().id, threadId: thread.id)
+            let activity = model.getMyActivity(threadId: thread.id)
             if( activity == nil || activity!.last_read < thread.last_modified ) {
                 title.append("*")
             }
             titles.append(title)
-            threadsSource.append(ThreadRowData(thread_id: thread.id))
+            threadsSource.append(ThreadRowData(cthread: thread))
             delegates.append(ThreadRowDelegate(ctrler: controller!, threadData: self, index: i))
         }
     }
     
     func findIndex(threadId: RecordId) -> Int? {
         for (i,thr) in threadsSource.enumerated() {
-            if( thr.thread_id.id == threadId.id ) {
+            if( thr.cthread.id == threadId ) {
                 return i
             }
         }
@@ -116,10 +118,10 @@ class ThreadsDataSource : NSObject, UITableViewDataSource {
     }
     
     func update(tableView: UITableView) {
-        let threads = db_model.getThreadsForGroup(groupId: group)
+        let threads = model.getThreadsForGroup(groupId: group)
         for thread in threads {
             var title = thread.title
-            let activity = db_model.getActivity(userId: db_model.me().id, threadId: thread.id)
+            let activity = model.getMyActivity(threadId: thread.id)
             if( activity == nil || activity!.last_read < thread.last_modified ) {
                 title.append("*")
             }
@@ -127,15 +129,19 @@ class ThreadsDataSource : NSObject, UITableViewDataSource {
             let index = findIndex(threadId: thread.id)
             if( index != nil ) {
                 titles[index!] = title
-                if( threadsSource[index!].update() ) {
-                    let cell = tableView.cellForRow(at: IndexPath(row: 0, section: index!)) as? ThreadCell
-                    if( cell != nil ) {
-                        cell?.collectionView.reloadData()
+                threadsSource[index!].update( completion: { (refresh) -> Void in
+                    if( refresh ) {
+                        DispatchQueue.main.async(execute: { () -> Void in
+                             let cell = tableView.cellForRow(at: IndexPath(row: 0, section: index!)) as? ThreadCell
+                             if( cell != nil ) {
+                                 cell?.collectionView.reloadData()
+                             }
+                        })
                     }
-                }
+                })
             } else {
                 titles.append(title)
-                threadsSource.append(ThreadRowData(thread_id: thread.id))
+                threadsSource.append(ThreadRowData(cthread: thread))
                 delegates.append(ThreadRowDelegate(ctrler: controller!, threadData: self, index: delegates.count))
             }
         }
@@ -193,7 +199,7 @@ class ThreadsViewController: UITableViewController {
                let si = data!.selectedCollection
                if( si != -1 ) {
                   cc!.title = data!.titles[si]
-                  cc!.threadId = data!.threadsSource[si].thread_id
+                  cc!.conversationThread = data!.threadsSource[si].cthread
                }
             }
         }

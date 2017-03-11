@@ -24,6 +24,9 @@
 		2FF9BE291E7061F5000DF9A8 /* ContactsController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FF9BE281E7061F5000DF9A8 /* ContactsController.swift */; };
 		2FF9BE2B1E70B6D9000DF9A8 /* Login.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FF9BE2A1E70B6D9000DF9A8 /* Login.swift */; };
 		2FF9BE311E710D69000DF9A8 /* Utilities.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FF9BE301E710D69000DF9A8 /* Utilities.swift */; };
+		2FF9BE341E720511000DF9A8 /* CloudDB.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FF9BE331E720511000DF9A8 /* CloudDB.swift */; };
+		2FF9BE371E7213E9000DF9A8 /* CloudKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2FF9BE361E7213E9000DF9A8 /* CloudKit.framework */; };
+		2FF9BE391E735CA8000DF9A8 /* ModelDB.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FF9BE381E735CA8000DF9A8 /* ModelDB.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -67,6 +70,10 @@
 		2FF9BE281E7061F5000DF9A8 /* ContactsController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ContactsController.swift; sourceTree = "<group>"; };
 		2FF9BE2A1E70B6D9000DF9A8 /* Login.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Login.swift; sourceTree = "<group>"; };
 		2FF9BE301E710D69000DF9A8 /* Utilities.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Utilities.swift; sourceTree = "<group>"; };
+		2FF9BE321E71FA9B000DF9A8 /* ChitChat.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ChitChat.entitlements; sourceTree = "<group>"; };
+		2FF9BE331E720511000DF9A8 /* CloudDB.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = CloudDB.swift; sourceTree = "<group>"; };
+		2FF9BE361E7213E9000DF9A8 /* CloudKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CloudKit.framework; path = System/Library/Frameworks/CloudKit.framework; sourceTree = SDKROOT; };
+		2FF9BE381E735CA8000DF9A8 /* ModelDB.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ModelDB.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -74,6 +81,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				2FF9BE371E7213E9000DF9A8 /* CloudKit.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -101,6 +109,7 @@
 				2F32DFE51E6E5B0700EF34E8 /* ChitChatTests */,
 				2F32DFF01E6E5B0700EF34E8 /* ChitChatUITests */,
 				2F32DFCC1E6E5B0700EF34E8 /* Products */,
+				2FF9BE351E7213E9000DF9A8 /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -117,6 +126,7 @@
 		2F32DFCD1E6E5B0700EF34E8 /* ChitChat */ = {
 			isa = PBXGroup;
 			children = (
+				2FF9BE321E71FA9B000DF9A8 /* ChitChat.entitlements */,
 				2F32DFCE1E6E5B0700EF34E8 /* AppDelegate.swift */,
 				2F32DFD01E6E5B0700EF34E8 /* ViewController.swift */,
 				2F32DFD21E6E5B0700EF34E8 /* Main.storyboard */,
@@ -124,6 +134,8 @@
 				2FF9BE2A1E70B6D9000DF9A8 /* Login.swift */,
 				2FF9BE281E7061F5000DF9A8 /* ContactsController.swift */,
 				2F32E00A1E6F5AE300EF34E8 /* Model.swift */,
+				2FF9BE381E735CA8000DF9A8 /* ModelDB.swift */,
+				2FF9BE331E720511000DF9A8 /* CloudDB.swift */,
 				2F32E0031E6E892400EF34E8 /* MessagesViewController.swift */,
 				2F32DFFF1E6E5D0400EF34E8 /* GroupViewController.swift */,
 				2F32E0011E6E5D4E00EF34E8 /* ThreadsViewController.swift */,
@@ -161,6 +173,14 @@
 				2F32E0081E6F1D6F00EF34E8 /* GrowingTextView.swift */,
 			);
 			name = GrowingTextView;
+			sourceTree = "<group>";
+		};
+		2FF9BE351E7213E9000DF9A8 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				2FF9BE361E7213E9000DF9A8 /* CloudKit.framework */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -233,6 +253,11 @@
 						CreatedOnToolsVersion = 8.2.1;
 						DevelopmentTeam = A8SRM3ENGN;
 						ProvisioningStyle = Automatic;
+						SystemCapabilities = {
+							com.apple.iCloud = {
+								enabled = 1;
+							};
+						};
 					};
 					2F32DFE11E6E5B0700EF34E8 = {
 						CreatedOnToolsVersion = 8.2.1;
@@ -305,6 +330,7 @@
 				2F32E0001E6E5D0400EF34E8 /* GroupViewController.swift in Sources */,
 				2F32E0061E6F1C9100EF34E8 /* GrowingTextViewInternal.swift in Sources */,
 				2F32DFD71E6E5B0700EF34E8 /* ChitChat.xcdatamodeld in Sources */,
+				2FF9BE391E735CA8000DF9A8 /* ModelDB.swift in Sources */,
 				2F32E0021E6E5D4E00EF34E8 /* ThreadsViewController.swift in Sources */,
 				2FF9BE311E710D69000DF9A8 /* Utilities.swift in Sources */,
 				2FF9BE291E7061F5000DF9A8 /* ContactsController.swift in Sources */,
@@ -312,6 +338,7 @@
 				2F32DFD11E6E5B0700EF34E8 /* ViewController.swift in Sources */,
 				2FF9BE2B1E70B6D9000DF9A8 /* Login.swift in Sources */,
 				2F32DFCF1E6E5B0700EF34E8 /* AppDelegate.swift in Sources */,
+				2FF9BE341E720511000DF9A8 /* CloudDB.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -463,6 +490,8 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = ChitChat/ChitChat.entitlements;
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
 				DEVELOPMENT_TEAM = A8SRM3ENGN;
 				INFOPLIST_FILE = ChitChat/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
@@ -476,6 +505,8 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = ChitChat/ChitChat.entitlements;
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
 				DEVELOPMENT_TEAM = A8SRM3ENGN;
 				INFOPLIST_FILE = ChitChat/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";

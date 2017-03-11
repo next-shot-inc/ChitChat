@@ -31,10 +31,10 @@ class MessageCell : UICollectionViewCell, MessageBaseCellDelegate {
     func initialize(message: Message) {
         label.text = message.text
         
-        if( message.user_id.id == db_model.me().id.id ) {
+        if( message.user_id.id == model.me().id.id ) {
             labelView.backgroundColor = UIColor.lightGray
         } else {
-            let activity = db_model.getActivity(userId: db_model.me().id, threadId: message.conversation_id)
+            let activity = model.getMyActivity(threadId: message.conversation_id)
             if( activity == nil || activity!.last_read < message.last_modified ) {
                 labelView.backgroundColor = UIColor.darkGray
             }
@@ -65,8 +65,8 @@ class EditableMessageCell : UICollectionViewCell, MessageBaseCellDelegate {
         message!.last_modified = Date()
         textView.endEditing(true)
         
-        let myId = db_model.me().id
-        db_model.updateActivity(userId: myId, threadId: message!.conversation_id, date: message!.last_modified)
+        model.saveMessage(message: message!)
+        model.updateMyActivity(thread: model.getConversationThread(threadId: message!.conversation_id)!, date: message!.last_modified)
     }
 }
 
@@ -125,7 +125,7 @@ class MessageCellFactory {
         if( message.image != nil ) {
             return .image
         }
-        if( message.user_id.id == db_model.me().id.id &&
+        if( message.user_id.id == model.me().id.id &&
             indexPath.row == collectionView.numberOfItems(inSection: indexPath.section)-1
         ) {
             // If last message written by me
@@ -169,8 +169,8 @@ class MessageCellFactory {
 class MessagesData : NSObject, UICollectionViewDataSource {
     var messages = [Message]()
     
-    init(threadId: RecordId) {
-        messages = db_model.getMessagesForThread(threadId: threadId)
+    init(thread: ConversationThread) {
+        messages = model.getMessagesForThread(thread: thread)
     }
     
     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
@@ -198,7 +198,7 @@ class MessagesData : NSObject, UICollectionViewDataSource {
         uiView.layer.borderColor = UIColor.gray.cgColor
         uiView.layer.borderWidth = 1.0
 
-        let user = db_model.getUser(userId: message.user_id)
+        let user = model.getUser(userId: message.user_id)
         cell.userIcon().image = user?.icon
 
     }
@@ -231,7 +231,7 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
     
     var data : MessagesData?
     var delegate : MessagesViewDelegate?
-    var threadId : RecordId?
+    var conversationThread : ConversationThread?
     var curMessage: Message?
     
     override func viewDidLoad() {
@@ -239,7 +239,7 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
         // Do any additional setup after loading the view, typically from a nib.
         
         // Manage the collection view.
-        data = MessagesData(threadId: threadId!)
+        data = MessagesData(thread: conversationThread!)
         messagesView.dataSource = data
         delegate = MessagesViewDelegate(data: data!)
         messagesView.delegate = delegate
@@ -270,19 +270,19 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
         )
         
         // Mark the fact that I just did read that thread
-        db_model.updateActivity(userId: db_model.me().id, threadId: threadId!, date: Date())
+        model.updateMyActivity(thread: conversationThread!, date: Date())
     }
     
     @IBAction func handleSendButton(_ sender: Any) {
-        let myId = db_model.me().id
+        let myId = model.me().id
         
         // Create Message
         if( curMessage == nil ) {
-            let m = Message(threadId: threadId!, user_id: myId)
+            let m = Message(threadId: conversationThread!.id, user_id: myId)
             m.text = self.textView.text
             
             // Add it to DB
-            db_model.messages.append(m)
+            model.saveMessage(message: m)
             
             // Add it to interface
             data?.messages.append(m)
@@ -297,8 +297,8 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
             messagesView.reloadItems(at: [IndexPath(row: data!.messages.count-1, section: 0)])
             
             // Add it to DB
-            db_model.messages.append(curMessage!)
-            db_model.updateActivity(userId: myId, threadId: threadId!, date: curMessage!.last_modified)
+            model.saveMessage(message: curMessage!)
+            model.updateMyActivity(thread: conversationThread!, date: curMessage!.last_modified)
 
             // Reset placeholder
             self.textView.placeholderAttributedText = NSAttributedString(
@@ -333,8 +333,8 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
             let image = selectedImage!.resize(newSize: CGSize(width: size.width*scale, height: size.height*scale))
             
             // Create Message
-            let myId = db_model.me().id
-            let m = Message(threadId: threadId!, user_id: myId)
+            let myId = model.me().id
+            let m = Message(threadId: conversationThread!.id, user_id: myId)
             m.text = self.textView.text
             m.image = image
             
