@@ -46,6 +46,13 @@ class UserActivity {
     let thread_id : RecordId
     var last_read : Date
     
+    init(id: RecordId, user_id: RecordId, thread_id: RecordId) {
+        self.id = id
+        self.user_id = user_id
+        self.thread_id = thread_id
+        self.last_read = Date()
+    }
+    
     init(user_id: RecordId, thread_id: RecordId) {
         self.id = RecordId()
         self.user_id = user_id
@@ -58,6 +65,8 @@ class Group {
     var id : RecordId
     var name = String()
     var icon: UIImage?
+    var last_modified = Date()
+    var details = String()
     
     init(id: RecordId, name: String) {
         self.id = id
@@ -140,6 +149,7 @@ class DataModel {
     
     let db_model : DBProtocol!
     var views = [ModelView]()
+    var start_date = Date()
     
     init(db_model: DBProtocol) {
         
@@ -317,6 +327,16 @@ class DataModel {
         return nil
     }
     
+    func getGroup(id: RecordId) -> Group? {
+        for gr in groups {
+            if( gr.id == id ) {
+                return gr
+            }
+        }
+        return nil
+    }
+
+    
     func getUsers(group: Group) -> [User] {
         var users = [User]()
         for f in groupUserFolder {
@@ -348,7 +368,7 @@ class DataModel {
         return nil
     }
     
-    func updateMyActivity(thread: ConversationThread, date: Date)  {
+    func updateMyActivity(thread: ConversationThread, date: Date, withNewMessage: Bool)  {
         let userId = me().id
         
         // Get Activity in buffer
@@ -366,13 +386,27 @@ class DataModel {
                     // transfer identity
                     new_activity.id = db_activity!.id
                     new_activity.last_read = date
+                    self.db_model.saveActivity(activity: new_activity)
                 }
             }))
         } else {
             activity!.last_read = date
+            self.db_model.saveActivity(activity: activity!)
         }
         
-        thread.last_modified = date
+        if( withNewMessage ) {
+            thread.last_modified = date
+            saveConversationThread(conversationThread: thread)
+            
+            let group = getGroup(id: thread.group_id)
+            if( group != nil ) {
+                group!.last_modified = date
+                saveGroup(group: group!)
+            }
+        }
+    }
+    
+    func saveContext() {
     }
     
     func groupMessageUnread(group: Group, cthreads: [ConversationThread]) -> Int {
@@ -399,7 +433,12 @@ class DataModel {
     
     func saveGroup(group: Group) {
         db_model.saveGroup(group: group)
-        groups.append(group)
+        let contained = groups.contains(where: { gr -> Bool in
+            return gr.id == group.id
+        })
+        if( !contained ) {
+            groups.append(group)
+        }
         
         // TODO - Once notification services have been implemented see if we can only give the new group(s).
         for mv in views {
@@ -411,7 +450,13 @@ class DataModel {
     
     func saveMessage(message: Message) {
         db_model.saveMessage(message: message)
-        messages.append(message)
+        
+        let contained = messages.contains(where: { mess -> Bool in
+            return mess.id == message.id
+        })
+        if( !contained ) {
+            messages.append(message)
+        }
         
         // TODO - Once notification services have been implemented see if we can only give the new message(s)
         for mv in views {
@@ -428,7 +473,14 @@ class DataModel {
     
     func saveConversationThread(conversationThread: ConversationThread) {
         db_model.saveConversationThread(conversationThread: conversationThread)
-        conversations.append(conversationThread)
+        
+        let contained = conversations.contains(where: { ct -> Bool in
+            return ct.id == conversationThread.id
+        })
+
+        if( !contained ) {
+           conversations.append(conversationThread)
+        }
         
         // TODO - Once notification services have been implemented see if we can only give the new conversations(s)
         for mv in views {
@@ -485,7 +537,7 @@ class DBModelTest {
                 model.saveMessage(message: message)
                 
                 // Simulate the fact that I read this message.
-                model.updateMyActivity(thread: thread, date: message.last_modified)
+                model.updateMyActivity(thread: thread, date: message.last_modified, withNewMessage: true)
             }
             
             // Test activity management

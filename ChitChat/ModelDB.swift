@@ -130,7 +130,12 @@ class InMemoryDB : DBProtocol {
         }
     }
     func saveMessage(message: Message) {
-        messages.append(message)
+        let contained = messages.contains(where: { mess -> Bool in
+            return mess.id == message.id
+        })
+        if( !contained ) {
+            messages.append(message)
+        }
     }
     func saveGroup(group: Group) {
         groups.append(group)

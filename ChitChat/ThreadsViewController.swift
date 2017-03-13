@@ -15,6 +15,11 @@ class ThreadMessageCell : UICollectionViewCell {
     
 }
 
+class ThreadMessageWithImageCell : ThreadMessageCell {
+    
+    @IBOutlet weak var imageView: UIImageView!
+}
+
 class ThreadRowDelegate: NSObject, UICollectionViewDelegate {
     weak var threadData: ThreadsDataSource?
     weak var controller : ThreadsViewController?
@@ -35,17 +40,34 @@ class ThreadRowDelegate: NSObject, UICollectionViewDelegate {
 class ThreadRowData : NSObject, UICollectionViewDataSource {
     var messages = [Message]()
     let cthread : ConversationThread
+    var last_updated : Date?
     
     init(cthread: ConversationThread) {
         self.cthread = cthread
     }
     
+    // Fetch the data for this thread and call completion once done.
+    // The bool parameter tells if the thread data has changed.
     func update( completion: @escaping (Bool) -> Void ) {
         model.getMessagesForThread(threadId: cthread.id, completion: { (messages) -> Void in
             let old = self.messages.count
             self.messages = messages
             
-            completion(messages.count != old)
+            var newerMessage = false
+            if( messages.count > 0 ) {
+                var latestMessageDate = messages[0].last_modified
+                for m in messages {
+                    if( latestMessageDate < m.last_modified ) {
+                        latestMessageDate = m.last_modified
+                    }
+                }
+                if( self.last_updated != nil ) {
+                    newerMessage = latestMessageDate > self.last_updated!
+                }
+                self.last_updated = latestMessageDate
+            }
+            
+            completion(messages.count != old || newerMessage )
         })
     }
     
@@ -54,7 +76,17 @@ class ThreadRowData : NSObject, UICollectionViewDataSource {
     }
     
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
-        let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "ThreadMessage", for: indexPath) as! ThreadMessageCell
+        let m = messages[indexPath.row]
+        var cell : ThreadMessageCell!
+        if( m.image != nil ) {
+            let icell = collectionView.dequeueReusableCell(withReuseIdentifier: "ThreadMessageWithImage", for: indexPath) as! ThreadMessageWithImageCell
+            
+            icell.imageView.image = m.image
+            cell = icell
+        } else {
+            cell = collectionView.dequeueReusableCell(withReuseIdentifier: "ThreadMessage", for: indexPath) as! ThreadMessageCell
+        }
+        
         cell.label.text = messages[indexPath.row].text
         
         cell.layer.masksToBounds = true
@@ -117,6 +149,7 @@ class ThreadsDataSource : NSObject, UITableViewDataSource {
         return nil
     }
     
+    // Update each threads collection view
     func update(tableView: UITableView) {
         let threads = model.getThreadsForGroup(groupId: group)
         for thread in threads {
@@ -129,19 +162,34 @@ class ThreadsDataSource : NSObject, UITableViewDataSource {
             let index = findIndex(threadId: thread.id)
             if( index != nil ) {
                 titles[index!] = title
-                threadsSource[index!].update( completion: { (refresh) -> Void in
+                let rowData = threadsSource[index!]
+                rowData.update( completion: { (refresh) -> Void in
                     if( refresh ) {
                         DispatchQueue.main.async(execute: { () -> Void in
                              let cell = tableView.cellForRow(at: IndexPath(row: 0, section: index!)) as? ThreadCell
                              if( cell != nil ) {
                                  cell?.collectionView.reloadData()
+                                 cell?.collectionView.scrollToItem(at: IndexPath(row: rowData.messages.count - 1, section: 0), at: .right, animated: true)
                              }
                         })
                     }
                 })
             } else {
                 titles.append(title)
-                threadsSource.append(ThreadRowData(cthread: thread))
+                let rowData = ThreadRowData(cthread: thread)
+                threadsSource.append(rowData)
+                let rowIndex = threadsSource.count-1
+                rowData.update( completion: { (refresh) -> Void in
+                    if( refresh ) {
+                        DispatchQueue.main.async(execute: { () -> Void in
+                            let cell = tableView.cellForRow(at: IndexPath(row: 0, section: rowIndex)) as? ThreadCell
+                            if( cell != nil ) {
+                                cell?.collectionView.reloadData()
+                            }
+                        })
+                    }
+                })
+
                 delegates.append(ThreadRowDelegate(ctrler: controller!, threadData: self, index: delegates.count))
             }
         }

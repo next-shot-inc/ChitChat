@@ -44,13 +44,13 @@ extension User {
     }
     
     func fillRecord(record: CKRecord) {
-        record.setObject(NSString(string: self.id.id), forKey: "id")
-        record.setObject(NSString(string: self.label!), forKey: "label")
-        record.setObject(NSString(string: self.phoneNumber), forKey: "phoneNumber")
+        record["id"] = NSString(string: self.id.id)
+        record["label"] = NSString(string: self.label!)
+        record["phoneNumber"] = NSString(string: self.phoneNumber)
         if( self.icon != nil ) {
-            record.setObject(NSData(data: UIImageJPEGRepresentation(self.icon!, 1.0)!), forKey: "iconBytes")
+            record["iconBytes"] = NSData(data: UIImageJPEGRepresentation(self.icon!, 1.0)!)
         } else {
-            record.setObject(NSData(), forKey: "iconBytes")
+            record["iconBytes"] = NSData()
         }
     }
 }
@@ -83,16 +83,22 @@ extension Group {
         if( imageData.length != 0 ) {
             self.icon = UIImage(data: imageData as Data)!
         }
+        self.last_modified = Date(
+            timeIntervalSince1970: (record["last_modified"] as! NSDate).timeIntervalSince1970
+        )
+        details = String(record["name"] as! NSString)
     }
     
     func fillRecord(record: CKRecord) {
-        record.setObject(NSString(string: self.id.id), forKey: "id")
-        record.setObject(NSString(string: self.name), forKey: "name")
+        record["id"] = NSString(string: self.id.id)
+        record["name"] = NSString(string: self.name)
         if( self.icon != nil ) {
             record.setObject(NSData(data: UIImageJPEGRepresentation(self.icon!, 1.0)!), forKey: "iconBytes")
         } else {
             record.setObject(NSData(), forKey: "iconBytes")
         }
+        record["last_modified"] = NSDate(timeIntervalSince1970: self.last_modified.timeIntervalSince1970)
+        record["details"] = NSString(string: self.details)
     }
 }
 
@@ -175,6 +181,7 @@ extension Message {
 extension UserActivity {
     convenience init(record: CKRecord) {
         self.init(
+            id: CloudRecordId(record: record),
             user_id: RecordId(record: record, forKey: "user_id"),
             thread_id: RecordId(record: record, forKey: "thread_id")
         )
@@ -182,6 +189,7 @@ extension UserActivity {
     }
     
     func fillRecord(record: CKRecord) {
+        record["id"] =  NSString(string: self.id.id)
         record["user_id"] = NSString(string: self.user_id.id)
         record["thread_id"] = NSString(string: self.thread_id.id)
         record["last_read"] = NSDate(timeIntervalSince1970: self.last_read.timeIntervalSince1970)
@@ -365,6 +373,7 @@ class CloudDBModel : DBProtocol {
                            groups.append(group)
                         }
                     }
+                    groups.sort(by: { (g1, g2) -> Bool in g1.last_modified > g2.last_modified })
                     completion(groups)
                 })
                 fetchOp.start()
@@ -436,6 +445,7 @@ class CloudDBModel : DBProtocol {
 
     func getMessagesForThread(threadId: RecordId, completion: @escaping ([Message]) -> ()) {
         let query = CKQuery(recordType: "Message", predicate: NSPredicate(format: String("thread_id = %@"), argumentArray: [threadId.id]))
+        query.sortDescriptors = [NSSortDescriptor(key: "last_modified", ascending: true)]
         publicDB.perform(query, inZoneWith: nil, completionHandler: { results, error -> Void in
             var messages = [Message]()
             if( results != nil ) {

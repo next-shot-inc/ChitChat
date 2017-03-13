@@ -6,6 +6,8 @@
 	<string>Add pictures to messages</string>
 	<key>NSContactsUsageDescription</key>
 	<string>To create groups based on contacts</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Take a snapshot to send</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleExecutable</key>

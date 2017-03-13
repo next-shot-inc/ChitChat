@@ -42,7 +42,7 @@ class MessageCell : UICollectionViewCell, MessageBaseCellDelegate {
     }
 }
 
-class EditableMessageCell : UICollectionViewCell, MessageBaseCellDelegate {
+class EditableMessageCell : UICollectionViewCell, MessageBaseCellDelegate, UITextViewDelegate {
     var message: Message?
     @IBOutlet weak var labelView: UIView!
     @IBOutlet weak var icon: UIImageView!
@@ -58,6 +58,7 @@ class EditableMessageCell : UICollectionViewCell, MessageBaseCellDelegate {
     func initialize(message: Message) {
         self.message = message
         textView.text = message.text
+        textView.delegate = self
     }
     
     @IBAction func send(_ sender: Any) {
@@ -66,7 +67,25 @@ class EditableMessageCell : UICollectionViewCell, MessageBaseCellDelegate {
         textView.endEditing(true)
         
         model.saveMessage(message: message!)
-        model.updateMyActivity(thread: model.getConversationThread(threadId: message!.conversation_id)!, date: message!.last_modified)
+        model.updateMyActivity(thread: model.getConversationThread(threadId: message!.conversation_id)!,
+                               date: message!.last_modified,
+                               withNewMessage: true
+        )
+    }
+    
+    @IBAction func spellCheck(_ sender: UIButton) {
+        sender.playSendSound()
+        let checker = SpellChecker(textView: textView)
+        checker.check()
+    }
+    
+    func textViewShouldBeginEditing(_ textView: UITextView) -> Bool {
+        globalInputContainerView.isHidden = true
+        return true
+    }
+    
+    func textViewDidEndEditing(_ textView: UITextView) {
+        globalInputContainerView.isHidden = false
     }
 }
 
@@ -118,6 +137,15 @@ class ImageMessageCellSizeDelegate : MessageBaseCellSizeDelegate {
     }
 }
 
+class EditableMessageCellSizeDelate: TextMessageCellSizeDelegate {
+    override func size(message: Message, collectionView: UICollectionView) -> CGSize {
+        let cgsize = super.size(message: message, collectionView: collectionView)
+        let buttonSize = 28
+        let margin = 5
+        return CGSize(width: cgsize.width, height: max(cgsize.height, CGFloat(3*(buttonSize+margin))))
+    }
+}
+
 class MessageCellFactory {
     enum messageType { case text, editable, image }
     
@@ -159,7 +187,7 @@ class MessageCellFactory {
         case .text :
             return TextMessageCellSizeDelegate()
         case .editable:
-            return TextMessageCellSizeDelegate()
+            return EditableMessageCellSizeDelate()
         case .image:
             return ImageMessageCellSizeDelegate()
         }
@@ -221,6 +249,7 @@ class MessagesViewDelegate : NSObject, UICollectionViewDelegateFlowLayout {
     }
 }
 
+var globalInputContainerView : UIView!
 
 class MessagesViewController: UIViewController, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
     @IBOutlet weak var messagesView: UICollectionView!
@@ -243,6 +272,8 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
         messagesView.dataSource = data
         delegate = MessagesViewDelegate(data: data!)
         messagesView.delegate = delegate
+        
+        globalInputContainerView = inputContainerView
         
         // Keyboard handling for the message text area
         NotificationCenter.default.addObserver(self, selector: #selector(MessagesViewController.keyboardWillShow(_:)), name: NSNotification.Name.UIKeyboardWillShow, object: nil)
@@ -270,7 +301,7 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
         )
         
         // Mark the fact that I just did read that thread
-        model.updateMyActivity(thread: conversationThread!, date: Date())
+        model.updateMyActivity(thread: conversationThread!, date: Date(), withNewMessage: false)
     }
     
     @IBAction func handleSendButton(_ sender: Any) {
@@ -298,7 +329,9 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
             
             // Add it to DB
             model.saveMessage(message: curMessage!)
-            model.updateMyActivity(thread: conversationThread!, date: curMessage!.last_modified)
+            model.updateMyActivity(
+                thread: conversationThread!, date: curMessage!.last_modified, withNewMessage: true
+            )
 
             // Reset placeholder
             self.textView.placeholderAttributedText = NSAttributedString(
@@ -312,11 +345,65 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
         self.curMessage = nil
     }
     
+    @IBAction func handleSendAndFork(_ sender: Any) {
+        self.view.endEditing(true)
+        
+        let alertCtrler = UIAlertController(
+            title: "Fork conversation",
+            message: "Please provide a new conversation title",
+            preferredStyle: .alert
+        )
+        alertCtrler.addTextField(configurationHandler:{ (textField) -> Void in
+            textField.placeholder = "Conversation title"
+        })
+        
+        alertCtrler.addAction(UIAlertAction(title: "OK", style: .default, handler:{ alertAction -> Void in
+            let textField = alertCtrler.textFields![0]
+            if( !textField.text!.isEmpty ) {
+                let newThread = ConversationThread(id: RecordId(), group_id: self.conversationThread!.group_id)
+                newThread.title = textField.text!
+                model.saveConversationThread(conversationThread: newThread)
+                
+                let myId = model.me().id
+                let m = Message(threadId: newThread.id, user_id: myId)
+                m.text = self.textView.text
+                
+                // Add it to DB
+                model.saveMessage(message: m)
+                model.updateMyActivity(thread: newThread, date: m.last_modified, withNewMessage: true)
+                
+                // Update UI
+                self.textView.text = ""
+                self.title = newThread.title
+                // Manage the collection view.
+                self.conversationThread = newThread
+                self.data = MessagesData(thread: self.conversationThread!)
+                self.messagesView.dataSource = self.data
+                self.delegate = MessagesViewDelegate(data: self.data!)
+                self.messagesView.delegate = self.delegate
+
+                self.messagesView.reloadData()
+            }
+        }))
+        
+        alertCtrler.addAction(UIAlertAction(title: "Cancel", style: .cancel, handler: nil))
+        self.present(alertCtrler, animated: true, completion: nil)
+        
+    }
+    
     @IBAction func handleSendPicture(_ sender: Any) {
         let picker = UIImagePickerController()
         picker.delegate = self
-        picker.allowsEditing = false
+        picker.allowsEditing = true
         picker.sourceType = .photoLibrary
+        present(picker, animated: true, completion: nil)
+    }
+    
+    @IBAction func handleSendCameraPicture(_ sender: Any) {
+        let picker = UIImagePickerController()
+        picker.delegate = self
+        picker.allowsEditing = true
+        picker.sourceType = .camera
         present(picker, animated: true, completion: nil)
     }
     
@@ -324,7 +411,10 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
     func imagePickerController(
         _ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [String : Any]
     ) {
-        let selectedImage = info[UIImagePickerControllerOriginalImage] as? UIImage
+        var selectedImage = info[UIImagePickerControllerEditedImage] as? UIImage
+        if( selectedImage == nil ) {
+            selectedImage = info[UIImagePickerControllerOriginalImage] as? UIImage
+        }
         if( selectedImage != nil ) {
             let size = selectedImage!.size
             let sx = 234/size.width
@@ -358,6 +448,11 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
         dismiss(animated: true, completion: nil)
     }
 
+    @IBAction func handleSpellCheck(_ sender: UIButton) {
+        sender.playSendSound()
+        let checker = SpellChecker(textView: textView)
+        checker.check()
+    }
     
     // Keyboard handling
     func keyboardWillHide(_ sender: Notification) {
@@ -376,6 +471,7 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
                 self.bottomConstraint.constant = keyboardHeight
                 UIView.animate(withDuration: 0.25, animations: { () -> Void in
                     self.view.layoutIfNeeded()
+                    self.messagesView.scrollToItem(at: IndexPath(row: self.data!.messages.count-1, section: 0), at: UICollectionViewScrollPosition.bottom, animated: true)
                 })
             }
         }

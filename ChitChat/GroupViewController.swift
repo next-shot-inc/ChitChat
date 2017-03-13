@@ -71,22 +71,30 @@ class GroupData : NSObject, UITableViewDataSource {
 
 class GroupViewController: UITableViewController {
     var data : GroupData?
+    var activityView: UIActivityIndicatorView?
     
     override func viewDidLoad() {
         super.viewDidLoad()
         // Do any additional setup after loading the view, typically from a nib.
         
-        let restart = false
-        //let memoryDB = InMemoryDB()
-        let cloudDB = CloudDBModel()
-        if( restart ) {
-            cloudDB.deleteAllRecords {
-                // Once all records have been deleted.
-                self.doSetup(db: cloudDB, restart: restart)
+        activityView = UIActivityIndicatorView(activityIndicatorStyle: .whiteLarge)
+        
+        let cloud = true
+        if( cloud ) {
+            let restart = false
+            let cloudDB = CloudDBModel()
+            if( restart ) {
+                cloudDB.deleteAllRecords {
+                    // Once all records have been deleted.
+                    self.doSetup(db: cloudDB, restart: restart)
+                }
+            } else {
+               let cloudDB = CloudDBModel()
+               doSetup(db: cloudDB, restart: restart)
             }
         } else {
-            let cloudDB = CloudDBModel()
-            doSetup(db: cloudDB, restart: restart)
+            let memoryDB = InMemoryDB()
+            doSetup(db: memoryDB, restart: true)
         }
     }
     
@@ -114,6 +122,12 @@ class GroupViewController: UITableViewController {
                 DispatchQueue.main.async(execute: { () -> Void in
                     self.data!.groups = groups
                     self.tableView.reloadData()
+                    
+                    if( self.activityView != nil ) {
+                        self.activityView!.stopAnimating()
+                        self.activityView!.removeFromSuperview()
+                        self.activityView = nil
+                    }
                 })
             }))
         }
@@ -126,6 +140,14 @@ class GroupViewController: UITableViewController {
     
     override func viewWillAppear(_ animated: Bool) {
         self.tableView.reloadData()
+        
+        if( activityView != nil ) {
+           activityView!.color = UIColor.blue
+           activityView!.center = self.view.center
+           activityView!.startAnimating()
+           self.view.addSubview(activityView!)
+        }
+        
     }
     
     override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
@@ -148,6 +170,9 @@ class GroupViewController: UITableViewController {
     func groupAdded() {
         model.getGroups(completion: ({ (groups) -> () in
             DispatchQueue.main.async(execute: { () -> Void in
+                if( self.data == nil ) {
+                    return
+                }
                 self.data!.groups = groups
                 self.tableView.reloadData()
             })

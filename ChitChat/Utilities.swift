@@ -8,6 +8,7 @@
 
 import Foundation
 import UIKit
+import AVFoundation
 
 typealias GradientPoints = (startPoint: CGPoint, endPoint: CGPoint)
 
@@ -75,5 +76,22 @@ extension UIImage {
         UIGraphicsEndImageContext()
         
         return newImage!
+    }
+}
+
+extension UIButton {
+    func playSendSound() {
+        let url = Bundle.main.url(forResource: "sounds/Button_Press", withExtension: "wav")
+        if( url == nil ) {
+            return
+        }
+        do {
+            let audioPlayer = try AVAudioPlayer(contentsOf: url!)
+            audioPlayer.prepareToPlay()
+            audioPlayer.play()
+        } catch {
+            print("Problem in getting File")
+        }
+        
     }
 }
