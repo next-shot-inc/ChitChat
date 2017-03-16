@@ -29,7 +29,7 @@ class ThreadThumbUpCell : UICollectionViewCell {
     @IBOutlet weak var fromName: UILabel!
 }
 
-class ThreadRowDelegate: NSObject, UICollectionViewDelegate {
+class ThreadRowDelegate: NSObject, UICollectionViewDelegate, UICollectionViewDelegateFlowLayout {
     weak var threadData: ThreadsDataSource?
     weak var controller : ThreadsViewController?
     let index: Int
@@ -44,6 +44,21 @@ class ThreadRowDelegate: NSObject, UICollectionViewDelegate {
         threadData?.selectedCollection = index
         controller?.performSegue(withIdentifier: "messageSegue", sender: self)
     }
+    
+    // Compute the size of a message
+    func collectionView(
+        _ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath
+    ) -> CGSize {
+        let m = threadData!.threadsSource[index].messages[indexPath.row]
+        if( m.text == "%%Thumb-up%%" ) {
+            return CGSize(width: 50, height: 83)
+        } else if( m.image != nil ) {
+            return CGSize(width: 80, height: 83)
+        } else {
+            return CGSize(width: 80, height: 83)
+        }
+    }
+
 }
 
 class ThreadRowData : NSObject, UICollectionViewDataSource {
@@ -92,10 +107,10 @@ class ThreadRowData : NSObject, UICollectionViewDataSource {
             mcell.fromName.text = getFromName(message: m)
             labelView = mcell.labelView
             cell = mcell
+            
+            let bg = ColorPalette.backgroundColor(message: m)
+            labelView.layer.backgroundColor = bg.cgColor
         }
-        
-        let bg = ColorPalette.backgroundColor(message: m)
-        labelView.layer.backgroundColor = bg.cgColor
                 
         labelView.layer.masksToBounds = true
         labelView.layer.cornerRadius = 6
