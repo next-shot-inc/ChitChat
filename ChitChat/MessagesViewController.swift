@@ -10,9 +10,23 @@ import UIKit
 
 protocol MessageBaseCellDelegate {
     func userIcon() -> UIImageView
-    func containerView() -> UIView
+    func containerView() -> UIView?
     
-    func initialize(message: Message)
+    func initialize(message: Message, controller : MessagesViewController?)
+}
+
+func getFromName(message: Message) -> String {
+    let longDateFormatter = DateFormatter()
+    longDateFormatter.locale = Locale.current
+    longDateFormatter.setLocalizedDateFormatFromTemplate("MMM d, HH:mm")
+    longDateFormatter.timeZone = TimeZone.current
+    let longDate = longDateFormatter.string(from: message.last_modified)
+    
+    if( message.user_id == model.me().id ) {
+        return longDate
+    } else {
+        return message.fromName + " " + longDate
+    }
 }
 
 class MessageCell : UICollectionViewCell, MessageBaseCellDelegate {
@@ -20,30 +34,29 @@ class MessageCell : UICollectionViewCell, MessageBaseCellDelegate {
     @IBOutlet weak var label: UILabel!
     @IBOutlet weak var labelView: UIView!
     @IBOutlet weak var icon: UIImageView!
+    @IBOutlet weak var fromLabel: UILabel!
     
     func userIcon() -> UIImageView {
         return icon
     }
-    func containerView() -> UIView {
+    func containerView() -> UIView? {
         return labelView
     }
     
-    func initialize(message: Message) {
+    func initialize(message: Message, controller : MessagesViewController?) {
         label.text = message.text
+    
+        fromLabel.text = getFromName(message: message)
         
-        if( message.user_id.id == model.me().id.id ) {
-            labelView.backgroundColor = UIColor.lightGray
-        } else {
-            let activity = model.getMyActivity(threadId: message.conversation_id)
-            if( activity == nil || activity!.last_read < message.last_modified ) {
-                labelView.backgroundColor = UIColor.darkGray
-            }
-        }
+        let bg = ColorPalette.backgroundColor(message: message)
+        labelView.backgroundColor = bg
     }
 }
 
 class EditableMessageCell : UICollectionViewCell, MessageBaseCellDelegate, UITextViewDelegate {
     var message: Message?
+    var controller : MessagesViewController?
+    
     @IBOutlet weak var labelView: UIView!
     @IBOutlet weak var icon: UIImageView!
     @IBOutlet weak var textView: UITextView!
@@ -51,12 +64,13 @@ class EditableMessageCell : UICollectionViewCell, MessageBaseCellDelegate, UITex
     func userIcon() -> UIImageView {
         return icon
     }
-    func containerView() -> UIView {
+    func containerView() -> UIView? {
         return labelView
     }
     
-    func initialize(message: Message) {
+    func initialize(message: Message, controller : MessagesViewController?) {
         self.message = message
+        self.controller = controller
         textView.text = message.text
         textView.delegate = self
     }
@@ -67,9 +81,10 @@ class EditableMessageCell : UICollectionViewCell, MessageBaseCellDelegate, UITex
         textView.endEditing(true)
         
         model.saveMessage(message: message!)
-        model.updateMyActivity(thread: model.getConversationThread(threadId: message!.conversation_id)!,
-                               date: message!.last_modified,
-                               withNewMessage: true
+        model.updateMyActivity(
+            thread: model.getConversationThread(threadId: message!.conversation_id)!,
+            date: message!.last_modified,
+            withNewMessage: nil
         )
     }
     
@@ -80,12 +95,16 @@ class EditableMessageCell : UICollectionViewCell, MessageBaseCellDelegate, UITex
     }
     
     func textViewShouldBeginEditing(_ textView: UITextView) -> Bool {
-        globalInputContainerView.isHidden = true
+        controller?.inputContainerView.isHidden = true
         return true
     }
     
     func textViewDidEndEditing(_ textView: UITextView) {
-        globalInputContainerView.isHidden = false
+        if( controller != nil ) {
+           controller!.inputContainerView.isHidden = false
+           controller!.view.layoutIfNeeded()
+           controller!.messagesView.scrollToItem(at: IndexPath(row: controller!.data!.messages.count-1, section: 0), at: UICollectionViewScrollPosition.bottom, animated: true)
+        }
     }
 }
 
@@ -95,16 +114,36 @@ class PictureMessageCell : UICollectionViewCell, MessageBaseCellDelegate  {
     @IBOutlet weak var icon: UIImageView!
     @IBOutlet weak var imageView: UIImageView!
     @IBOutlet weak var caption: UILabel!
+    @IBOutlet weak var fromLabel: UILabel!
     
     func userIcon() -> UIImageView {
         return icon
     }
-    func containerView() -> UIView {
+    func containerView() -> UIView? {
         return labelView
     }
-    func initialize(message: Message) {
+    func initialize(message: Message, controller : MessagesViewController?) {
         imageView.image = message.image
         caption.text = message.text
+        fromLabel.text = getFromName(message: message)
+    }
+}
+
+class ThumbUpMessageCell : UICollectionViewCell, MessageBaseCellDelegate {
+    
+    @IBOutlet weak var icon: UIImageView!
+    @IBOutlet weak var fromLabel: UILabel!
+    
+    func containerView() -> UIView? {
+        return nil
+    }
+    
+    func userIcon() -> UIImageView {
+        return icon
+    }
+    
+    func initialize(message: Message, controller : MessagesViewController?) {
+        fromLabel.text = getFromName(message: message)
     }
 }
 
@@ -133,7 +172,17 @@ class TextMessageCellSizeDelegate : MessageBaseCellSizeDelegate {
 
 class ImageMessageCellSizeDelegate : MessageBaseCellSizeDelegate {
     func size(message: Message, collectionView: UICollectionView) -> CGSize {
-        return CGSize(width: 290, height: 215)
+        let spacing : CGFloat = 10
+        let width = collectionView.bounds.width - 3*spacing
+        return CGSize(width: width, height: 215)
+    }
+}
+
+class ThumbUpMessageCellSizeDelegate : MessageBaseCellSizeDelegate {
+    func size(message: Message, collectionView: UICollectionView) -> CGSize {
+        let spacing : CGFloat = 10
+        let width = collectionView.bounds.width - 3*spacing
+        return CGSize(width: width, height: 60)
     }
 }
 
@@ -147,11 +196,14 @@ class EditableMessageCellSizeDelate: TextMessageCellSizeDelegate {
 }
 
 class MessageCellFactory {
-    enum messageType { case text, editable, image }
+    enum messageType { case text, editable, image, thumbUp }
     
     class func getType(message: Message, collectionView: UICollectionView, indexPath: IndexPath) -> messageType {
         if( message.image != nil ) {
             return .image
+        }
+        if( message.text == "%%Thumb-up%%" ) {
+            return .thumbUp
         }
         if( message.user_id.id == model.me().id.id &&
             indexPath.row == collectionView.numberOfItems(inSection: indexPath.section)-1
@@ -178,6 +230,10 @@ class MessageCellFactory {
             return collectionView.dequeueReusableCell(
                 withReuseIdentifier: "PictureMessageCell", for: indexPath
             )
+        case .thumbUp:
+                return collectionView.dequeueReusableCell(
+                    withReuseIdentifier: "ThumbUpMessageCell", for: indexPath
+            )
         }
     }
     
@@ -190,15 +246,19 @@ class MessageCellFactory {
             return EditableMessageCellSizeDelate()
         case .image:
             return ImageMessageCellSizeDelegate()
+        case .thumbUp:
+            return ThumbUpMessageCellSizeDelegate()
         }
     }
 }
 
 class MessagesData : NSObject, UICollectionViewDataSource {
     var messages = [Message]()
+    weak var controller : MessagesViewController?
     
-    init(thread: ConversationThread) {
-        messages = model.getMessagesForThread(thread: thread)
+    init(thread: ConversationThread, messages: [Message], ctrler: MessagesViewController) {
+        self.messages = messages
+        controller = ctrler
     }
     
     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
@@ -217,17 +277,57 @@ class MessagesData : NSObject, UICollectionViewDataSource {
     }
     
     func initialize(message: Message, cell: MessageBaseCellDelegate) {
-        cell.initialize(message: message)
+        cell.initialize(message: message, controller: controller)
         
         // common behavior to all cells
         let uiView = cell.containerView()
-        uiView.layer.masksToBounds = true
-        uiView.layer.cornerRadius = 6
-        uiView.layer.borderColor = UIColor.gray.cgColor
-        uiView.layer.borderWidth = 1.0
+        if( uiView != nil ) {
+           uiView!.layer.masksToBounds = true
+           uiView!.layer.cornerRadius = 6
+           uiView!.layer.borderColor = ColorPalette.colors[.borderColor]?.cgColor
+           uiView!.layer.borderWidth = 1.0
+        }
 
         let user = model.getUser(userId: message.user_id)
         cell.userIcon().image = user?.icon
+
+    }
+}
+
+class MessagesDataView : ModelView {
+    weak var controller : MessagesViewController?
+
+    init(ctrler: MessagesViewController) {
+        self.controller = ctrler
+            
+        super.init()
+            
+        self.notify_new_message = newMessage
+        self.notify_edit_message = editMessage
+    }
+    func newMessage(message: Message) {
+        if( controller == nil || controller!.data == nil ) {
+            return
+        }
+        if( message.user_id != model.me().id ) {
+            
+            model.getMessagesForThread(thread: controller!.conversationThread!, completion: { (messages) -> Void in
+                self.controller!.data!.messages = messages
+                self.controller!.messagesView.reloadData()
+                self.controller!.messagesView.scrollToItem(at: IndexPath(row: self.controller!.data!.messages.count-1, section: 0), at: UICollectionViewScrollPosition.bottom, animated: true)
+            })
+        }
+    }
+    func editMessage(message: Message) {
+        let dataHandler = self.controller!.data!
+        let index = dataHandler.messages.index(where: { (mess)-> Bool in
+            return mess.id == message.id
+        })
+        if( index != nil ) {
+            dataHandler.messages.remove(at: index!)
+            dataHandler.messages.insert(message, at: index!)
+            self.controller!.messagesView.reloadItems(at: [IndexPath(row: index!, section: 0)])
+        }
 
     }
 }
@@ -249,8 +349,6 @@ class MessagesViewDelegate : NSObject, UICollectionViewDelegateFlowLayout {
     }
 }
 
-var globalInputContainerView : UIView!
-
 class MessagesViewController: UIViewController, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
     @IBOutlet weak var messagesView: UICollectionView!
     
@@ -262,18 +360,26 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
     var delegate : MessagesViewDelegate?
     var conversationThread : ConversationThread?
     var curMessage: Message?
+    var modelView : MessagesDataView?
     
     override func viewDidLoad() {
         super.viewDidLoad()
         // Do any additional setup after loading the view, typically from a nib.
         
         // Manage the collection view.
-        data = MessagesData(thread: conversationThread!)
-        messagesView.dataSource = data
-        delegate = MessagesViewDelegate(data: data!)
-        messagesView.delegate = delegate
-        
-        globalInputContainerView = inputContainerView
+        model.getMessagesForThread(thread: conversationThread!, completion: { (messages) -> Void in
+            self.data = MessagesData(thread: self.conversationThread!, messages: messages, ctrler: self)
+            self.messagesView.dataSource = self.data
+            self.delegate = MessagesViewDelegate(data: self.data!)
+            self.messagesView.delegate = self.delegate
+            
+            DispatchQueue.main.async(execute: {
+                self.messagesView.reloadData()
+                self.messagesView.scrollToItem(
+                    at: IndexPath(row: messages.count-1, section: 0), at: UICollectionViewScrollPosition.bottom, animated: true
+                )
+            })
+        })
         
         // Keyboard handling for the message text area
         NotificationCenter.default.addObserver(self, selector: #selector(MessagesViewController.keyboardWillShow(_:)), name: NSNotification.Name.UIKeyboardWillShow, object: nil)
@@ -288,6 +394,8 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
             string: "Type a message...",
             attributes: [NSForegroundColorAttributeName: UIColor.gray, NSFontAttributeName: self.textView.font!]
         )
+        
+        modelView = MessagesDataView(ctrler: self)
     }
 
     override func didReceiveMemoryWarning() {
@@ -296,29 +404,59 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
     }
     
     override func viewDidAppear(_ animated: Bool) {
-        messagesView.scrollToItem(
-            at: IndexPath(row: data!.messages.count-1, section: 0), at: UICollectionViewScrollPosition.bottom, animated: true
-        )
+        if( data != nil && data!.messages.count > 0 ) {
+            
+            // Count the number of new message unread and modify the application badge.
+            let myActivity = model.getMyActivity(threadId: conversationThread!.id)
+            var count = 0
+            for m in data!.messages {
+                let date = m.getCreationDate()
+                if( date != nil && (myActivity == nil || myActivity!.last_read < date!) ) {
+                    count += 1
+                }
+            }
+            if( count < UIApplication.shared.applicationIconBadgeNumber ) {
+                model.setAppBadgeNumber(number: UIApplication.shared.applicationIconBadgeNumber - count)
+            } else {
+                model.setAppBadgeNumber(number: 0)
+            }
+        }
         
         // Mark the fact that I just did read that thread
-        model.updateMyActivity(thread: conversationThread!, date: Date(), withNewMessage: false)
+        model.updateMyActivity(thread: conversationThread!, date: Date(), withNewMessage: nil)
+        
+        // Add observer
+        model.views.append(modelView!)
+    }
+    
+    override func viewWillDisappear(_ animated: Bool) {
+        // Remove observer
+        model.removeViews(views: [modelView!])
     }
     
     @IBAction func handleSendButton(_ sender: Any) {
-        let myId = model.me().id
         
         // Create Message
         if( curMessage == nil ) {
-            let m = Message(threadId: conversationThread!.id, user_id: myId)
+            let m = Message(thread: conversationThread!, user: model.me())
             m.text = self.textView.text
             
             // Add it to DB
             model.saveMessage(message: m)
+            model.updateMyActivity(
+                thread: conversationThread!, date: m.last_modified, withNewMessage: m
+            )
             
             // Add it to interface
             data?.messages.append(m)
             messagesView.insertItems(at: [IndexPath(row: data!.messages.count-1, section: 0)])
             messagesView.scrollToItem(at: IndexPath(row: data!.messages.count-1, section: 0), at: UICollectionViewScrollPosition.bottom, animated: true)
+            
+            // Update Interface (to transform an editable into a non editable for example)
+            if( data!.messages.count > 2 ) {
+                messagesView.reloadItems(at: [IndexPath(row: data!.messages.count-2, section: 0)])
+            }
+
         } else {
             // Finish message
             curMessage!.text = self.textView.text
@@ -330,7 +468,7 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
             // Add it to DB
             model.saveMessage(message: curMessage!)
             model.updateMyActivity(
-                thread: conversationThread!, date: curMessage!.last_modified, withNewMessage: true
+                thread: conversationThread!, date: curMessage!.last_modified, withNewMessage: curMessage!
             )
 
             // Reset placeholder
@@ -364,20 +502,19 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
                 newThread.title = textField.text!
                 model.saveConversationThread(conversationThread: newThread)
                 
-                let myId = model.me().id
-                let m = Message(threadId: newThread.id, user_id: myId)
+                let m = Message(thread: newThread, user: model.me())
                 m.text = self.textView.text
                 
                 // Add it to DB
                 model.saveMessage(message: m)
-                model.updateMyActivity(thread: newThread, date: m.last_modified, withNewMessage: true)
+                model.updateMyActivity(thread: newThread, date: m.last_modified, withNewMessage: m)
                 
                 // Update UI
                 self.textView.text = ""
                 self.title = newThread.title
                 // Manage the collection view.
                 self.conversationThread = newThread
-                self.data = MessagesData(thread: self.conversationThread!)
+                self.data = MessagesData(thread: self.conversationThread!, messages: [m], ctrler: self)
                 self.messagesView.dataSource = self.data
                 self.delegate = MessagesViewDelegate(data: self.data!)
                 self.messagesView.delegate = self.delegate
@@ -389,6 +526,22 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
         alertCtrler.addAction(UIAlertAction(title: "Cancel", style: .cancel, handler: nil))
         self.present(alertCtrler, animated: true, completion: nil)
         
+    }
+    
+    @IBAction func handleSendThumbUp(_ sender: Any) {
+        let m = Message(thread: conversationThread!, user: model.me())
+        m.text = "%%Thumb-up%%"
+        
+        // Add it to DB
+        model.saveMessage(message: m)
+        model.updateMyActivity(
+            thread: conversationThread!, date: m.last_modified, withNewMessage: m
+        )
+        
+        // Add it to interface
+        data?.messages.append(m)
+        messagesView.insertItems(at: [IndexPath(row: data!.messages.count-1, section: 0)])
+        messagesView.scrollToItem(at: IndexPath(row: data!.messages.count-1, section: 0), at: UICollectionViewScrollPosition.bottom, animated: true)
     }
     
     @IBAction func handleSendPicture(_ sender: Any) {
@@ -423,8 +576,7 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
             let image = selectedImage!.resize(newSize: CGSize(width: size.width*scale, height: size.height*scale))
             
             // Create Message
-            let myId = model.me().id
-            let m = Message(threadId: conversationThread!.id, user_id: myId)
+            let m = Message(thread: conversationThread!, user: model.me())
             m.text = self.textView.text
             m.image = image
             

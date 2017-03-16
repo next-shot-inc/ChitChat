@@ -9,6 +9,8 @@
 import Foundation
 import UIKit
 
+// https://languagetool.org/http-api/languagetool-swagger.json
+
 // JSon example
 // {
 //  "software":{"name":"LanguageTool","version":"3.7-SNAPSHOT","buildDate":"2017-03-08 21:01","apiVersion":"1","status":""},

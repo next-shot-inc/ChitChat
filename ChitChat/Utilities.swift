@@ -95,3 +95,28 @@ extension UIButton {
         
     }
 }
+
+class ColorPalette {
+    enum States : String {
+        case unreadHighImportance, unread, mine, borderColor, read
+    }
+    static let colors : [States:UIColor] = [
+        .unreadHighImportance : UIColor(red: 253/256, green: 83/256, blue: 66/255, alpha: 1.0),
+        .unread : UIColor(red: 244/256, green: 117/256, blue: 107/256, alpha: 1.0),
+        .mine : UIColor(red: 247/256, green: 195/256, blue: 195/256, alpha: 1.0),
+        .borderColor : UIColor(red: 226/256, green: 66/256, blue: 77/256, alpha: 1.0),
+        .read : UIColor(red: 255/256, green: 236/256, blue: 237/256, alpha: 1.0)
+    ]
+    
+    class func backgroundColor(message: Message) -> UIColor {
+        if( message.user_id.id == model.me().id.id ) {
+            return colors[.mine]!
+        } else {
+            let activity = model.getMyActivity(threadId: message.conversation_id)
+            if( activity == nil || activity!.last_read < message.last_modified ) {
+                return colors[.unread]!
+            }
+        }
+        return colors[.read]!
+    }
+}

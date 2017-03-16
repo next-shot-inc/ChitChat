@@ -8,6 +8,7 @@
 
 import UIKit
 import CoreData
+import UserNotifications
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -43,6 +44,19 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             let rootViewController = self.window!.rootViewController as! UINavigationController;
             rootViewController.pushViewController(viewController, animated: true)
         }
+        
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge], completionHandler: { (granted, error) in
+            // Handle Error
+        })
+        application.registerForRemoteNotifications()
+        
+        if( launchOptions != nil ) {
+           let remoteNotification = launchOptions![UIApplicationLaunchOptionsKey.remoteNotification]
+           if( remoteNotification != nil ) {
+               print("Go To Message reading...")
+           }
+        }
+        
         return true
     }
 
@@ -54,6 +68,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     func applicationDidEnterBackground(_ application: UIApplication) {
         // Use this method to release shared resources, save user data, invalidate timers, and store enough application state information to restore your application to its current state in case it is terminated later.
         // If your application supports background execution, this method is called instead of applicationWillTerminate: when the user quits.
+        model.enterBackgroundMode()
     }
 
     func applicationWillEnterForeground(_ application: UIApplication) {
@@ -68,6 +83,16 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // Called when the application is about to terminate. Save data if appropriate. See also applicationDidEnterBackground:.
         // Saves changes in the application's managed object context before the application terminates.
         self.saveContext()
+    }
+    
+    func application(_ application: UIApplication, didReceiveRemoteNotification userInfo: [AnyHashable : Any], fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void) {
+        // Called when the application is already running and the user selected an alert notification
+        if( model != nil ) {
+            model.receiveRemoteNotification(userInfo: userInfo)
+            completionHandler(UIBackgroundFetchResult.newData)
+        } else {
+            completionHandler(UIBackgroundFetchResult.failed)
+        }
     }
 
     // MARK: - Core Data stack

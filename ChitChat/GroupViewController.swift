@@ -10,10 +10,19 @@ import Foundation
 import UIKit
 
 class GroupCell : UITableViewCell {
+    @IBOutlet weak var last_user: UILabel!
+    @IBOutlet weak var last_message: UILabel!
     
+    @IBOutlet weak var date: UILabel!
     @IBOutlet weak var details: UILabel!
     @IBOutlet weak var icon: UIImageView!
     @IBOutlet weak var label: UILabel!
+}
+
+class GroupTableDelegate : NSObject, UITableViewDelegate {
+    func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
+        return 70
+    }
 }
 
 class GroupData : NSObject, UITableViewDataSource {
@@ -41,13 +50,13 @@ class GroupData : NSObject, UITableViewDataSource {
                     cell.label.text = group.name + " (" + String(count) + ")"
                 })
             }
-
         })
         
         cell.icon.image = group.icon
         if( cell.icon.image == nil ) {
             cell.icon.image = UIImage(named: "group-32")
         }
+        cell.details.text = group.details
         
         model.getUsersForGroup(group: group, completion: { (users) -> Void in
             var details = String()
@@ -65,17 +74,47 @@ class GroupData : NSObject, UITableViewDataSource {
             })
         })
         
+        let longDateFormatter = DateFormatter()
+        longDateFormatter.locale = Locale.current
+        longDateFormatter.setLocalizedDateFormatFromTemplate("MMM d, HH:mm")
+        longDateFormatter.timeZone = TimeZone.current
+        
+        let longDate = longDateFormatter.string(from: group.last_modified)
+        cell.date.text = longDate
+        
+        if( group.last_message == "%%Thumb-up%%" ) {
+            cell.last_message.text = "Thumb up"
+        } else {
+            cell.last_message.text = group.last_message
+        }
+        
+        cell.last_user.text = " "
+        if( group.last_userId != nil ) {
+            if( group.last_userId! == model.me().id ) {
+                cell.last_user.text = "Me: "
+            } else {
+                let user = model.getUser(userId: group.last_userId!)
+                if( user != nil && user!.label != nil ) {
+                    cell.last_user.text = user!.label! + ":"
+                }
+            }
+        }
+        
         return cell
     }
 }
 
 class GroupViewController: UITableViewController {
     var data : GroupData?
+    var delegate : GroupTableDelegate?
     var activityView: UIActivityIndicatorView?
     
     override func viewDidLoad() {
         super.viewDidLoad()
         // Do any additional setup after loading the view, typically from a nib.
+        
+        self.delegate = GroupTableDelegate()
+        tableView.delegate = self.delegate
         
         activityView = UIActivityIndicatorView(activityIndicatorStyle: .whiteLarge)
         
@@ -112,6 +151,7 @@ class GroupViewController: UITableViewController {
             if( restart ) {
                 // Populate the DB with test data
                 DBModelTest.setup()
+                model.setAppBadgeNumber(number: 0)
             }
             
             self.data = GroupData()
@@ -139,15 +179,20 @@ class GroupViewController: UITableViewController {
     }
     
     override func viewWillAppear(_ animated: Bool) {
-        self.tableView.reloadData()
-        
         if( activityView != nil ) {
            activityView!.color = UIColor.blue
            activityView!.center = self.view.center
            activityView!.startAnimating()
            self.view.addSubview(activityView!)
+        } else {
+            // Fetch the groups and update
+            model.getGroups(completion: { (groups) -> () in
+                DispatchQueue.main.async(execute: { () -> Void in
+                    self.data!.groups = groups
+                    self.tableView.reloadData()
+                })
+            })
         }
-        
     }
     
     override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
@@ -156,7 +201,7 @@ class GroupViewController: UITableViewController {
             if( cc != nil ) {
                 let si = tableView.indexPathForSelectedRow
                 if( si != nil ) {
-                    cc!.group = data!.groups[si!.row].id.id
+                    cc!.group = data!.groups[si!.row]
                     cc!.title = data!.groups[si!.row].name
                 }
             }
@@ -167,7 +212,7 @@ class GroupViewController: UITableViewController {
     }
     
     // Called after a new group has been added.
-    func groupAdded() {
+    func groupAdded(_ group: Group) {
         model.getGroups(completion: ({ (groups) -> () in
             DispatchQueue.main.async(execute: { () -> Void in
                 if( self.data == nil ) {

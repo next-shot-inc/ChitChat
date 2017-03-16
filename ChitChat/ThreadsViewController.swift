@@ -11,13 +11,22 @@ import UIKit
 
 class ThreadMessageCell : UICollectionViewCell {
     
+    @IBOutlet weak var fromName: UILabel!
     @IBOutlet weak var label: UILabel!
-    
+    @IBOutlet weak var labelView: UIView!
 }
 
-class ThreadMessageWithImageCell : ThreadMessageCell {
+class ThreadMessageWithImageCell : UICollectionViewCell {
     
+    @IBOutlet weak var labelView: UIView!
+    @IBOutlet weak var fromName: UILabel!
+    @IBOutlet weak var label: UILabel!
     @IBOutlet weak var imageView: UIImageView!
+}
+
+class ThreadThumbUpCell : UICollectionViewCell {
+    
+    @IBOutlet weak var fromName: UILabel!
 }
 
 class ThreadRowDelegate: NSObject, UICollectionViewDelegate {
@@ -30,12 +39,12 @@ class ThreadRowDelegate: NSObject, UICollectionViewDelegate {
         self.index = index
         self.controller = ctrler
     }
+    
     func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
         threadData?.selectedCollection = index
         controller?.performSegue(withIdentifier: "messageSegue", sender: self)
     }
 }
-
 
 class ThreadRowData : NSObject, UICollectionViewDataSource {
     var messages = [Message]()
@@ -46,98 +55,202 @@ class ThreadRowData : NSObject, UICollectionViewDataSource {
         self.cthread = cthread
     }
     
-    // Fetch the data for this thread and call completion once done.
-    // The bool parameter tells if the thread data has changed.
-    func update( completion: @escaping (Bool) -> Void ) {
-        model.getMessagesForThread(threadId: cthread.id, completion: { (messages) -> Void in
-            let old = self.messages.count
-            self.messages = messages
-            
-            var newerMessage = false
-            if( messages.count > 0 ) {
-                var latestMessageDate = messages[0].last_modified
-                for m in messages {
-                    if( latestMessageDate < m.last_modified ) {
-                        latestMessageDate = m.last_modified
-                    }
-                }
-                if( self.last_updated != nil ) {
-                    newerMessage = latestMessageDate > self.last_updated!
-                }
-                self.last_updated = latestMessageDate
-            }
-            
-            completion(messages.count != old || newerMessage )
-        })
-    }
-    
     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
         return messages.count
     }
     
+    func getFromName(message: Message) -> String {
+        if( message.user_id != model.me().id ) {
+            return message.fromName
+        } else {
+            return "     "
+        }
+    }
+    
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
         let m = messages[indexPath.row]
-        var cell : ThreadMessageCell!
+        var cell : UICollectionViewCell!
+        var labelView : UIView!
+        
+        if( m.text == "%%Thumb-up%%" ) {
+            let thup_cell = collectionView.dequeueReusableCell(withReuseIdentifier: "ThreadThumbUp", for: indexPath) as! ThreadThumbUpCell
+            thup_cell.fromName.text = getFromName(message: m)
+            return thup_cell
+        }
         if( m.image != nil ) {
             let icell = collectionView.dequeueReusableCell(withReuseIdentifier: "ThreadMessageWithImage", for: indexPath) as! ThreadMessageWithImageCell
             
             icell.imageView.image = m.image
+            icell.label.text = m.text
+            icell.fromName.text = getFromName(message: m)
+            labelView = icell.labelView
             cell = icell
         } else {
-            cell = collectionView.dequeueReusableCell(withReuseIdentifier: "ThreadMessage", for: indexPath) as! ThreadMessageCell
+            let mcell = collectionView.dequeueReusableCell(withReuseIdentifier: "ThreadMessage", for: indexPath) as! ThreadMessageCell
+            
+            mcell.label.text = m.text
+            mcell.fromName.text = getFromName(message: m)
+            labelView = mcell.labelView
+            cell = mcell
         }
         
-        cell.label.text = messages[indexPath.row].text
-        
-        cell.layer.masksToBounds = true
-        cell.layer.cornerRadius = 6
-        cell.layer.borderColor = UIColor.gray.cgColor
-        cell.layer.borderWidth = 1.0
+        let bg = ColorPalette.backgroundColor(message: m)
+        labelView.layer.backgroundColor = bg.cgColor
+                
+        labelView.layer.masksToBounds = true
+        labelView.layer.cornerRadius = 6
+        labelView.layer.borderColor = ColorPalette.colors[ColorPalette.States.borderColor]?.cgColor
+        labelView.layer.borderWidth = 1.0
         
         return cell
     }
 }
 
+class ThreadRowDataView  : ModelView {
+    weak var controller : ThreadsViewController?
+    let threadData : ThreadsDataSource
+    let index : Int
+    
+    init(threadData: ThreadsDataSource, index: Int, ctrler: ThreadsViewController) {
+        self.threadData = threadData
+        self.index = index
+        self.controller = ctrler
+        
+        super.init()
+        
+        self.notify_new_message = newMessage
+        self.notify_edit_message = editMessage
+    }
+    
+    func newMessage(message: Message) {
+        if( controller == nil ) {
+            return
+        }
+        // Update the entire collectionView
+        let tableView = controller!.tableView
+        let dataRow = threadData.threadsSource[index]
+        model.getMessagesForThread(thread: dataRow.cthread, completion: { (messages) -> Void in
+            dataRow.messages = messages
+            DispatchQueue.main.async(execute: {
+                let cell = tableView!.cellForRow(at: IndexPath(row: 0, section: self.index)) as? ThreadCell
+                if( cell != nil ) {
+                    cell!.collectionView.reloadData()
+                    if( dataRow.messages.count > 0 ) {
+                        cell!.collectionView.scrollToItem(at: IndexPath(row: dataRow.messages.count - 1, section: 0), at: .right, animated: true)
+                    }
+                }
+            })
+        })
+    }
+    
+    func editMessage(message: Message) {
+        let tableView = controller!.tableView
+        
+        model.getMessagesForThread(thread: threadData.threadsSource[index].cthread, completion: { (messages) -> Void in
+            self.threadData.threadsSource[self.index].messages = messages
+            DispatchQueue.main.async(execute: {
+                let message_index = messages.index(where: { (mess)-> Bool in
+                    return mess.id == message.id
+                })
+                if( message_index != nil ) {
+                    let cell = tableView!.cellForRow(at: IndexPath(row: 0, section: self.index)) as? ThreadCell
+                    if( cell != nil ) {
+                        cell!.collectionView.reloadItems(at: [IndexPath(row: message_index!, section: 0)])
+                    }
+                }
+            })
+        })
+        
+    }
+}
 
 class ThreadCell : UITableViewCell {
     
     @IBOutlet weak var collectionView: UICollectionView!
 }
 
+class ConversationHeaderView : UITableViewHeaderFooterView  {
+    @IBOutlet weak var title: UILabel!
+    
+    @IBOutlet weak var date: UILabel!
+}
+
 class ThreadsTableViewDelegate : NSObject, UITableViewDelegate {
+    let dataSource : ThreadsDataSource
+    init(source: ThreadsDataSource) {
+        self.dataSource = source
+    }
+    
     // Return the height of the row.
     func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
         // To fit the 80x80 collection view cells.
         return 100
     }
+    
+    func tableView(_ tableView: UITableView, viewForHeaderInSection section: Int) -> UIView? {
+        let cell = tableView.dequeueReusableHeaderFooterView(withIdentifier: "ConversationHeaderView") as? ConversationHeaderView
+        if( cell != nil ) {
+            let cthread = dataSource.threadsSource[section].cthread
+            cell!.title.text = cthread.title
+            
+            let longDateFormatter = DateFormatter()
+            longDateFormatter.locale = Locale.current
+            longDateFormatter.setLocalizedDateFormatFromTemplate("MMM d, HH:mm")
+            longDateFormatter.timeZone = TimeZone.current
+            
+            let longDate = longDateFormatter.string(from: cthread.last_modified)
+            cell!.date.text = longDate
+
+            cell?.contentView.backgroundColor = UIColor(red: 230/256, green: 230/256, blue: 230/256, alpha: 1.0)
+        }
+        return cell
+    }
+    
+    func tableView(_ tableView: UITableView, heightForHeaderInSection section: Int) -> CGFloat {
+        return 32
+    }
+}
+
+class ThreadsDataView : ModelView {
+    weak var controller : ThreadsViewController?
+    
+    init(ctrler: ThreadsViewController) {
+        controller = ctrler
+        super.init()
+        notify_new_conversation = newConversation
+    }
+    
+    func newConversation(cthread: ConversationThread) {
+        if( controller != nil  ) {
+            self.controller!.data!.update(tableView: self.controller!.tableView, completion: {
+                 DispatchQueue.main.async(execute: {
+                     self.controller!.tableView.reloadData()
+                })
+            })
+        }
+    }
 }
 
 class ThreadsDataSource : NSObject, UITableViewDataSource {
-    var titles = [String]()
     var threadsSource = [ThreadRowData]()
     var delegates = [ThreadRowDelegate]()
     var selectedCollection = -1
-    var group: RecordId
+    var group: Group
+    var modelViews = [ModelView]()
     weak var controller : ThreadsViewController?
     
-    init(ctler: ThreadsViewController, group: RecordId) {
+    init(ctler: ThreadsViewController, group: Group) {
         self.group = group
         self.controller = ctler
         
         super.init()
         
-        let threads = model.getThreadsForGroup(groupId: group)
-        for (i,thread) in threads.enumerated() {
-            var title = thread.title
-            
-            let activity = model.getMyActivity(threadId: thread.id)
-            if( activity == nil || activity!.last_read < thread.last_modified ) {
-                title.append("*")
-            }
-            titles.append(title)
-            threadsSource.append(ThreadRowData(cthread: thread))
-            delegates.append(ThreadRowDelegate(ctrler: controller!, threadData: self, index: i))
-        }
+        let groupView = ThreadsDataView(ctrler: controller!)
+        model.setupNotifications(groupId: group.id, view: groupView)
+    }
+    
+    deinit {
+        model.removeViews(views: modelViews)
     }
     
     func findIndex(threadId: RecordId) -> Int? {
@@ -150,66 +263,63 @@ class ThreadsDataSource : NSObject, UITableViewDataSource {
     }
     
     // Update each threads collection view
-    func update(tableView: UITableView) {
-        let threads = model.getThreadsForGroup(groupId: group)
-        for thread in threads {
-            var title = thread.title
-            let activity = model.getMyActivity(threadId: thread.id)
-            if( activity == nil || activity!.last_read < thread.last_modified ) {
-                title.append("*")
+    func update(tableView: UITableView, completion: @escaping () -> Void) {
+        model.removeViews(views: modelViews)
+        threadsSource.removeAll()
+        delegates.removeAll()
+        
+        model.getThreadsForGroup(group: group, completion: { (threads) -> Void in
+            for (i,thread) in threads.enumerated() {
+                var title = thread.title
+                
+                let activity = model.getMyActivity(threadId: thread.id)
+                if( activity == nil || activity!.last_read < thread.last_modified ) {
+                    title.append("*")
+                }
+                
+                let threadRowData = ThreadRowData(cthread: thread)
+                self.threadsSource.append(threadRowData)
+                
+                self.delegates.append(
+                    ThreadRowDelegate(ctrler: self.controller!, threadData: self, index: i)
+                )
+                
+                let view = ThreadRowDataView(threadData: self, index: i, ctrler: self.controller!)
+                model.setupNotifications(cthread: thread, view: view)
+                self.modelViews.append(view)
             }
-            
-            let index = findIndex(threadId: thread.id)
-            if( index != nil ) {
-                titles[index!] = title
-                let rowData = threadsSource[index!]
-                rowData.update( completion: { (refresh) -> Void in
-                    if( refresh ) {
-                        DispatchQueue.main.async(execute: { () -> Void in
-                             let cell = tableView.cellForRow(at: IndexPath(row: 0, section: index!)) as? ThreadCell
-                             if( cell != nil ) {
-                                 cell?.collectionView.reloadData()
-                                 cell?.collectionView.scrollToItem(at: IndexPath(row: rowData.messages.count - 1, section: 0), at: .right, animated: true)
-                             }
-                        })
-                    }
-                })
-            } else {
-                titles.append(title)
-                let rowData = ThreadRowData(cthread: thread)
-                threadsSource.append(rowData)
-                let rowIndex = threadsSource.count-1
-                rowData.update( completion: { (refresh) -> Void in
-                    if( refresh ) {
-                        DispatchQueue.main.async(execute: { () -> Void in
-                            let cell = tableView.cellForRow(at: IndexPath(row: 0, section: rowIndex)) as? ThreadCell
-                            if( cell != nil ) {
-                                cell?.collectionView.reloadData()
-                            }
-                        })
-                    }
-                })
-
-                delegates.append(ThreadRowDelegate(ctrler: controller!, threadData: self, index: delegates.count))
-            }
-        }
+            completion()
+        })
     }
     
     func numberOfSections(in tableView: UITableView) -> Int {
-        return titles.count
+         return threadsSource.count
     }
     
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         return 1
     }
     
-    func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
-        return titles[section]
-    }
+    //func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
+        //return titles[section]
+    //}
     
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: "ThreadCell") as! ThreadCell
-        cell.collectionView.dataSource = threadsSource[indexPath.section]
+        
+        let rowData = threadsSource[indexPath.section]
+        
+        model.getMessagesForThread(thread: rowData.cthread, completion: { (messages) -> Void in
+            self.threadsSource[indexPath.section].messages = messages
+            DispatchQueue.main.async(execute: { 
+                cell.collectionView.reloadData()
+                if( messages.count > 0 ) {
+                    cell.collectionView.scrollToItem(at: IndexPath(row: messages.count - 1, section: 0), at: .right, animated: true)
+                }
+            })
+        })
+        
+        cell.collectionView.dataSource = rowData
         cell.collectionView.delegate = delegates[indexPath.section]
         return cell
     }
@@ -217,15 +327,19 @@ class ThreadsDataSource : NSObject, UITableViewDataSource {
 
 class ThreadsViewController: UITableViewController {
     var data : ThreadsDataSource?
-    var dele = ThreadsTableViewDelegate()
-    var group = String()
+    var dele : ThreadsTableViewDelegate?
+    var group : Group?
     
     override func viewDidLoad() {
         super.viewDidLoad()
         // Do any additional setup after loading the view, typically from a nib.
         
-        data = ThreadsDataSource(ctler: self, group: RecordId(string: group))
+        tableView.register(
+            UINib(nibName: "ConversationThreadHeaderView", bundle: nil), forHeaderFooterViewReuseIdentifier: "ConversationHeaderView"
+        )
+        data = ThreadsDataSource(ctler: self, group: group!)
         tableView.dataSource = data
+        dele = ThreadsTableViewDelegate(source: data!)
         tableView.delegate = dele
         tableView.reloadData()
     }
@@ -236,8 +350,11 @@ class ThreadsViewController: UITableViewController {
     }
     
     override func viewWillAppear(_ animated: Bool) {
-        data?.update(tableView: tableView)
-        tableView.reloadData()
+        data?.update(tableView: tableView, completion: {
+            DispatchQueue.main.async(execute: { () -> Void in
+                self.tableView.reloadData()
+            })
+        })
     }
     
     override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
@@ -246,8 +363,8 @@ class ThreadsViewController: UITableViewController {
             if( cc != nil ) {
                let si = data!.selectedCollection
                if( si != -1 ) {
-                  cc!.title = data!.titles[si]
                   cc!.conversationThread = data!.threadsSource[si].cthread
+                  cc!.title = cc?.conversationThread?.title
                }
             }
         }

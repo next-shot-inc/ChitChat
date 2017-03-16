@@ -67,6 +67,8 @@ class Group {
     var icon: UIImage?
     var last_modified = Date()
     var details = String()
+    var last_userId : RecordId?
+    var last_message = String()
     
     init(id: RecordId, name: String) {
         self.id = id
@@ -117,11 +119,15 @@ class Message {
     var text = String()
     var image : UIImage?
     var last_modified = Date()
+    var fromName = String()
+    var inThread = String()
     
-    init(threadId: RecordId, user_id: RecordId) {
+    init(thread: ConversationThread, user: User) {
         self.id = RecordId()
-        self.user_id = user_id
-        self.conversation_id = threadId
+        self.user_id = user.id
+        self.conversation_id = thread.id
+        self.fromName = user.label!
+        self.inThread = thread.title
     }
     
     init(id: RecordId, threadId: RecordId, user_id: RecordId) {
@@ -134,26 +140,222 @@ class Message {
 /************************************************************************************/
 
 class ModelView {
-    var notify_new_group : (() -> Void)?
-    var notify_new_message : (() -> Void)?
-    var notify_new_conversation : (() -> Void)?
+    var notify_new_group : ((_ group: Group) -> Void)?
+    var notify_new_message : ((_ message: Message) -> Void)?
+    var notify_edit_message : ((_ message: Message) -> Void)?
+    var notify_new_conversation : ((_ cthread: ConversationThread) -> Void)?
+}
+
+class MemoryModel {
+    var users = [User]()
+    var groups : [Group]?
+    var conversations : [ConversationThread]?
+    var messages : [Message]?
+    var activities = [UserActivity]()
+    var groupUserFolder = [(group: Group, user: User)]()
+    
+    func update(groups: [Group]) {
+        let initialGroup = self.groups
+        self.groups = groups
+        if( initialGroup != nil ) {
+            // See if some groups are not yet in the DB
+            for igr in initialGroup! {
+                let contained = groups.contains(where: ({ (cgr) -> Bool in
+                    igr.id == cgr.id
+                }))
+                if( !contained ) {
+                    self.groups!.append(igr)
+                }
+            }
+        }
+    }
+    
+    func update(group: Group, users: [User]) -> [User] {
+        // See if some not yet in DB elements exist
+        var included = users
+        for item in self.groupUserFolder {
+            if( item.group === group ) {
+                let contained = users.contains(where: { (cur) -> Bool in
+                    cur.id == item.user.id
+                })
+                if( !contained ) {
+                    included.append(item.user)
+                }
+            }
+        }
+        
+        // Update memory table
+        for user in users {
+            let contained = self.groupUserFolder.contains(where: { (grp, usr) -> Bool in
+                grp === group && usr === user
+            })
+            if( !contained ) {
+                self.groupUserFolder.append((group: group, user: user))
+            }
+        }
+        for user in users {
+            let contained = self.users.contains(where: { (usr) -> Bool in
+                user.id == usr.id
+            })
+            if( !contained ) {
+                self.users.append(user)
+            }
+        }
+        return included
+    }
+    
+    func update(user: User?) {
+        // Update memory model
+        if( user != nil ) {
+            let contained = self.users.contains(where: { (usr) -> Bool in
+                user!.id == usr.id
+            })
+            if( !contained ) {
+                self.users.append(user!)
+            }
+        }
+    }
+    
+    func update(group: Group, cthreads: [ConversationThread]) -> [ConversationThread] {
+        // See if there are some only-in-memory conversations
+        var included = cthreads
+        if( self.conversations == nil ) {
+            self.conversations = cthreads
+            return included
+        }
+        for igr in self.conversations! {
+            if( igr.group_id == group.id ) {
+                let contained = cthreads.contains(where: { (cgr) -> Bool in
+                    igr.id == cgr.id
+                })
+                if( !contained ) {
+                    included.append(igr)
+                }
+            }
+        }
+        
+        // Update memory model
+        for cthread in cthreads {
+            let contained = self.conversations!.contains(where: { (conv)-> Bool in
+                return conv.id == cthread.id
+            })
+            if( !contained ) {
+                self.conversations!.append(cthread)
+            }
+        }
+        return included
+    }
+    
+    func update(threadId: RecordId, messages: [Message]) -> [Message] {
+        // See if there are some only-in-memory conversations
+        var included = messages
+        if( self.messages == nil ) {
+            self.messages = messages
+            return messages
+        }
+        
+        for igr in self.messages! {
+            if( igr.conversation_id == threadId ) {
+                let contained = messages.contains(where: { (cgr) -> Bool in
+                    igr.id == cgr.id
+                })
+                if( !contained ) {
+                    included.append(igr)
+                }
+            }
+        }
+        
+        // Update memory model
+        for message in messages {
+            let index = self.messages!.index(where: { (mess)-> Bool in
+                return mess.id == message.id
+            })
+            if( index != nil ) {
+                self.messages!.remove(at: index!)
+                self.messages!.insert(message, at: index!)
+            } else {
+                self.messages!.append(message)
+            }
+        }
+        
+        return included
+    }
+
+}
+
+class MemoryModelView : ModelView {
+    let memory_model: MemoryModel
+    
+    init(memory_model: MemoryModel) {
+        self.memory_model = memory_model
+        super.init()
+        
+        self.notify_new_message = new_message
+        self.notify_edit_message = edited_message
+        self.notify_new_conversation = new_cthread
+        self.notify_new_group = new_group
+    }
+    
+    func new_message(message: Message) {
+        if( memory_model.messages != nil ) {
+            let index = memory_model.messages!.index(where: { (mess)-> Bool in
+                return mess.id == message.id
+            })
+            if( index == nil ) {
+                memory_model.messages!.append(message)
+            }
+        }
+    }
+    
+    func edited_message(message: Message) {
+        if( memory_model.messages != nil ) {
+            let index = memory_model.messages!.index(where: { (mess)-> Bool in
+                return mess.id == message.id
+            })
+            if( index != nil ) {
+                memory_model.messages!.remove(at: index!)
+                memory_model.messages!.insert(message, at: index!)
+            }
+        }
+    }
+    
+    func new_cthread(cthread: ConversationThread) {
+        if( memory_model.conversations != nil ) {
+            let contained = memory_model.conversations!.contains(where: { (conv)-> Bool in
+               return conv.id == cthread.id
+            })
+            if( !contained ) {
+                memory_model.conversations!.append(cthread)
+            }
+        }
+    }
+    
+    func new_group(group: Group) {
+        if( memory_model.groups != nil ) {
+            let index = memory_model.groups!.index(where: { (gr)-> Bool in
+            return gr.id == group.id
+           })
+           if( index == nil ) {
+               memory_model.groups!.append(group)
+           } else {
+               memory_model.groups!.remove(at: index!)
+               memory_model.groups!.insert(group, at: index!)
+           }
+        }
+    }
 }
 
 class DataModel {
-    internal var users = [User]()
-    internal var groups = [Group]()
-    internal var conversations = [ConversationThread]()
-    internal var messages = [Message]()
-    internal var activities = [UserActivity]()
-    internal var groupUserFolder = [(group: Group, user: User)]()
-    
+    internal let memory_model = MemoryModel()
     let db_model : DBProtocol!
     var views = [ModelView]()
     var start_date = Date()
     
     init(db_model: DBProtocol) {
-        
         self.db_model = db_model
+        
+        let model_view = MemoryModelView(memory_model: memory_model)
+        views.append(model_view)
     }
     
     func getUserInfo(completion: @escaping () -> Void) {
@@ -182,15 +384,15 @@ class DataModel {
                         id: RecordId(), label: userInfo!.name!, phoneNumber: userInfo!.telephoneNumber!
                     )
                     self.db_model.saveUser(user: user0)
-                    self.users.append(user0)
+                    self.memory_model.users.append(user0)
                     me = user0
                 } else {
                     me = user!
-                    self.users.append(user!)
+                    self.memory_model.users.append(user!)
                 }
                 
                 self.db_model.getActivities(userId: me.id, completion: { (activities) -> Void in
-                    self.activities = activities
+                    self.memory_model.activities = activities
                     completion()
                 })
             })
@@ -199,127 +401,89 @@ class DataModel {
     
     // Get groups
     func getGroups(completion: @escaping ([Group]) -> ()) {
+        if( memory_model.groups != nil ) {
+            completion(memory_model.groups!)
+        }
         db_model.getGroupsForUser(userId: me().id, completion: ({ (groups) -> () in
-            let initialGroup = self.groups
-            self.groups = groups
-            for igr in initialGroup {
-                let contained = groups.contains(where: ({ (cgr) -> Bool in
-                    igr.id == cgr.id
-                }))
-                if( !contained ) {
-                    self.groups.append(igr)
-                }
-            }
-            completion(self.groups)
+            self.memory_model.update(groups: groups)
+            completion(self.memory_model.groups!)
         }))
     }
     
     // Get Users for Group
     func getUsersForGroup(group: Group, completion: @escaping ([User]) -> ()) {
         db_model.getUsersForGroup(groupId: group.id, completion:{ (users) -> () in
-            var included = users
-            // See if some not yet in DB elements exist
-            for item in self.groupUserFolder {
-                if( item.group === group ) {
-                    let contained = users.contains(where: { (cur) -> Bool in
-                        cur.id == item.user.id
-                    })
-                    if( !contained ) {
-                        included.append(item.user)
-                    }
-                }
-            }
-            
-            // Update memory table
-            for user in users {
-                let contained = self.groupUserFolder.contains(where: { (grp, usr) -> Bool in
-                    grp === group && usr === user
-                })
-                if( !contained ) {
-                    self.groupUserFolder.append((group: group, user: user))
-                }
-            }
+            let included = self.memory_model.update(group: group, users: users)
             completion(included)
         })
     }
     
     func getThreadsForGroup(group: Group, completion: @escaping ([ConversationThread]) -> Void) {
+        // use cached threads if any
+        let cthreads = getThreadsForGroup(groupId: group.id)
+        if( cthreads.count != 0 ) {
+            return completion(cthreads)
+        }
         db_model.getThreadsForGroup(groupId: group.id, completion: { (cthreads) -> Void in
-            // See if there are some only-in-memory conversations
-            var included = cthreads
-            for igr in self.conversations {
-                if( igr.group_id == group.id ) {
-                    let contained = cthreads.contains(where: { (cgr) -> Bool in
-                        igr.id == cgr.id
-                    })
-                    if( !contained ) {
-                        included.append(igr)
-                    }
-                }
-            }
-            
-            // Update memory model
-            for cthread in cthreads {
-                let contained = self.conversations.contains(where: { (conv)-> Bool in
-                    return conv.id == cthread.id
-                })
-                if( !contained ) {
-                    self.conversations.append(cthread)
-                }
-            }
-            
+            let included = self.memory_model.update(group: group, cthreads: cthreads)
             completion(included)
         })
     }
     
-    func getMessagesForThread(threadId: RecordId, completion : @escaping ([Message]) -> Void) {
-        db_model.getMessagesForThread(threadId: threadId, completion: { (messages) -> Void in
-            // See if there are some only-in-memory conversations
-            var included = messages
-            for igr in self.messages {
-                if( igr.conversation_id == threadId ) {
-                    let contained = messages.contains(where: { (cgr) -> Bool in
-                        igr.id == cgr.id
-                    })
-                    if( !contained ) {
-                        included.append(igr)
-                    }
-                }
-            }
-            
-            // Update memory model
-            for message in messages {
-                let contained = self.messages.contains(where: { (mess)-> Bool in
-                    return mess.id == message.id
-                })
-                if( !contained ) {
-                    self.messages.append(message)
-                }
-            }
-            
+    func getMessagesForThread(thread: ConversationThread, completion : @escaping ([Message]) -> Void) {
+        // use cached messages if any
+        let messages = getMessagesForThread(thread: thread)
+        if( messages.count > 0 ) {
+            return completion(messages)
+        }
+        db_model.getMessagesForThread(threadId: thread.id, completion: { (messages) -> Void in
+            let included = self.memory_model.update(threadId: thread.id, messages: messages)
             completion(included)
         })
     }
     
-    // In memory stuff
+    func enterBackgroundMode() {
+        // Empty cache that is relied upon as the application will not be notified of any new changes.
+        memory_model.messages = nil
+        memory_model.conversations = nil
+        memory_model.groups = nil
+    }
     
-    func getMessagesForThread(thread: ConversationThread) -> [Message] {
-        return self.messages.filter( { (mess) -> Bool in
-            return mess.conversation_id == thread.id
-        })
+    // In memory query
+    
+    // Return messages in conversation, sorted from oldest to youngest
+    private func getMessagesForThread(thread: ConversationThread) -> [Message] {
+        if( memory_model.messages != nil ) {
+            return memory_model.messages!.filter( { (mess) -> Bool in
+                return mess.conversation_id == thread.id
+            }).sorted(by: { (m1, m2) -> Bool in
+                m1.last_modified < m2.last_modified
+            })
+        } else {
+            return [Message]()
+        }
     }
     
     func getConversationThread(threadId: RecordId) -> ConversationThread? {
-        for conv in conversations {
-            if( conv.id == threadId ) {
-                return conv
+        if( memory_model.conversations != nil ) {
+            for conv in memory_model.conversations! {
+                if( conv.id == threadId ) {
+                    return conv
+                }
             }
         }
         return nil
     }
     
+    func getUser(phoneNumber: String, completion: @escaping (User?) -> Void) {
+        db_model.getUser(phoneNumber: phoneNumber, completion: {(user) -> () in
+            self.memory_model.update(user: user)
+            completion(user)
+        })
+    }
+
     func getUser(userId: RecordId) -> User? {
-        for user in users {
+        for user in memory_model.users {
             if( user.id == userId ) {
                 return user
             }
@@ -328,18 +492,19 @@ class DataModel {
     }
     
     func getGroup(id: RecordId) -> Group? {
-        for gr in groups {
-            if( gr.id == id ) {
-                return gr
+        if( memory_model.groups != nil ) {
+            for gr in memory_model.groups! {
+                if( gr.id == id ) {
+                    return gr
+                }
             }
         }
         return nil
     }
-
     
     func getUsers(group: Group) -> [User] {
         var users = [User]()
-        for f in groupUserFolder {
+        for f in memory_model.groupUserFolder {
             if( f.group === group ) {
                 users.append(f.user)
             }
@@ -347,20 +512,27 @@ class DataModel {
         return users
     }
     
-    func getThreadsForGroup(groupId: RecordId) -> [ConversationThread] {
+    // Return conversations in group, sorted from youngest to oldest
+    private func getThreadsForGroup(groupId: RecordId) -> [ConversationThread] {
         var cthreads = [ConversationThread]()
-        for cthread in conversations  {
-            if( cthread.group_id == groupId ) {
-                cthreads.append(cthread)
+        if( memory_model.conversations != nil ) {
+            for cthread in memory_model.conversations!  {
+                if( cthread.group_id == groupId ) {
+                    cthreads.append(cthread)
+                }
             }
+            return cthreads.sorted(by: { (ct1, ct2) -> Bool in
+                ct1.last_modified > ct2.last_modified
+            })
+        } else {
+            return cthreads
         }
-        return cthreads
     }
     
     func getMyActivity(threadId: RecordId) -> UserActivity? {
         let userId = me().id
         
-        for a in activities {
+        for a in memory_model.activities {
             if( a.user_id == userId && a.thread_id == threadId ) {
                 return a
             }
@@ -368,7 +540,7 @@ class DataModel {
         return nil
     }
     
-    func updateMyActivity(thread: ConversationThread, date: Date, withNewMessage: Bool)  {
+    func updateMyActivity(thread: ConversationThread, date: Date, withNewMessage: Message?)  {
         let userId = me().id
         
         // Get Activity in buffer
@@ -376,7 +548,7 @@ class DataModel {
         if( activity == nil ) {
             let new_activity = UserActivity(user_id: userId, thread_id: thread.id)
             new_activity.last_read = date
-            self.activities.append(new_activity)
+            self.memory_model.activities.append(new_activity)
             
             // Get activity in DB and perform update in completion.
             db_model.getActivity(userId: userId, threadId: thread.id, completion :({ (db_activity) -> () in
@@ -394,13 +566,15 @@ class DataModel {
             self.db_model.saveActivity(activity: activity!)
         }
         
-        if( withNewMessage ) {
+        if( withNewMessage != nil ) {
             thread.last_modified = date
             saveConversationThread(conversationThread: thread)
             
             let group = getGroup(id: thread.group_id)
             if( group != nil ) {
                 group!.last_modified = date
+                group!.last_userId = userId
+                group!.last_message = withNewMessage!.text
                 saveGroup(group: group!)
             }
         }
@@ -422,72 +596,79 @@ class DataModel {
     }
     
     func me() -> User {
-        return users.first!
+        return memory_model.users.first!
     }
     
     func saveUser(user: User) {
         db_model.saveUser(user: user)
-        users.append(user)
-        
+        memory_model.update(user: user)
     }
     
     func saveGroup(group: Group) {
         db_model.saveGroup(group: group)
-        let contained = groups.contains(where: { gr -> Bool in
-            return gr.id == group.id
-        })
-        if( !contained ) {
-            groups.append(group)
-        }
         
-        // TODO - Once notification services have been implemented see if we can only give the new group(s).
         for mv in views {
             if( mv.notify_new_group != nil ) {
-                mv.notify_new_group!()
+                mv.notify_new_group!(group)
             }
         }
     }
     
     func saveMessage(message: Message) {
         db_model.saveMessage(message: message)
-        
-        let contained = messages.contains(where: { mess -> Bool in
-            return mess.id == message.id
-        })
-        if( !contained ) {
-            messages.append(message)
-        }
-        
-        // TODO - Once notification services have been implemented see if we can only give the new message(s)
         for mv in views {
             if( mv.notify_new_message != nil ) {
-                mv.notify_new_message!()
+                mv.notify_new_message!(message)
             }
         }
     }
     
     func addUserToGroup(group: Group, user: User) {
         db_model.addUserToGroup(group: group, user: user)
-        groupUserFolder.append((group: group, user: user))
+        memory_model.groupUserFolder.append((group: group, user: user))
     }
     
     func saveConversationThread(conversationThread: ConversationThread) {
         db_model.saveConversationThread(conversationThread: conversationThread)
         
-        let contained = conversations.contains(where: { ct -> Bool in
-            return ct.id == conversationThread.id
-        })
-
-        if( !contained ) {
-           conversations.append(conversationThread)
-        }
-        
-        // TODO - Once notification services have been implemented see if we can only give the new conversations(s)
         for mv in views {
             if( mv.notify_new_conversation != nil ) {
-                mv.notify_new_conversation!()
+                mv.notify_new_conversation!(conversationThread)
             }
         }
+    }
+    
+    /*************************************************/
+    
+    func setupNotifications(cthread: ConversationThread, view: ModelView) {
+        if( view.notify_new_message != nil ) {
+            views.append(view)
+            db_model.setupNotifications(cthread: cthread)
+        }
+    }
+    
+    func setupNotifications(groupId: RecordId, view: ModelView) {
+        if( view.notify_new_conversation != nil ) {
+            views.append(view)
+            db_model.setupNotifications(groupId: groupId)
+        }
+    }
+
+    func receiveRemoteNotification(userInfo: [AnyHashable : Any]) {
+        db_model.didReceiveNotification(userInfo: userInfo, views: views)
+    }
+    
+    func removeViews(views: [ModelView]) {
+        for v in views {
+            let index = self.views.index(where: {(view) -> Bool in return view === v })
+            if( index != nil ) {
+                self.views.remove(at: index!)
+            }
+        }
+    }
+    
+    func setAppBadgeNumber(number: Int) {
+        db_model.setAppBadgeNumber(number: number)
     }
 }
 
@@ -520,16 +701,13 @@ class DBModelTest {
         model.addUserToGroup(group: group2, user: model.me())
         model.addUserToGroup(group: group2, user: user1)
         
-        let myId = model.me().id
-        let otherId = user1.id.id == myId.id ? user2.id : user1.id
-        
         for i in 1...3 {
             let thread = ConversationThread(id: RecordId(), group_id: group1.id)
             thread.title = String("Thread " + String(i))
             model.saveConversationThread(conversationThread: thread)
             
             for j in 1...i*2 {
-                let message = Message(threadId: thread.id, user_id: j%2 == 0 ? user1.id : user2.id)
+                let message = Message(thread: thread, user: j%2 == 0 ? user1 : user2)
                 message.text = "Message " + String(j)
                 for _ in 1...j {
                     message.text += " of some words "
@@ -537,12 +715,12 @@ class DBModelTest {
                 model.saveMessage(message: message)
                 
                 // Simulate the fact that I read this message.
-                model.updateMyActivity(thread: thread, date: message.last_modified, withNewMessage: true)
+                model.updateMyActivity(thread: thread, date: message.last_modified, withNewMessage: message)
             }
             
             // Test activity management
             if( i % 2 == 0 ) {
-                let message = Message(threadId: thread.id, user_id: otherId)
+                let message = Message(thread: thread, user: user1)
                 message.text = "Unread Message "
                 
                 thread.last_modified = message.last_modified

@@ -160,16 +160,31 @@ class NewGroupController : UIViewController, CNContactPickerDelegate, UIImagePic
             group.icon = groupIconButton.image(for: .normal)
             model.saveGroup(group: group)
             
+            var details = String()
             for c in contactsController!.data.contacts {
                 // Create user
                 if( !c.phoneNumber.isEmpty ) {
-                    let user = User(
-                        id: RecordId(), label: c.label, phoneNumber: c.phoneNumber
-                    )
-                    model.saveUser(user: user)
-                    model.addUserToGroup(group: group, user: user)
+                    model.getUser(phoneNumber: c.phoneNumber, completion: {(user) -> () in
+                        if( user == nil ) {
+                            let newUser = User(
+                              id: RecordId(), label: c.label, phoneNumber: c.phoneNumber
+                            )
+                            model.saveUser(user: newUser)
+                            model.addUserToGroup(group: group, user: newUser)
+                        } else {
+                            model.addUserToGroup(group: group, user: user!)
+                        }
+                    })
                 }
+                
+                if( !details.isEmpty ) {
+                    details += ", "
+                }
+                details += c.label
+                details += " "
+                group.details = details
             }
+            
             model.addUserToGroup(group: group, user: model.me())
             
             // Create default thread
@@ -178,7 +193,7 @@ class NewGroupController : UIViewController, CNContactPickerDelegate, UIImagePic
             model.saveConversationThread(conversationThread: cthread)
             
             // Create first message
-            let message = Message(threadId: cthread.id, user_id: model.me().id)
+            let message = Message(thread: cthread, user: model.me())
             message.text = "Welcome to ChitChat's group " + groupName.text!
             model.saveMessage(message: message)
             

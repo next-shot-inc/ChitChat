@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<document type="com.apple.InterfaceBuilder3.CocoaTouch.XIB" version="3.0" toolsVersion="11762" systemVersion="16D32" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES" colorMatched="YES">
+    <device id="retina4_7" orientation="portrait">
+        <adaptation id="fullscreen"/>
+    </device>
+    <dependencies>
+        <deployment identifier="iOS"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="11757"/>
+        <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
+    </dependencies>
+    <objects>
+        <placeholder placeholderIdentifier="IBFilesOwner" id="-1" userLabel="File's Owner"/>
+        <placeholder placeholderIdentifier="IBFirstResponder" id="-2" customClass="UIResponder"/>
+        <view contentMode="scaleToFill" restorationIdentifier="ConversationHeaderView" id="iN0-l3-epB" customClass="ConversationHeaderView" customModule="ChitChat" customModuleProvider="target">
+            <rect key="frame" x="0.0" y="0.0" width="404" height="32"/>
+            <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+            <subviews>
+                <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Title" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="oDu-3q-nXT">
+                    <rect key="frame" x="44" y="6" width="36.5" height="20.5"/>
+                    <fontDescription key="fontDescription" type="boldSystem" pointSize="17"/>
+                    <nil key="textColor"/>
+                    <nil key="highlightedColor"/>
+                </label>
+                <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Date" textAlignment="right" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="IsC-og-d4x">
+                    <rect key="frame" x="365.5" y="8" width="28.5" height="16"/>
+                    <fontDescription key="fontDescription" style="UICTFontTextStyleFootnote"/>
+                    <color key="textColor" red="0.6662125874" green="0.6662125874" blue="0.6662125874" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                    <nil key="highlightedColor"/>
+                </label>
+                <imageView userInteractionEnabled="NO" contentMode="scaleToFill" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="cthread32.x32" translatesAutoresizingMaskIntoConstraints="NO" id="d5p-Nh-jAA">
+                    <rect key="frame" x="4" y="0.0" width="32" height="32"/>
+                    <constraints>
+                        <constraint firstAttribute="height" constant="32" id="2Va-uR-RbP"/>
+                        <constraint firstAttribute="width" constant="32" id="APn-lh-Rva"/>
+                    </constraints>
+                </imageView>
+            </subviews>
+            <color key="backgroundColor" red="1" green="1" blue="1" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+            <constraints>
+                <constraint firstAttribute="trailing" secondItem="IsC-og-d4x" secondAttribute="trailing" constant="10" id="6Wq-01-4VD"/>
+                <constraint firstItem="oDu-3q-nXT" firstAttribute="leading" secondItem="d5p-Nh-jAA" secondAttribute="trailing" constant="8" symbolic="YES" id="PR4-vW-L9N"/>
+                <constraint firstItem="oDu-3q-nXT" firstAttribute="centerY" secondItem="IsC-og-d4x" secondAttribute="centerY" id="sg7-0S-fr3"/>
+                <constraint firstItem="d5p-Nh-jAA" firstAttribute="top" secondItem="iN0-l3-epB" secondAttribute="top" id="uHo-kd-0He"/>
+                <constraint firstItem="d5p-Nh-jAA" firstAttribute="leading" secondItem="iN0-l3-epB" secondAttribute="leading" constant="4" id="wLf-nM-fYx"/>
+                <constraint firstAttribute="bottom" secondItem="d5p-Nh-jAA" secondAttribute="bottom" id="x9q-R7-t9L"/>
+                <constraint firstItem="d5p-Nh-jAA" firstAttribute="centerY" secondItem="oDu-3q-nXT" secondAttribute="centerY" id="xCs-XD-aGB"/>
+            </constraints>
+            <nil key="simulatedStatusBarMetrics"/>
+            <nil key="simulatedTopBarMetrics"/>
+            <nil key="simulatedBottomBarMetrics"/>
+            <freeformSimulatedSizeMetrics key="simulatedDestinationMetrics"/>
+            <connections>
+                <outlet property="date" destination="IsC-og-d4x" id="XnK-58-RNn"/>
+                <outlet property="title" destination="oDu-3q-nXT" id="S2u-32-Sai"/>
+            </connections>
+            <point key="canvasLocation" x="-109" y="-360"/>
+        </view>
+    </objects>
+    <resources>
+        <image name="cthread32.x32" width="32" height="32"/>
+    </resources>
+</document>

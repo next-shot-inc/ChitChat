@@ -69,6 +69,6 @@ class LoginViewController : UIViewController, UITextFieldDelegate {
     
     // TextField delegate
     func textFieldDidEndEditing(_ textField: UITextField) {
-        loginButton.isEnabled = !(userName.text?.isEmpty)! && (telephone.text?.isEmpty)!
+        loginButton.isEnabled = (!userName.text!.isEmpty) && (!telephone.text!.isEmpty)
     }
 }

@@ -27,6 +27,11 @@ protocol DBProtocol {
     func addUserToGroup(group: Group, user: User)
     func saveConversationThread(conversationThread: ConversationThread)
     func saveActivity(activity: UserActivity)
+    
+    func setupNotifications(cthread: ConversationThread)
+    func setupNotifications(groupId: RecordId)
+    func didReceiveNotification(userInfo: [AnyHashable : Any], views: [ModelView])
+    func setAppBadgeNumber(number: Int)
 }
 
 /***************************************************************************************/
@@ -150,5 +155,13 @@ class InMemoryDB : DBProtocol {
         activities.append(activity)
     }
     
+    func setupNotifications(cthread: ConversationThread) {
+    }
+    func setupNotifications(groupId: RecordId) {
+    }
+    func didReceiveNotification(userInfo: [AnyHashable : Any], views: [ModelView]) {
+    }
+    func setAppBadgeNumber(number: Int) {
+    }
 }
 
