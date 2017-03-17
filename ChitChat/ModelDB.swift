@@ -20,16 +20,20 @@ protocol DBProtocol {
     func getUser(phoneNumber: String, completion: @escaping (User?) -> ())
     func getActivities(userId: RecordId, completion: @escaping ([UserActivity]) -> ())
     func getActivity(userId: RecordId, threadId: RecordId, completion: @escaping (UserActivity?) -> ())
+    func getActivityForGroup(groupId: RecordId, completion: @escaping (GroupActivity?) -> ())
+    func getActivitiesForGroups(groups: [Group], completion: @escaping ([GroupActivity]) -> ())
     
     func saveUser(user: User)
     func saveMessage(message: Message)
     func saveGroup(group: Group)
+    func saveActivity(activity: GroupActivity)
     func addUserToGroup(group: Group, user: User)
     func saveConversationThread(conversationThread: ConversationThread)
     func saveActivity(activity: UserActivity)
     
     func setupNotifications(cthread: ConversationThread)
     func setupNotifications(groupId: RecordId)
+    func setupNotifications(userId: RecordId)
     func didReceiveNotification(userInfo: [AnyHashable : Any], views: [ModelView])
     func setAppBadgeNumber(number: Int)
 }
@@ -41,7 +45,8 @@ class InMemoryDB : DBProtocol {
     internal var groups = [Group]()
     internal var conversations = [ConversationThread]()
     internal var messages = [Message]()
-    internal var activities = [UserActivity]()
+    internal var user_activities = [UserActivity]()
+    internal var group_activities = [GroupActivity]()
     internal var groupUserFolder = GroupUserFolder()
     
     func getGroupsForUser(userId: RecordId, completion: @escaping ([Group]) -> ()) {
@@ -90,7 +95,7 @@ class InMemoryDB : DBProtocol {
     }
     
     func getActivities(userId: RecordId, completion: @escaping ([UserActivity]) -> ()) {
-        completion(activities)
+        completion(user_activities)
     }
     
     func getMessagesForThread(threadId: RecordId, completion: @escaping ([Message]) -> ()) {
@@ -118,12 +123,33 @@ class InMemoryDB : DBProtocol {
     }
     
     func getActivity(userId: RecordId, threadId: RecordId, completion: @escaping (UserActivity?) -> ()) {
-        for a in activities {
+        for a in user_activities {
             if( a.user_id.id == userId.id && a.thread_id.id == threadId.id ) {
                 return completion(a)
             }
         }
         return completion(nil)
+    }
+    
+    func getActivityForGroup(groupId: RecordId, completion: @escaping (GroupActivity?) -> ()) {
+        for a in group_activities {
+            if( a.group_id.id == groupId.id ) {
+                return completion(a)
+            }
+        }
+        return completion(nil)
+    }
+    func getActivitiesForGroups(groups: [Group], completion: @escaping ([GroupActivity]) -> ()) {
+        var acts = [GroupActivity]()
+        for g in groups {
+            for a in group_activities {
+                if( a.group_id == g.id ) {
+                    acts.append(a)
+                    break
+                }
+            }
+        }
+        return completion(acts)
     }
     
     func saveUser(user: User) {
@@ -152,12 +178,17 @@ class InMemoryDB : DBProtocol {
         conversations.append(conversationThread)
     }
     func saveActivity(activity: UserActivity) {
-        activities.append(activity)
+        user_activities.append(activity)
+    }
+    func saveActivity(activity: GroupActivity) {
+        group_activities.append(activity)
     }
     
     func setupNotifications(cthread: ConversationThread) {
     }
     func setupNotifications(groupId: RecordId) {
+    }
+    func setupNotifications(userId: RecordId)  {
     }
     func didReceiveNotification(userInfo: [AnyHashable : Any], views: [ModelView]) {
     }

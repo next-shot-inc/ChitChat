@@ -83,19 +83,14 @@ extension Group {
         if( imageData.length != 0 ) {
             self.icon = UIImage(data: imageData as Data)!
         }
-        self.last_modified = Date(
-            timeIntervalSince1970: (record["last_modified"] as! NSDate).timeIntervalSince1970
-        )
         details = String(record["details"] as! NSString)
         
-        // Special handling of lastly added records
-        let lu_record = record["last_user"]
-        if( lu_record != nil ) {
-            last_userId = RecordId(record: record, forKey: "last_user")
-        }
-        let lm_record = record["last_message"]
-        if( lm_record != nil ) {
-             last_message = String(lm_record as! NSString)
+        let act_ref = record["activity_reference"] as? CKReference
+        if( act_ref == nil ) {
+            activity_id = RecordId(record: record, forKey: "activity_id")
+        } else {
+            let id = String(record["activity_id"] as! NSString)
+            activity_id = CloudRecordId(record: CKRecord(recordType: "GroupActivity", recordID: act_ref!.recordID), id: id)
         }
     }
     
@@ -107,10 +102,46 @@ extension Group {
         } else {
             record.setObject(NSData(), forKey: "iconBytes")
         }
-        record["last_modified"] = NSDate(timeIntervalSince1970: self.last_modified.timeIntervalSince1970)
         record["details"] = NSString(string: self.details)
+        
+        record["activity_id"] = NSString(string: self.activity_id.id)
+        if( self.activity_id is CloudRecordId ) {
+            record["activity_reference"] = CKReference(record: (self.activity_id as! CloudRecordId).record, action: .none)
+        }
+
+    }
+}
+
+extension GroupActivity {
+    convenience init(record: CKRecord) {
+        self.init(
+            id: CloudRecordId(record: record),
+            group_id: RecordId(record: record, forKey: "group_id")
+        )
+        
+        self.last_modified = Date(
+            timeIntervalSince1970: (record["last_modified"] as! NSDate).timeIntervalSince1970
+        )
+
+        // Special handling of lastly added records
+        let lu_record = record["last_user_id"]
+        if( lu_record != nil ) {
+            last_userId = RecordId(record: record, forKey: "last_user_id")
+        }
+        let lm_record = record["last_message"]
+        if( lm_record != nil ) {
+            last_message = String(lm_record as! NSString)
+        }
+    }
+    
+    func fillRecord(record: CKRecord) {
+        record["id"] = NSString(string: self.id.id)
+        record["group_id"] = NSString(string: self.group_id.id)
+
+        record["last_modified"] = NSDate(timeIntervalSince1970: self.last_modified.timeIntervalSince1970)
+        
         if( last_userId != nil ) {
-             record["last_user"] = NSString(string: self.last_userId!.id)
+            record["last_user_id"] = NSString(string: self.last_userId!.id)
         }
         record["last_message"] = NSString(string: self.last_message)
     }
@@ -306,6 +337,31 @@ class CloudDBModel : DBProtocol {
         })
     }
     
+    func setupNotifications(userId: RecordId) {
+        let predicateFormat = "user_id == %@"
+        
+        let new_key = "new_type_Group_user_id\(model.me().id.id)"
+        
+        subscribe(subscriptionId: new_key, predicateFormat: predicateFormat, createSubscription: { () -> Void in
+            let new_group_subscription = CKQuerySubscription(
+                recordType: "GroupUserFolder", predicate: NSPredicate(format: predicateFormat, argumentArray: [model.me().id.id]),
+                subscriptionID: new_key, options: [CKQuerySubscriptionOptions.firesOnRecordCreation]
+            )
+            let notificationInfo = CKNotificationInfo()
+            notificationInfo.soundName = "default"
+            notificationInfo.shouldSendContentAvailable = true // To make sure it is sent
+            
+            new_group_subscription.notificationInfo = notificationInfo
+            
+            self.publicDB.save(new_group_subscription, completionHandler: { (sub, error) -> Void in
+                if( error != nil ) {
+                    print(error!)
+                }
+            })
+        })
+
+    }
+    
     func setupNotifications(groupId: RecordId) {
         let predicateFormat = "group_id == %@"
         
@@ -330,6 +386,27 @@ class CloudDBModel : DBProtocol {
             })
         })
         
+        let edit_key = "edit_type_GroupActivity_group_id_\(groupId.id)"
+        
+        subscribe(subscriptionId: edit_key, predicateFormat: predicateFormat, createSubscription: { () -> Void in
+            
+            let edit_group_activity_subscription = CKQuerySubscription(
+                recordType: "GroupActivity", predicate: NSPredicate(format: predicateFormat, argumentArray: [groupId.id]),
+                subscriptionID: edit_key, options: [CKQuerySubscriptionOptions.firesOnRecordUpdate]
+            )
+            let notificationInfo = CKNotificationInfo()
+            notificationInfo.soundName = "default"
+            notificationInfo.shouldSendContentAvailable = true // To make sure it is sent
+            
+            edit_group_activity_subscription.notificationInfo = notificationInfo
+            
+            self.publicDB.save(edit_group_activity_subscription, completionHandler: { (sub, error) -> Void in
+                if( error != nil ) {
+                    print(error!)
+                }
+            })
+        })
+
     }
     
     // If the subscription exists and the predicate is the same, then we don't need to create this subscrioption.
@@ -390,6 +467,35 @@ class CloudDBModel : DBProtocol {
                                     }
                                 }
                             }
+                        } else if( record!.recordType == "GroupActivity" ) {
+                            let grActivity = GroupActivity(record: record!)
+                            DispatchQueue.main.async {
+                                if( queryNotification.queryNotificationReason == .recordUpdated ) {
+                                    for view in views {
+                                        if( view.notify_edit_group_activity != nil ) {
+                                            view.notify_edit_group_activity!(grActivity)
+                                        }
+                                    }
+                                }
+                            }
+                        } else if( record!.recordType == "GroupUserFolder" ) {
+                            let group_ref = record!["group_reference"] as! CKReference
+                            // Get the group newly added to the user
+                            self.publicDB.fetch(withRecordID: group_ref.recordID, completionHandler: { (grp_record, error) -> Void in
+                                if( grp_record != nil ) {
+                                    let group = Group(record: grp_record!)
+                                    DispatchQueue.main.async {
+                                        if( queryNotification.queryNotificationReason == .recordCreated ) {
+                                            for view in views {
+                                                if( view.notify_new_group != nil ) {
+                                                    view.notify_new_group!(group)
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            })
+
                         }
                     }
                 })
@@ -520,6 +626,27 @@ class CloudDBModel : DBProtocol {
         }
     }
     
+    func saveActivity(activity: GroupActivity) {
+        let dbid = activity.id as? CloudRecordId
+        var record : CKRecord
+        if( dbid == nil ) {
+            record = CKRecord(recordType: "GroupActivity")
+            activity.id = CloudRecordId(record: record, id: activity.id.id)
+            activity.fillRecord(record: record)
+            self.publicDB.save(record, completionHandler: self.saveCompletionHandler)
+        } else {
+            record = dbid!.record
+            activity.fillRecord(record: record)
+            
+            // Has we should be up-to-date we can safely overwrite
+            let ops: CKModifyRecordsOperation = CKModifyRecordsOperation(recordsToSave: [record], recordIDsToDelete: nil)
+            ops.perRecordCompletionBlock = self.saveCompletionHandler
+            ops.savePolicy = CKRecordSavePolicy.changedKeys
+            
+            self.publicDB.add(ops)
+        }
+    }
+    
     func saveCompletionHandler(record: CKRecord?, error: Error?) {
         if( error != nil ) {
             print(error!)
@@ -575,19 +702,46 @@ class CloudDBModel : DBProtocol {
                     for gr_id in gr_rids {
                         let record = recordsTable![gr_id]
                         if( record != nil ) {
-                           let group = Group(record: record!)
-                           groups.append(group)
+                            let group = Group(record: record!)
+                            groups.append(group)
                         }
                     }
-                    groups.sort(by: { (g1, g2) -> Bool in g1.last_modified > g2.last_modified })
                     completion(groups)
                 })
                 fetchOp.start()
-                
             } else {
                 completion([])
             }
         })
+    }
+    
+    func getActivitiesForGroups(groups: [Group], completion: @escaping (([GroupActivity]) -> Void )) {
+        var ac_rids = [CKRecordID]()
+        for g in groups {
+            let activity_id = g.activity_id
+            if( activity_id is CloudRecordId ) {
+                let act_ref = (activity_id as! CloudRecordId).record
+                ac_rids.append(act_ref.recordID)
+            }
+        }
+        
+        let fetchActivitiesOp = CKFetchRecordsOperation(recordIDs: ac_rids)
+        fetchActivitiesOp.database = self.publicDB
+        fetchActivitiesOp.fetchRecordsCompletionBlock = ({ recordsTable , error -> Void in
+            if( recordsTable == nil ) {
+                return
+            }
+            var groupActivities = [GroupActivity]()
+            for ac_id in ac_rids {
+                let record = recordsTable![ac_id]
+                if( record != nil ) {
+                    let ga = GroupActivity(record: record!)
+                    groupActivities.append(ga)
+                }
+            }
+            completion(groupActivities)
+        })
+        fetchActivitiesOp.start()
     }
     
     func getUsersForGroup(groupId: RecordId, completion: @escaping ([User]) -> ()) {
@@ -623,6 +777,18 @@ class CloudDBModel : DBProtocol {
             }
         })
 
+    }
+    
+    func getActivityForGroup(groupId: RecordId, completion: @escaping (GroupActivity?) -> ()) {
+        let query = CKQuery(recordType: "GroupActivity", predicate: NSPredicate(format: String("group_id = %@"), argumentArray: [groupId.id]))
+        publicDB.perform(query, inZoneWith: nil, completionHandler: { results, error -> Void in
+            if results != nil && results!.count > 0 {
+                let activity = GroupActivity(record: results![0])
+                completion(activity)
+            } else {
+                completion(nil)
+            }
+        })
     }
 
     func getThreadsForGroup(groupId: RecordId, completion: @escaping ([ConversationThread]) -> ()) {
@@ -690,11 +856,10 @@ class CloudDBModel : DBProtocol {
                 completion(user_acs)
             }
         })
-
     }
     
     class DeleteCompletionConfirmation {
-        let types = ["User", "Group", "Message", "UserActivity", "ConversationThread", "GroupUserFolder", "subscriptions"]
+        let types = ["User", "Group", "Message", "UserActivity", "ConversationThread", "GroupUserFolder", "GroupActivity", "subscriptions"]
         var done = [String:Bool]()
         let fullCompletion : () -> Void
         
@@ -773,6 +938,8 @@ class CloudDBModel : DBProtocol {
                 print("deleted all subscriptions")
                 completion("subscriptions")
             }
+            
+            self.publicDB.add(operation)
         }
     }
 }

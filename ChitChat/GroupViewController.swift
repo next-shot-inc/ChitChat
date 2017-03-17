@@ -25,8 +25,26 @@ class GroupTableDelegate : NSObject, UITableViewDelegate {
     }
 }
 
+class GroupModelView : ModelView {
+    weak var controller : GroupViewController?
+    init(ctrler: GroupViewController) {
+        super.init()
+        self.notify_edit_group_activity = edit_group_activity
+        self.notify_new_group = new_group
+    }
+    
+    func new_group(group: Group) {
+        controller?.groupsModified()
+    }
+    
+    func edit_group_activity(groupActivity: GroupActivity) {
+        controller?.groupsModified()
+    }
+}
+
 class GroupData : NSObject, UITableViewDataSource {
     var groups = [Group]()
+    
     override init() {
     }
     
@@ -74,32 +92,37 @@ class GroupData : NSObject, UITableViewDataSource {
             })
         })
         
-        let longDateFormatter = DateFormatter()
-        longDateFormatter.locale = Locale.current
-        longDateFormatter.setLocalizedDateFormatFromTemplate("MMM d, HH:mm")
-        longDateFormatter.timeZone = TimeZone.current
-        
-        let longDate = longDateFormatter.string(from: group.last_modified)
-        cell.date.text = longDate
-        
-        if( group.last_message == "%%Thumb-up%%" ) {
-            cell.last_message.text = "Thumb up"
-        } else {
-            cell.last_message.text = group.last_message
-        }
-        
-        cell.last_user.text = " "
-        if( group.last_userId != nil ) {
-            if( group.last_userId! == model.me().id ) {
-                cell.last_user.text = "Me: "
+        model.getActivityForGroup(groupId: group.id, completion: { (activity) -> Void in
+            if( activity == nil ) {
+                return
+            }
+            let longDateFormatter = DateFormatter()
+            longDateFormatter.locale = Locale.current
+            longDateFormatter.setLocalizedDateFormatFromTemplate("MMM d, HH:mm")
+            longDateFormatter.timeZone = TimeZone.current
+            
+            let longDate = longDateFormatter.string(from: activity!.last_modified)
+            cell.date.text = longDate
+            
+            if( activity!.last_message == "%%Thumb-up%%" ) {
+                cell.last_message.text = "Thumb up"
             } else {
-                let user = model.getUser(userId: group.last_userId!)
-                if( user != nil && user!.label != nil ) {
-                    cell.last_user.text = user!.label! + ":"
+                cell.last_message.text = activity!.last_message
+            }
+            
+            cell.last_user.text = " "
+            if( activity!.last_userId != nil ) {
+                if( activity!.last_userId! == model.me().id ) {
+                    cell.last_user.text = "Me: "
+                } else {
+                    let user = model.getUser(userId: activity!.last_userId!)
+                    if( user != nil && user!.label != nil ) {
+                        cell.last_user.text = user!.label! + ":"
+                    }
                 }
             }
-        }
-        
+        })
+    
         return cell
     }
 }
@@ -108,6 +131,7 @@ class GroupViewController: UITableViewController {
     var data : GroupData?
     var delegate : GroupTableDelegate?
     var activityView: UIActivityIndicatorView?
+    var modelView: GroupModelView?
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -141,12 +165,26 @@ class GroupViewController: UITableViewController {
         
         model = DataModel(db_model: db)
         
-        let modelView = ModelView()
-        modelView.notify_new_group = self.groupAdded
-        model.views.append(modelView)
+        modelView = GroupModelView(ctrler: self)
         
-        model.getUserInfo {
+        model.getUserInfo(completion: { (status) -> Void in
+            
+            if( status == false ) {
+                self.data = GroupData()
+                self.tableView.dataSource = self.data
+                
+                DispatchQueue.main.async(execute: {
+                    if( self.activityView != nil ) {
+                        self.activityView!.stopAnimating()
+                        self.activityView!.removeFromSuperview()
+                        self.activityView = nil
+                    }
+                })
+                return
+            }
+            
             // Once the initial user setup is done
+            model.setupNotifications(userId: model.me().id, view: self.modelView!)
             
             if( restart ) {
                 // Populate the DB with test data
@@ -160,6 +198,8 @@ class GroupViewController: UITableViewController {
             // Fetch the groups and update
             model.getGroups(completion: ({ (groups) -> () in
                 DispatchQueue.main.async(execute: { () -> Void in
+                    
+                    self.manageModelView(newGroups: groups, oldGroups: self.data!.groups)
                     self.data!.groups = groups
                     self.tableView.reloadData()
                     
@@ -170,7 +210,7 @@ class GroupViewController: UITableViewController {
                     }
                 })
             }))
-        }
+        })
     }
     
     override func didReceiveMemoryWarning() {
@@ -188,6 +228,7 @@ class GroupViewController: UITableViewController {
             // Fetch the groups and update
             model.getGroups(completion: { (groups) -> () in
                 DispatchQueue.main.async(execute: { () -> Void in
+                    self.manageModelView(newGroups: groups, oldGroups: self.data!.groups)
                     self.data!.groups = groups
                     self.tableView.reloadData()
                 })
@@ -207,17 +248,27 @@ class GroupViewController: UITableViewController {
             }
         }
         if( segue.identifier! == "newGroupSegue" ) {
-            
+            // Nothing to do
         }
     }
     
-    // Called after a new group has been added.
-    func groupAdded(_ group: Group) {
+    func manageModelView(newGroups: [Group], oldGroups: [Group]) {
+        for ng in newGroups {
+            let contained = oldGroups.contains(where: { (og) -> Bool in return og === ng })
+            if( !contained ) {
+                model.setupNotifications(groupId: ng.id, view: modelView!)
+            }
+        }
+    }
+    
+    // Called after a new group has been added or a group activity modified
+    func groupsModified() {
         model.getGroups(completion: ({ (groups) -> () in
             DispatchQueue.main.async(execute: { () -> Void in
                 if( self.data == nil ) {
                     return
                 }
+                self.manageModelView(newGroups: groups, oldGroups: self.data!.groups)
                 self.data!.groups = groups
                 self.tableView.reloadData()
             })

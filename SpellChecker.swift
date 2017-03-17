@@ -128,7 +128,7 @@ class SpellChecker {
                             let length = jsonDict["length"] as! Int
                             
                             let range = NSRange(location: offset, length: length)
-                            if( ruleCategoryId == "GRAMMAR" ) {
+                            if( ruleCategoryId == "GRAMMAR" || ruleCategoryId == "CONFUSED_WORDS" || ruleCategoryId == "MISC" ) {
                                  astring.addAttributes(badgrammarAttributes, range: range)
                             } else if( ruleCategoryId == "TYPOS") {
                                 astring.addAttributes(misspellAttributes, range: range)

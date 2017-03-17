@@ -64,7 +64,6 @@ class ThreadRowDelegate: NSObject, UICollectionViewDelegate, UICollectionViewDel
 class ThreadRowData : NSObject, UICollectionViewDataSource {
     var messages = [Message]()
     let cthread : ConversationThread
-    var last_updated : Date?
     
     init(cthread: ConversationThread) {
         self.cthread = cthread

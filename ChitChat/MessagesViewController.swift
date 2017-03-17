@@ -9,7 +9,7 @@
 import UIKit
 
 protocol MessageBaseCellDelegate {
-    func userIcon() -> UIImageView
+    func userIcon() -> UIImageView?
     func containerView() -> UIView?
     
     func initialize(message: Message, controller : MessagesViewController?)
@@ -36,7 +36,7 @@ class MessageCell : UICollectionViewCell, MessageBaseCellDelegate {
     @IBOutlet weak var icon: UIImageView!
     @IBOutlet weak var fromLabel: UILabel!
     
-    func userIcon() -> UIImageView {
+    func userIcon() -> UIImageView? {
         return icon
     }
     func containerView() -> UIView? {
@@ -58,11 +58,10 @@ class EditableMessageCell : UICollectionViewCell, MessageBaseCellDelegate, UITex
     var controller : MessagesViewController?
     
     @IBOutlet weak var labelView: UIView!
-    @IBOutlet weak var icon: UIImageView!
     @IBOutlet weak var textView: UITextView!
     
-    func userIcon() -> UIImageView {
-        return icon
+    func userIcon() -> UIImageView? {
+        return nil
     }
     func containerView() -> UIView? {
         return labelView
@@ -84,7 +83,7 @@ class EditableMessageCell : UICollectionViewCell, MessageBaseCellDelegate, UITex
         model.updateMyActivity(
             thread: model.getConversationThread(threadId: message!.conversation_id)!,
             date: message!.last_modified,
-            withNewMessage: nil
+            withNewMessage: message
         )
     }
     
@@ -116,7 +115,7 @@ class PictureMessageCell : UICollectionViewCell, MessageBaseCellDelegate  {
     @IBOutlet weak var caption: UILabel!
     @IBOutlet weak var fromLabel: UILabel!
     
-    func userIcon() -> UIImageView {
+    func userIcon() -> UIImageView? {
         return icon
     }
     func containerView() -> UIView? {
@@ -138,7 +137,7 @@ class ThumbUpMessageCell : UICollectionViewCell, MessageBaseCellDelegate {
         return nil
     }
     
-    func userIcon() -> UIImageView {
+    func userIcon() -> UIImageView? {
         return icon
     }
     
@@ -288,9 +287,10 @@ class MessagesData : NSObject, UICollectionViewDataSource {
            uiView!.layer.borderWidth = 1.0
         }
 
-        let user = model.getUser(userId: message.user_id)
-        cell.userIcon().image = user?.icon
-
+        if( cell.userIcon() != nil ) {
+            let user = model.getUser(userId: message.user_id)
+            cell.userIcon()!.image = user?.icon
+        }
     }
 }
 

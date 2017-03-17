@@ -65,14 +65,32 @@ class Group {
     var id : RecordId
     var name = String()
     var icon: UIImage?
-    var last_modified = Date()
     var details = String()
-    var last_userId : RecordId?
-    var last_message = String()
-    
+    var activity_id : RecordId!
+
     init(id: RecordId, name: String) {
         self.id = id
         self.name = name
+    }
+}
+
+class GroupActivity {
+    var id : RecordId
+    let group_id : RecordId
+    var last_modified = Date()
+    var last_userId : RecordId?
+    var last_message = String()
+    
+    init(id: RecordId, group_id: RecordId) {
+        self.id = id
+        self.group_id = group_id
+        self.last_modified = Date()
+    }
+    
+    init(group_id: RecordId) {
+        self.id = RecordId()
+        self.group_id = group_id
+        self.last_modified = Date()
     }
 }
 
@@ -144,6 +162,7 @@ class ModelView {
     var notify_new_message : ((_ message: Message) -> Void)?
     var notify_edit_message : ((_ message: Message) -> Void)?
     var notify_new_conversation : ((_ cthread: ConversationThread) -> Void)?
+    var notify_edit_group_activity : ((_ activity: GroupActivity) -> Void)?
 }
 
 class MemoryModel {
@@ -151,7 +170,8 @@ class MemoryModel {
     var groups : [Group]?
     var conversations : [ConversationThread]?
     var messages : [Message]?
-    var activities = [UserActivity]()
+    var user_activities = [UserActivity]()
+    var group_activities: [GroupActivity]?
     var groupUserFolder = [(group: Group, user: User)]()
     
     func update(groups: [Group]) {
@@ -280,6 +300,63 @@ class MemoryModel {
         
         return included
     }
+    
+    func update(groupActivity: GroupActivity) {
+        if( group_activities == nil ) {
+            group_activities = [GroupActivity]()
+            group_activities!.append(groupActivity)
+        } else {
+            let index = self.group_activities!.index(where: { (gra)-> Bool in
+                return gra.id == groupActivity.id
+            })
+            if( index != nil ) {
+                self.group_activities!.remove(at: index!)
+                self.group_activities!.insert(groupActivity, at: index!)
+            } else {
+                self.group_activities!.append(groupActivity)
+            }
+        }
+    }
+    func update(activities: [GroupActivity]) {
+        let initialGroupActivities = self.group_activities
+        self.group_activities = activities
+        if( initialGroupActivities != nil ) {
+            // See if some groups are not yet in the DB
+            for igra in initialGroupActivities! {
+                let contained = activities.contains(where: ({ (cgra) -> Bool in
+                    igra.id == cgra.id
+                }))
+                if( !contained ) {
+                    self.group_activities!.append(igra)
+                }
+            }
+        }
+    }
+
+    func getGroupActivity(groupId: RecordId) -> GroupActivity? {
+        if( group_activities != nil ) {
+            for gra in group_activities! {
+                if( gra.group_id == groupId ) {
+                    return gra
+                }
+            }
+        }
+        return nil
+    }
+    func getActivitiesForGroups(groups: [Group]) -> [GroupActivity] {
+        var acts = [GroupActivity]()
+        if( group_activities != nil ) {
+            for g in groups {
+                for a in group_activities! {
+                    if( a.group_id == g.id ) {
+                        acts.append(a)
+                        break
+                    }
+                }
+            }
+        }
+        return acts
+    }
 
 }
 
@@ -294,6 +371,7 @@ class MemoryModelView : ModelView {
         self.notify_edit_message = edited_message
         self.notify_new_conversation = new_cthread
         self.notify_new_group = new_group
+        self.notify_edit_group_activity = edited_group_activity
     }
     
     func new_message(message: Message) {
@@ -343,6 +421,10 @@ class MemoryModelView : ModelView {
            }
         }
     }
+    
+    func edited_group_activity(groupActivity: GroupActivity) {
+        memory_model.update(groupActivity: groupActivity)
+    }
 }
 
 class DataModel {
@@ -358,7 +440,7 @@ class DataModel {
         views.append(model_view)
     }
     
-    func getUserInfo(completion: @escaping () -> Void) {
+    func getUserInfo(completion: @escaping (Bool) -> Void) {
         guard let appDelegate =
             UIApplication.shared.delegate as? AppDelegate else {
                 return
@@ -392,21 +474,55 @@ class DataModel {
                 }
                 
                 self.db_model.getActivities(userId: me.id, completion: { (activities) -> Void in
-                    self.memory_model.activities = activities
-                    completion()
+                    self.memory_model.user_activities = activities
+                    completion(true)
                 })
             })
+        } else {
+            print("Could not get User Info")
+            completion(false)
         }
     }
     
-    // Get groups
+    func createGroupActivityTable(groups: [Group], activities: [GroupActivity]) -> [RecordId:GroupActivity] {
+        var table = [RecordId:GroupActivity]()
+        for g in groups {
+            for a in activities {
+                if( a.group_id == g.id ) {
+                    table[g.id] = a
+                    break
+                }
+            }
+        }
+        return table
+    }
+    
+    // Get groups sorted by activities
     func getGroups(completion: @escaping ([Group]) -> ()) {
         if( memory_model.groups != nil ) {
-            completion(memory_model.groups!)
+            let groups = memory_model.groups!
+            // Before return get the activies
+            getActivitiesForGroups(
+                groups: groups,
+                completion: { (activities) -> Void in
+                    let table = self.createGroupActivityTable(groups: groups, activities: activities)
+                    let sorted_groups = groups.sorted(by: { (g1, g2) -> Bool in table[g1.id]!.last_modified > table[g2.id]!.last_modified })
+                    return completion(sorted_groups)
+                }
+            )
         }
         db_model.getGroupsForUser(userId: me().id, completion: ({ (groups) -> () in
             self.memory_model.update(groups: groups)
-            completion(self.memory_model.groups!)
+            
+            // Before return get the activies
+            self.getActivitiesForGroups(
+                groups: self.memory_model.groups!,
+                completion: { (activities) -> Void in
+                    let table = self.createGroupActivityTable(groups: self.memory_model.groups!, activities: activities)
+                    let sorted_groups = self.memory_model.groups!.sorted(by: { (g1, g2) -> Bool in table[g1.id]!.last_modified > table[g2.id]!.last_modified })
+                    return completion(sorted_groups)
+                }
+            )
         }))
     }
     
@@ -415,6 +531,30 @@ class DataModel {
         db_model.getUsersForGroup(groupId: group.id, completion:{ (users) -> () in
             let included = self.memory_model.update(group: group, users: users)
             completion(included)
+        })
+    }
+    
+    func getActivitiesForGroups(groups: [Group], completion: @escaping (([GroupActivity]) -> Void )) {
+        let gas = memory_model.getActivitiesForGroups(groups: groups)
+        if( gas.count != 0 ) {
+            return completion(gas)
+        }
+        db_model.getActivitiesForGroups(groups: groups, completion: { (activities) -> () in
+            self.memory_model.update(activities: activities)
+            completion(activities)
+        })
+    }
+    
+    func getActivityForGroup(groupId: RecordId, completion: @escaping (GroupActivity?) -> Void) {
+        let activity = memory_model.getGroupActivity(groupId: groupId)
+        if( activity != nil ) {
+            return completion(activity)
+        }
+        db_model.getActivityForGroup(groupId: groupId, completion: { (activity) -> () in
+            if( activity != nil ) {
+                self.memory_model.update(groupActivity: activity!)
+            }
+            completion(activity)
         })
     }
     
@@ -447,6 +587,7 @@ class DataModel {
         memory_model.messages = nil
         memory_model.conversations = nil
         memory_model.groups = nil
+        memory_model.group_activities = nil
     }
     
     // In memory query
@@ -532,7 +673,7 @@ class DataModel {
     func getMyActivity(threadId: RecordId) -> UserActivity? {
         let userId = me().id
         
-        for a in memory_model.activities {
+        for a in memory_model.user_activities {
             if( a.user_id == userId && a.thread_id == threadId ) {
                 return a
             }
@@ -548,10 +689,10 @@ class DataModel {
         if( activity == nil ) {
             let new_activity = UserActivity(user_id: userId, thread_id: thread.id)
             new_activity.last_read = date
-            self.memory_model.activities.append(new_activity)
+            self.memory_model.user_activities.append(new_activity)
             
             // Get activity in DB and perform update in completion.
-            db_model.getActivity(userId: userId, threadId: thread.id, completion :({ (db_activity) -> () in
+            db_model.getActivity(userId: userId, threadId: thread.id, completion :{ (db_activity) -> () in
                 if( db_activity == nil ) {
                     self.db_model.saveActivity(activity: new_activity)
                 } else {
@@ -560,7 +701,7 @@ class DataModel {
                     new_activity.last_read = date
                     self.db_model.saveActivity(activity: new_activity)
                 }
-            }))
+            })
         } else {
             activity!.last_read = date
             self.db_model.saveActivity(activity: activity!)
@@ -570,13 +711,18 @@ class DataModel {
             thread.last_modified = date
             saveConversationThread(conversationThread: thread)
             
-            let group = getGroup(id: thread.group_id)
-            if( group != nil ) {
-                group!.last_modified = date
-                group!.last_userId = userId
-                group!.last_message = withNewMessage!.text
-                saveGroup(group: group!)
-            }
+            getActivityForGroup(groupId: thread.group_id, completion: { ( db_activity) -> () in
+                var activity : GroupActivity!
+                if( db_activity != nil ) {
+                    activity = db_activity
+                } else {
+                    activity = GroupActivity(group_id: thread.group_id)
+                }
+                activity!.last_modified = date
+                activity!.last_userId = userId
+                activity!.last_message = withNewMessage!.text
+                self.db_model.saveActivity(activity: activity!)
+            })
         }
     }
     
@@ -638,19 +784,34 @@ class DataModel {
         }
     }
     
+    func saveActivity(groupActivity: GroupActivity) {
+        db_model.saveActivity(activity: groupActivity)
+        memory_model.update(groupActivity: groupActivity)
+    }
+    
     /*************************************************/
     
+    // Setup notifications to receive notification on new/edited messages in the group
     func setupNotifications(cthread: ConversationThread, view: ModelView) {
-        if( view.notify_new_message != nil ) {
-            views.append(view)
+        if( view.notify_new_message != nil || view.notify_edit_message != nil ) {
+            uniquely_append(view)
             db_model.setupNotifications(cthread: cthread)
         }
     }
     
+    // Setup notifications to receive notification on new conversations in the group
     func setupNotifications(groupId: RecordId, view: ModelView) {
-        if( view.notify_new_conversation != nil ) {
-            views.append(view)
+        if( view.notify_new_conversation != nil || view.notify_edit_group_activity != nil ) {
+            uniquely_append(view)
             db_model.setupNotifications(groupId: groupId)
+        }
+    }
+    
+    // Setup notifications to receive notification on new groups for the user
+    func setupNotifications(userId: RecordId, view: ModelView) {
+        if( view.notify_new_group != nil ) {
+            uniquely_append(view)
+            db_model.setupNotifications(userId: userId)
         }
     }
 
@@ -658,6 +819,12 @@ class DataModel {
         db_model.didReceiveNotification(userInfo: userInfo, views: views)
     }
     
+    func uniquely_append(_ view: ModelView) {
+        let contained = views.contains(where: { (v) -> Bool in return view === v })
+        if( !contained ) {
+            views.append(view)
+        }
+    }
     func removeViews(views: [ModelView]) {
         for v in views {
             let index = self.views.index(where: {(view) -> Bool in return view === v })
@@ -691,12 +858,18 @@ class DBModelTest {
         model.saveUser(user: user2)
         
         let group1 = Group(id: RecordId(), name: "Group 1")
+        let group1Activity = GroupActivity(group_id: group1.id)
+        model.saveActivity(groupActivity: group1Activity)
+        group1.activity_id = group1Activity.id
         model.saveGroup(group: group1)
         model.addUserToGroup(group: group1, user: model.me())
         model.addUserToGroup(group: group1, user: user1)
         model.addUserToGroup(group: group1, user: user2)
 
         let group2 = Group(id: RecordId(), name: "Group 2")
+        let group2Activity = GroupActivity(group_id: group2.id)
+        model.saveActivity(groupActivity: group2Activity)
+        group2.activity_id = group2Activity.id
         model.saveGroup(group: group2)
         model.addUserToGroup(group: group2, user: model.me())
         model.addUserToGroup(group: group2, user: user1)

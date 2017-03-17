@@ -18,7 +18,6 @@ class LoginViewController : UIViewController, UITextFieldDelegate {
     override func viewDidLoad() {
         super.viewDidLoad()
         
-        loginButton.applyGradient(withColours: [UIColor.white, UIColor.lightGray], gradientOrientation: .vertical)
         loginButton.isEnabled = false
         
         telephone.delegate = self
@@ -28,6 +27,14 @@ class LoginViewController : UIViewController, UITextFieldDelegate {
     override func didReceiveMemoryWarning() {
         super.didReceiveMemoryWarning()
         // Dispose of any resources that can be recreated.        
+    }
+    
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        
+        // Wait until the bounds are ok
+        loginButton.applyGradient(withColours: [UIColor.white, UIColor.lightGray], gradientOrientation: .vertical)
+        loginButton.setNeedsDisplay()
     }
     
     @IBAction func doLogin(_ sender: Any) {

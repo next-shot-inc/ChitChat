@@ -74,10 +74,15 @@ class NewGroupController : UIViewController, CNContactPickerDelegate, UIImagePic
         contactsView.delegate = contactsController
         contactsView.dataSource = contactsController?.data
         
-        createButton.applyGradient(withColours: [UIColor.white, UIColor.lightGray], gradientOrientation: .vertical)
         createButton.isEnabled = false
         
         groupName.delegate = self
+    }
+    
+    override func viewDidAppear(_ animated: Bool) {
+        // Wait until the bounds are ok
+        createButton.applyGradient(withColours: [UIColor.white, UIColor.lightGray], gradientOrientation: .vertical)
+        createButton.setNeedsDisplay()
     }
     
     // Contacts Picker (done selected)
@@ -155,9 +160,13 @@ class NewGroupController : UIViewController, CNContactPickerDelegate, UIImagePic
     
     @IBAction func createGroup(_ sender: Any) {
         if( groupName.text != nil ) {
-            // Creeate Group
+            // Create Group
             let group = Group(id: RecordId(), name: groupName.text!)
             group.icon = groupIconButton.image(for: .normal)
+            
+            let groupActivity = GroupActivity(group_id: group.id)
+            model.saveActivity(groupActivity: groupActivity)
+            group.activity_id = groupActivity.id
             model.saveGroup(group: group)
             
             var details = String()

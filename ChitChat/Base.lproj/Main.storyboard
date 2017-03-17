@@ -234,7 +234,7 @@
                                         </collectionViewFlowLayout>
                                         <cells>
                                             <collectionViewCell opaque="NO" clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="center" reuseIdentifier="MessageCell" id="TAI-qP-nAH" customClass="MessageCell" customModule="ChitChat" customModuleProvider="target">
-                                                <rect key="frame" x="30" y="0.0" width="290" height="215"/>
+                                                <rect key="frame" x="29.5" y="0.0" width="290" height="215"/>
                                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
                                                 <view key="contentView" opaque="NO" clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="center">
                                                     <rect key="frame" x="0.0" y="0.0" width="290" height="215"/>
@@ -292,7 +292,7 @@
                                                 </connections>
                                             </collectionViewCell>
                                             <collectionViewCell opaque="NO" clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="center" reuseIdentifier="EditableMessageCell" id="oJy-oE-45O" customClass="EditableMessageCell" customModule="ChitChat" customModuleProvider="target">
-                                                <rect key="frame" x="30" y="225" width="290" height="215"/>
+                                                <rect key="frame" x="29.5" y="225" width="290" height="215"/>
                                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
                                                 <view key="contentView" opaque="NO" clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="center">
                                                     <rect key="frame" x="0.0" y="0.0" width="290" height="215"/>
@@ -328,13 +328,6 @@
                                                                 <action selector="send:" destination="oJy-oE-45O" eventType="touchUpInside" id="ZrT-6O-G9D"/>
                                                             </connections>
                                                         </button>
-                                                        <imageView userInteractionEnabled="NO" contentMode="scaleToFill" horizontalHuggingPriority="251" verticalHuggingPriority="251" translatesAutoresizingMaskIntoConstraints="NO" id="pXn-xL-gWT">
-                                                            <rect key="frame" x="8" y="109" width="24" height="24"/>
-                                                            <constraints>
-                                                                <constraint firstAttribute="height" constant="24" id="NbF-ec-F1u"/>
-                                                                <constraint firstAttribute="width" constant="24" id="gRU-dG-MHo"/>
-                                                            </constraints>
-                                                        </imageView>
                                                         <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="BFX-Vu-IJr" userLabel="SpellCheck">
                                                             <rect key="frame" x="8" y="146" width="24" height="24"/>
                                                             <constraints>
@@ -357,17 +350,14 @@
                                                     <constraint firstAttribute="bottomMargin" secondItem="keA-eP-6LR" secondAttribute="bottom" id="fsR-KW-qjR"/>
                                                     <constraint firstItem="Zsj-i6-bUt" firstAttribute="top" secondItem="BFX-Vu-IJr" secondAttribute="bottom" constant="7" id="jVc-v7-Vfy"/>
                                                     <constraint firstAttribute="leadingMargin" secondItem="Zsj-i6-bUt" secondAttribute="leading" id="oVb-mc-DI7"/>
-                                                    <constraint firstItem="pXn-xL-gWT" firstAttribute="leading" secondItem="Zsj-i6-bUt" secondAttribute="leading" id="wv6-oS-wE8"/>
-                                                    <constraint firstItem="BFX-Vu-IJr" firstAttribute="top" secondItem="pXn-xL-gWT" secondAttribute="bottom" constant="13" id="xoj-WD-gS5"/>
                                                 </constraints>
                                                 <connections>
-                                                    <outlet property="icon" destination="pXn-xL-gWT" id="EAC-i0-5TU"/>
                                                     <outlet property="labelView" destination="keA-eP-6LR" id="Lq9-pk-cZe"/>
                                                     <outlet property="textView" destination="sBb-Ha-Ktq" id="mN7-TY-TUo"/>
                                                 </connections>
                                             </collectionViewCell>
                                             <collectionViewCell opaque="NO" clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="center" reuseIdentifier="PictureMessageCell" id="lXp-a9-Qer" customClass="PictureMessageCell" customModule="ChitChat" customModuleProvider="target">
-                                                <rect key="frame" x="30" y="450" width="290" height="215"/>
+                                                <rect key="frame" x="29.5" y="450" width="290" height="215"/>
                                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
                                                 <view key="contentView" opaque="NO" clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="center">
                                                     <rect key="frame" x="0.0" y="0.0" width="290" height="215"/>
@@ -381,16 +371,16 @@
                                                             </constraints>
                                                         </imageView>
                                                         <view contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="zQt-RN-kCf">
-                                                            <rect key="frame" x="40" y="22" width="242" height="185"/>
+                                                            <rect key="frame" x="40" y="26" width="242" height="181"/>
                                                             <subviews>
                                                                 <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Please enter caption" textAlignment="natural" lineBreakMode="tailTruncation" numberOfLines="0" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="YaK-NB-XFz">
-                                                                    <rect key="frame" x="42.5" y="160" width="157" height="21"/>
+                                                                    <rect key="frame" x="42.5" y="156" width="157" height="21"/>
                                                                     <fontDescription key="fontDescription" type="system" pointSize="17"/>
                                                                     <nil key="textColor"/>
                                                                     <nil key="highlightedColor"/>
                                                                 </label>
                                                                 <imageView userInteractionEnabled="NO" contentMode="scaleAspectFit" horizontalHuggingPriority="251" verticalHuggingPriority="251" translatesAutoresizingMaskIntoConstraints="NO" id="Jqj-UL-4lM">
-                                                                    <rect key="frame" x="4" y="4" width="234" height="152"/>
+                                                                    <rect key="frame" x="4" y="4" width="234" height="148"/>
                                                                 </imageView>
                                                             </subviews>
                                                             <color key="backgroundColor" white="1" alpha="1" colorSpace="calibratedWhite"/>
@@ -403,8 +393,8 @@
                                                                 <constraint firstItem="YaK-NB-XFz" firstAttribute="centerX" secondItem="zQt-RN-kCf" secondAttribute="centerX" id="xie-Lq-ptr"/>
                                                             </constraints>
                                                         </view>
-                                                        <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Label" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="f2C-Ay-gqB">
-                                                            <rect key="frame" x="44" y="8" width="228" height="16"/>
+                                                        <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="300" text="Label" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="f2C-Ay-gqB">
+                                                            <rect key="frame" x="40" y="8" width="232" height="16"/>
                                                             <fontDescription key="fontDescription" style="UICTFontTextStyleFootnote"/>
                                                             <color key="textColor" red="0.78400555610656741" green="0.78400555610656741" blue="0.78400555610656741" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
                                                             <nil key="highlightedColor"/>
@@ -413,14 +403,14 @@
                                                 </view>
                                                 <constraints>
                                                     <constraint firstItem="zQt-RN-kCf" firstAttribute="leading" secondItem="wjH-Bn-KRN" secondAttribute="trailing" constant="8" symbolic="YES" id="1h3-3J-jCX"/>
-                                                    <constraint firstItem="f2C-Ay-gqB" firstAttribute="leading" secondItem="Jqj-UL-4lM" secondAttribute="leading" id="34Y-jg-Ns5"/>
                                                     <constraint firstAttribute="bottomMargin" secondItem="wjH-Bn-KRN" secondAttribute="bottom" id="34y-ue-eaP"/>
-                                                    <constraint firstItem="Jqj-UL-4lM" firstAttribute="top" secondItem="f2C-Ay-gqB" secondAttribute="bottom" constant="2" id="ACV-ZP-HL2"/>
                                                     <constraint firstItem="zQt-RN-kCf" firstAttribute="bottom" secondItem="wjH-Bn-KRN" secondAttribute="bottom" id="GUI-s0-w6V"/>
                                                     <constraint firstAttribute="leadingMargin" secondItem="wjH-Bn-KRN" secondAttribute="leading" id="Tg9-9v-H9s"/>
+                                                    <constraint firstItem="f2C-Ay-gqB" firstAttribute="leading" secondItem="zQt-RN-kCf" secondAttribute="leading" id="cYo-hk-GJX"/>
                                                     <constraint firstItem="zQt-RN-kCf" firstAttribute="trailing" secondItem="lXp-a9-Qer" secondAttribute="trailingMargin" id="ciz-hc-3WM"/>
                                                     <constraint firstAttribute="trailingMargin" secondItem="f2C-Ay-gqB" secondAttribute="trailing" constant="10" id="f1L-JZ-ofp"/>
                                                     <constraint firstAttribute="topMargin" secondItem="f2C-Ay-gqB" secondAttribute="top" id="f5n-JS-1dW"/>
+                                                    <constraint firstItem="zQt-RN-kCf" firstAttribute="top" secondItem="f2C-Ay-gqB" secondAttribute="bottom" constant="2" id="lv6-IC-LcR"/>
                                                 </constraints>
                                                 <connections>
                                                     <outlet property="caption" destination="YaK-NB-XFz" id="V9h-5q-Eay"/>
@@ -431,7 +421,7 @@
                                                 </connections>
                                             </collectionViewCell>
                                             <collectionViewCell opaque="NO" clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="center" reuseIdentifier="ThumbUpMessageCell" id="tdE-Go-1xm" customClass="ThumbUpMessageCell" customModule="ChitChat" customModuleProvider="target">
-                                                <rect key="frame" x="30" y="675" width="290" height="60"/>
+                                                <rect key="frame" x="29.5" y="675" width="290" height="60"/>
                                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
                                                 <view key="contentView" opaque="NO" clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="center">
                                                     <rect key="frame" x="0.0" y="0.0" width="290" height="60"/>
