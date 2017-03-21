@@ -136,9 +136,10 @@ class Message {
     let user_id : RecordId
     var text = String()
     var image : UIImage?
+    var options = String()
     var last_modified = Date()
-    var fromName = String()
-    var inThread = String()
+    var fromName = String()   // Information to show inside the alert/summary
+    var inThread = String()   // Information to show inside the alert
     
     init(thread: ConversationThread, user: User) {
         self.id = RecordId()
@@ -152,6 +153,31 @@ class Message {
         self.id = id
         self.user_id = user_id
         self.conversation_id = threadId
+    }
+}
+
+class DecorationTheme {
+    var id: RecordId
+    var name : String
+    var special_date : Date?
+    init(name: String) {
+        self.id = RecordId()
+        self.name = name
+    }
+    init(id: RecordId, name: String) {
+        self.id = id
+        self.name = name
+    }
+}
+
+class DecorationStamp {
+    var id: RecordId
+    var image : UIImage
+    var theme_id : RecordId
+    init(id: RecordId, theme: RecordId, image: UIImage) {
+        self.id = id
+        self.theme_id = theme
+        self.image = image
     }
 }
 
@@ -173,6 +199,8 @@ class MemoryModel {
     var user_activities = [UserActivity]()
     var group_activities: [GroupActivity]?
     var groupUserFolder = [(group: Group, user: User)]()
+    var decorationThemes = [DecorationTheme]()
+    var decorationStamps = [DecorationStamp]()
     
     func update(groups: [Group]) {
         let initialGroup = self.groups
@@ -358,6 +386,13 @@ class MemoryModel {
         return acts
     }
 
+    func updateDecorationThemes(themes: [DecorationTheme]) {
+        self.decorationThemes = themes
+    }
+    func updateDecorationStamps(stamps: [DecorationStamp]) {
+        self.decorationStamps.append(contentsOf: stamps)
+    }
+    
 }
 
 class MemoryModelView : ModelView {
@@ -837,6 +872,30 @@ class DataModel {
     func setAppBadgeNumber(number: Int) {
         db_model.setAppBadgeNumber(number: number)
     }
+    
+    func getDecorationThemes(completion: @escaping ([DecorationTheme]) -> Void ) {
+        if( memory_model.decorationThemes.count != 0 ) {
+            return completion(memory_model.decorationThemes)
+        }
+        db_model.getDecorationThemes(completion: { themes in
+            self.memory_model.updateDecorationThemes(themes: themes)
+            completion(themes)
+        })
+    }
+    
+    func getDecorationStamp(theme: DecorationTheme, completion: @escaping ([DecorationStamp]) -> Void ) {
+        let stamps = memory_model.decorationStamps.filter( { (stamp) -> Bool in
+            return stamp.theme_id == theme.id
+        })
+        if( stamps.count != 0 ) {
+            return completion(stamps)
+        } else {
+            db_model.getDecorationStamps(theme: theme, completion: { (stamps) -> Void in
+                self.memory_model.updateDecorationStamps(stamps: stamps)
+                return completion(stamps)
+            })
+        }
+    }
 }
 
 var model : DataModel!
@@ -857,6 +916,8 @@ class DBModelTest {
         model.saveUser(user: user1)
         model.saveUser(user: user2)
         
+        Thread.sleep(forTimeInterval: 30)
+        
         let group1 = Group(id: RecordId(), name: "Group 1")
         let group1Activity = GroupActivity(group_id: group1.id)
         model.saveActivity(groupActivity: group1Activity)
@@ -874,6 +935,8 @@ class DBModelTest {
         model.addUserToGroup(group: group2, user: model.me())
         model.addUserToGroup(group: group2, user: user1)
         
+        Thread.sleep(forTimeInterval: 30)
+        
         for i in 1...3 {
             let thread = ConversationThread(id: RecordId(), group_id: group1.id)
             thread.title = String("Thread " + String(i))
@@ -889,6 +952,8 @@ class DBModelTest {
                 
                 // Simulate the fact that I read this message.
                 model.updateMyActivity(thread: thread, date: message.last_modified, withNewMessage: message)
+                
+                Thread.sleep(forTimeInterval: 30)
             }
             
             // Test activity management
@@ -901,5 +966,14 @@ class DBModelTest {
                 model.saveMessage(message: message)
             }
         }
+        
+        Thread.sleep(forTimeInterval: 30)
+        
+        let thread = ConversationThread(id: RecordId(), group_id: group2.id)
+        thread.title = String("Main")
+        model.saveConversationThread(conversationThread: thread)
+        let message = Message(thread: thread, user: user1)
+        message.text = "Welcome to the Main conversation thread."
+        model.saveMessage(message: message)
     }
 }

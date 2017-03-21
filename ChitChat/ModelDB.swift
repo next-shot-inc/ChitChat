@@ -22,6 +22,8 @@ protocol DBProtocol {
     func getActivity(userId: RecordId, threadId: RecordId, completion: @escaping (UserActivity?) -> ())
     func getActivityForGroup(groupId: RecordId, completion: @escaping (GroupActivity?) -> ())
     func getActivitiesForGroups(groups: [Group], completion: @escaping ([GroupActivity]) -> ())
+    func getDecorationThemes(completion: @escaping ([DecorationTheme]) -> ())
+    func getDecorationStamps(theme: DecorationTheme, completion: @escaping ([DecorationStamp]) -> ())
     
     func saveUser(user: User)
     func saveMessage(message: Message)
@@ -30,6 +32,8 @@ protocol DBProtocol {
     func addUserToGroup(group: Group, user: User)
     func saveConversationThread(conversationThread: ConversationThread)
     func saveActivity(activity: UserActivity)
+    func saveDecorationThemes(themes: [DecorationTheme])
+    func saveDecorationStamps(stamps: [DecorationStamp])
     
     func setupNotifications(cthread: ConversationThread)
     func setupNotifications(groupId: RecordId)
@@ -152,6 +156,11 @@ class InMemoryDB : DBProtocol {
         return completion(acts)
     }
     
+    func getDecorationStamps(theme: DecorationTheme, completion: @escaping ([DecorationStamp]) -> ()) {
+    }
+    func getDecorationThemes(completion: @escaping ([DecorationTheme]) -> ()) {
+    }
+    
     func saveUser(user: User) {
         let already = users.contains(where: ({ (u) -> Bool in
             user.id == u.id
@@ -182,6 +191,11 @@ class InMemoryDB : DBProtocol {
     }
     func saveActivity(activity: GroupActivity) {
         group_activities.append(activity)
+    }
+    func saveDecorationThemes(themes: [DecorationTheme]) {
+        
+    }
+    func saveDecorationStamps(stamps: [DecorationStamp]) {
     }
     
     func setupNotifications(cthread: ConversationThread) {

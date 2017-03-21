@@ -9,6 +9,7 @@
 import Foundation
 import UIKit
 import CoreData
+import PhoneNumberKit
 
 class LoginViewController : UIViewController, UITextFieldDelegate {
     @IBOutlet weak var telephone: UITextField!
@@ -22,6 +23,10 @@ class LoginViewController : UIViewController, UITextFieldDelegate {
         
         telephone.delegate = self
         userName.delegate = self
+        
+        let tapper = UITapGestureRecognizer(target: self, action:#selector(endEditing))
+        tapper.cancelsTouchesInView = false
+        view.addGestureRecognizer(tapper)
     }
     
     override func didReceiveMemoryWarning() {
@@ -62,7 +67,13 @@ class LoginViewController : UIViewController, UITextFieldDelegate {
         }
         
         userInfo?.name = userName.text!
-        userInfo?.telephoneNumber = telephone.text!
+        do {
+            let phoneNumberKit = PhoneNumberKit()
+            let phoneNumber = try phoneNumberKit.parse(telephone.text!)
+            userInfo?.telephoneNumber = phoneNumberKit.format(phoneNumber, toType: .international)
+        } catch {
+            userInfo?.telephoneNumber = telephone.text!
+        }
         
         do {
             try managedContext.save()
@@ -77,5 +88,10 @@ class LoginViewController : UIViewController, UITextFieldDelegate {
     // TextField delegate
     func textFieldDidEndEditing(_ textField: UITextField) {
         loginButton.isEnabled = (!userName.text!.isEmpty) && (!telephone.text!.isEmpty)
+    }
+    
+    func endEditing() {
+        telephone.resignFirstResponder()
+        userName.resignFirstResponder()
     }
 }

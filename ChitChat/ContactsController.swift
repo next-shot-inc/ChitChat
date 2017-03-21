@@ -10,13 +10,22 @@ import Foundation
 import UIKit
 import Contacts
 import ContactsUI
+import PhoneNumberKit
 
 class Contact {
     let label : String
     var phoneNumber = String()
-    
     init(label: String) {
         self.label =  label
+    }
+    func setNumber(number: String) {
+        let phoneNumberKit = PhoneNumberKit()
+        do {
+           let phoneNumber = try phoneNumberKit.parse(number)
+           self.phoneNumber = phoneNumberKit.format(phoneNumber, toType: .international)
+        } catch {
+            self.phoneNumber = number
+        }
     }
 }
 
@@ -97,17 +106,17 @@ class NewGroupController : UIViewController, CNContactPickerDelegate, UIImagePic
             
             // Get phone number
             if( contact.phoneNumbers.count == 1 ) {
-                lc.phoneNumber = contact.phoneNumbers[0].value.stringValue
+                lc.setNumber(number: contact.phoneNumbers[0].value.stringValue)
             } else {
                 for phn in contact.phoneNumbers {
                     if( phn.label?.lowercased(with: nil) == "iphone" ||
                         phn.label?.lowercased(with: nil) == "mobile"
                     ) {
-                        lc.phoneNumber = phn.value.stringValue
+                        lc.setNumber(number:phn.value.stringValue)
                     }
                 }
                 if( lc.phoneNumber.isEmpty && contact.phoneNumbers.count > 0 ) {
-                    lc.phoneNumber = contact.phoneNumbers[0].value.stringValue
+                    lc.setNumber(number: contact.phoneNumbers[0].value.stringValue)
                 }
             }
             contactsController?.data.contacts.append(lc)

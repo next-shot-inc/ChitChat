@@ -180,6 +180,12 @@ extension Message {
         self.fromName = String(record["fromName"] as! NSString)
         self.inThread = String(record["inThread"] as! NSString)
         
+        // Special handling of lastly added records
+        let opt_record = record["options"]
+        if( opt_record != nil ) {
+            self.options = String(opt_record as! NSString)
+        }
+        
         let asset = record["image"] as? CKAsset
         if( asset != nil ) {
             let imageData: Data
@@ -208,6 +214,7 @@ extension Message {
         record["last_modified"] = NSDate(timeIntervalSince1970: self.last_modified.timeIntervalSince1970)
         record["fromName"] = NSString(string: self.fromName)
         record["inThread"] = NSString(string: self.inThread)
+        record["options"] = NSString(string: self.options)
         
         // Image as CKAsset
         if( self.image != nil ) {
@@ -252,6 +259,50 @@ extension UserActivity {
         record["last_read"] = NSDate(timeIntervalSince1970: self.last_read.timeIntervalSince1970)
     }
 }
+
+extension DecorationStamp {
+    convenience init(record: CKRecord) {
+        let imageData = record["image"] as! NSData
+        let image = UIImage(data: imageData as Data)
+        let theme_ref = record["theme_reference"] as? CKReference
+        let id = String(record["theme_id"] as! NSString)
+        let themeId = CloudRecordId(record: CKRecord(recordType: "DecorationTheme", recordID: theme_ref!.recordID), id: id)
+        self.init(
+            id: CloudRecordId(record: record),
+            theme : themeId, image: image!
+        )
+    }
+    
+    func fillRecord(record: CKRecord) {
+        record["id"] =  NSString(string: self.id.id)
+        record["image"] = NSData(data: UIImageJPEGRepresentation(self.image, 1.0)!)
+        record["theme_id"] = NSString(string: self.theme_id.id)
+        if( self.theme_id is CloudRecordId ) {
+            record["theme_reference"] = CKReference(record: (self.theme_id as! CloudRecordId).record, action: .deleteSelf)
+        }
+    }
+}
+
+extension DecorationTheme {
+    convenience init(record: CKRecord) {
+        self.init(
+            id: CloudRecordId(record: record),
+            name:String(record["name"] as! NSString)
+        )
+        let sd = record["special_date"]
+        if( sd != nil ) {
+            self.special_date = Date(timeIntervalSince1970: (sd as! NSDate).timeIntervalSince1970)
+        }
+    }
+    func fillRecord(record: CKRecord) {
+        record["id"] =  NSString(string: self.id.id)
+        record["name"] = NSString(string: self.name)
+        if( self.special_date != nil ) {
+            record["special_date"] = NSDate(timeIntervalSince1970: self.special_date!.timeIntervalSince1970)
+        }
+    }
+}
+
 
 class CloudAssets {
     var urls = [URL]()
@@ -647,6 +698,54 @@ class CloudDBModel : DBProtocol {
         }
     }
     
+    func saveDecorationThemes(themes: [DecorationTheme]) {
+        var records = [CKRecord]()
+        for theme in themes {
+            let dbid = theme.id as? CloudRecordId
+            var record : CKRecord
+            if( dbid == nil ) {
+                record = CKRecord(recordType: "DecorationTheme")
+                theme.id = CloudRecordId(record: record, id: theme.id.id)
+            } else {
+                record = dbid!.record
+            }
+            theme.fillRecord(record: record)
+            records.append(record)
+        }
+        
+        // Has we should be up-to-date we can safely overwrite
+        let ops: CKModifyRecordsOperation = CKModifyRecordsOperation(recordsToSave: records, recordIDsToDelete: nil)
+        ops.perRecordCompletionBlock = self.saveCompletionHandler
+        ops.savePolicy = CKRecordSavePolicy.changedKeys
+        
+        self.publicDB.add(ops)
+    }
+    
+    func saveDecorationStamps(stamps: [DecorationStamp]) {
+        var records = [CKRecord]()
+        for stamp in stamps {
+            let dbid = stamp.id as? CloudRecordId
+            var record : CKRecord
+            if( dbid == nil ) {
+                record = CKRecord(recordType: "DecorationStamp")
+                stamp.id = CloudRecordId(record: record, id: stamp.id.id)
+            } else {
+                record = dbid!.record
+            }
+            
+            stamp.fillRecord(record: record)
+            records.append(record)
+        }
+        
+        // Has we should be up-to-date we can safely overwrite
+        let ops: CKModifyRecordsOperation = CKModifyRecordsOperation(recordsToSave: records, recordIDsToDelete: nil)
+        ops.perRecordCompletionBlock = self.saveCompletionHandler
+        ops.savePolicy = CKRecordSavePolicy.changedKeys
+        
+        self.publicDB.add(ops)
+    }
+
+    
     func saveCompletionHandler(record: CKRecord?, error: Error?) {
         if( error != nil ) {
             print(error!)
@@ -854,6 +953,39 @@ class CloudDBModel : DBProtocol {
                     user_acs.append(usera)
                 }
                 completion(user_acs)
+            }
+        })
+    }
+    
+    func getDecorationStamps(theme: DecorationTheme, completion: @escaping ([DecorationStamp]) -> ()) {
+        let query = CKQuery(recordType: "DecorationStamp", predicate: NSPredicate(format: "theme_id = %@", argumentArray: [theme.id.id]))
+        publicDB.perform(query, inZoneWith: nil, completionHandler: { results, error -> Void in
+            if results != nil {
+                var stamps = [DecorationStamp]()
+                for record in results! {
+                    let stamp = DecorationStamp(record: record)
+                    stamps.append(stamp)
+                }
+                completion(stamps)
+            }
+        })
+
+    }
+    
+    func getDecorationThemes(completion: @escaping ([DecorationTheme]) -> ()) {
+        let query = CKQuery(recordType: "DecorationTheme", predicate: NSPredicate(format: "TRUEPREDICATE", argumentArray: nil))
+        publicDB.perform(query, inZoneWith: nil, completionHandler: { results, error -> Void in
+            if results!.count > 0 {
+                var themes = [DecorationTheme]()
+                for record in results! {
+                    let theme = DecorationTheme(record: record)
+                    themes.append(theme)
+                }
+                completion(themes)
+            } else {
+                if( error != nil ) {
+                    print(error!)
+                }
             }
         })
     }

@@ -132,6 +132,7 @@ class GroupViewController: UITableViewController {
     var delegate : GroupTableDelegate?
     var activityView: UIActivityIndicatorView?
     var modelView: GroupModelView?
+    var setupFailed = false
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -167,6 +168,10 @@ class GroupViewController: UITableViewController {
         
         modelView = GroupModelView(ctrler: self)
         
+        setup(restart: restart)
+    }
+    
+    func setup(restart: Bool) {
         model.getUserInfo(completion: { (status) -> Void in
             
             if( status == false ) {
@@ -180,8 +185,15 @@ class GroupViewController: UITableViewController {
                         self.activityView = nil
                     }
                 })
+                
+                // As the setup is done in the ViewLoad it may be done before the login screen
+                // In this case, we have to wait for the login step to be done 
+                // and this controller to appear to finish the setup.
+                self.setupFailed = true
                 return
             }
+            
+            self.setupFailed = false
             
             // Once the initial user setup is done
             model.setupNotifications(userId: model.me().id, view: self.modelView!)
@@ -211,6 +223,7 @@ class GroupViewController: UITableViewController {
                 })
             }))
         })
+
     }
     
     override func didReceiveMemoryWarning() {
@@ -219,6 +232,13 @@ class GroupViewController: UITableViewController {
     }
     
     override func viewWillAppear(_ animated: Bool) {
+        if( setupFailed ) {
+            // If the setup failed during the load, 
+            // try again after the login screen finished.
+            setup(restart: false)
+            return
+        }
+        
         if( activityView != nil ) {
            activityView!.color = UIColor.blue
            activityView!.center = self.view.center
