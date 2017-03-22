@@ -13,22 +13,41 @@ class GroupCell : UITableViewCell {
     @IBOutlet weak var last_user: UILabel!
     @IBOutlet weak var last_message: UILabel!
     
+    @IBOutlet weak var iconView: UIView!
     @IBOutlet weak var date: UILabel!
     @IBOutlet weak var details: UILabel!
     @IBOutlet weak var icon: UIImageView!
     @IBOutlet weak var label: UILabel!
+    
+    var group: Group?
 }
 
 class GroupTableDelegate : NSObject, UITableViewDelegate {
+    weak var controller : GroupViewController?
+    init(ctrler: GroupViewController) {
+        self.controller = ctrler
+        super.init()
+    }
+    
     func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
         return 70
+    }
+    
+    func tableView(_ tableView: UITableView, editActionsForRowAt indexPath: IndexPath) -> [UITableViewRowAction]? {
+        let edit = UITableViewRowAction(style: .normal, title: "Edit") { action, index in
+            let cell = tableView.cellForRow(at: indexPath)
+            self.controller?.performSegue(withIdentifier: "newGroupSegue", sender: cell)
+        }
+        return [edit]
     }
 }
 
 class GroupModelView : ModelView {
     weak var controller : GroupViewController?
     init(ctrler: GroupViewController) {
+        self.controller = ctrler
         super.init()
+        
         self.notify_edit_group_activity = edit_group_activity
         self.notify_new_group = new_group
     }
@@ -70,6 +89,7 @@ class GroupData : NSObject, UITableViewDataSource {
             }
         })
         
+        cell.group = group
         cell.icon.image = group.icon
         if( cell.icon.image == nil ) {
             cell.icon.image = UIImage(named: "group-32")
@@ -122,8 +142,17 @@ class GroupData : NSObject, UITableViewDataSource {
                 }
             }
         })
+        
+        cell.iconView.layer.masksToBounds = true
+        cell.iconView.layer.cornerRadius = 10
+        cell.iconView.layer.borderColor = UIColor.darkGray.cgColor
+        cell.iconView.layer.borderWidth = 1.0
     
         return cell
+    }
+    
+    func tableView(_ tableView: UITableView, canEditRowAt indexPath: IndexPath) -> Bool {
+        return true
     }
 }
 
@@ -138,7 +167,7 @@ class GroupViewController: UITableViewController {
         super.viewDidLoad()
         // Do any additional setup after loading the view, typically from a nib.
         
-        self.delegate = GroupTableDelegate()
+        self.delegate = GroupTableDelegate(ctrler: self)
         tableView.delegate = self.delegate
         
         activityView = UIActivityIndicatorView(activityIndicatorStyle: .whiteLarge)
@@ -155,6 +184,11 @@ class GroupViewController: UITableViewController {
             } else {
                let cloudDB = CloudDBModel()
                doSetup(db: cloudDB, restart: restart)
+            }
+            let loadResourcesToDB = false
+            if( loadResourcesToDB ) {
+                let rdb = ResourceDB()
+                rdb.save(catalog: rdb.currentCatalog)
             }
         } else {
             let memoryDB = InMemoryDB()
@@ -268,7 +302,14 @@ class GroupViewController: UITableViewController {
             }
         }
         if( segue.identifier! == "newGroupSegue" ) {
-            // Nothing to do
+            // Either an edit or a new group segue
+            let tableCell = sender as? GroupCell
+            if( tableCell != nil ) {
+                let gc = segue.destination as? NewGroupController
+                if( gc != nil ) {
+                    gc!.existingGroup = tableCell!.group
+                }
+            }
         }
     }
     

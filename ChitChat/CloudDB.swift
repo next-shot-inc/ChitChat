@@ -11,7 +11,7 @@ import CloudKit
 import UIKit
 
 class CloudRecordId : RecordId {
-    let record: CKRecord
+    var record: CKRecord
     
     init(record: CKRecord) {
         self.record = record
@@ -240,6 +240,10 @@ extension Message {
         }
         return nil
     }
+    
+    func registeredForSave() -> Bool {
+        return self.id is CloudRecordId
+    }
 }
 
 extension UserActivity {
@@ -266,7 +270,12 @@ extension DecorationStamp {
         let image = UIImage(data: imageData as Data)
         let theme_ref = record["theme_reference"] as? CKReference
         let id = String(record["theme_id"] as! NSString)
-        let themeId = CloudRecordId(record: CKRecord(recordType: "DecorationTheme", recordID: theme_ref!.recordID), id: id)
+        var themeId : RecordId
+        if( theme_ref == nil ) {
+            themeId = RecordId(string: id)
+        } else {
+            themeId = CloudRecordId(record: CKRecord(recordType: "DecorationTheme", recordID: theme_ref!.recordID), id: id)
+        }
         self.init(
             id: CloudRecordId(record: record),
             theme : themeId, image: image!
@@ -275,7 +284,7 @@ extension DecorationStamp {
     
     func fillRecord(record: CKRecord) {
         record["id"] =  NSString(string: self.id.id)
-        record["image"] = NSData(data: UIImageJPEGRepresentation(self.image, 1.0)!)
+        record["image"] = NSData(data: UIImagePNGRepresentation(self.image)!)
         record["theme_id"] = NSString(string: self.theme_id.id)
         if( self.theme_id is CloudRecordId ) {
             record["theme_reference"] = CKReference(record: (self.theme_id as! CloudRecordId).record, action: .deleteSelf)
@@ -306,6 +315,11 @@ extension DecorationTheme {
 
 class CloudAssets {
     var urls = [URL]()
+    let db_model : CloudDBModel
+    
+    init(db_model: CloudDBModel) {
+        self.db_model = db_model
+    }
     
     func clean() {
         for url in urls {
@@ -323,6 +337,7 @@ class CloudAssets {
             print(error!)
         }
         clean()
+        db_model.saveCompletionHandler(record: record, error: error)
     }
 
 }
@@ -332,12 +347,28 @@ class CloudDBModel : DBProtocol {
     let container: CKContainer
     let publicDB: CKDatabase
     let privateDB: CKDatabase
-    
+    var userRecordInfo : (ckrecord: CKRecordID, user: User)?
+        
     // MARK: - Initializers
     init() {
         container = CKContainer.default()
         publicDB = container.publicCloudDatabase
         privateDB = container.privateCloudDatabase
+        userRecordInfo = nil
+    }
+    
+    func setAsUser(user: User) {
+        container.fetchUserRecordID(completionHandler: { (recordId, error) -> Void in
+            self.userRecordInfo = (recordId!, user)
+        })
+    }
+    
+    func isCreatedByUser(record: RecordId) -> Bool {
+        let cloudRecordId = record as? CloudRecordId
+        if( cloudRecordId != nil ) {
+            return cloudRecordId!.record.creatorUserRecordID == userRecordInfo?.ckrecord || cloudRecordId!.record.creatorUserRecordID?.recordName == "__defaultOwner__"
+        }
+        return false
     }
     
     func setupNotifications(cthread: ConversationThread) {
@@ -579,6 +610,7 @@ class CloudDBModel : DBProtocol {
             record = dbid!.record
         }
         user.fillRecord(record: record)
+        
         self.publicDB.save(record, completionHandler: self.saveCompletionHandler)
     }
     
@@ -592,8 +624,9 @@ class CloudDBModel : DBProtocol {
             record = dbid!.record
         }
         
-        let assets = CloudAssets()
+        let assets = CloudAssets(db_model: self)
         message.fillRecord(record: record, assets: assets)
+        
         self.publicDB.save(record, completionHandler: assets.saveCompletionHandler)
     }
     
@@ -1013,6 +1046,20 @@ class CloudDBModel : DBProtocol {
             if( allDone ) {
                 fullCompletion()
             }
+        }
+    }
+    
+    func deleteRecord(record: RecordId, completion: @escaping () -> Void) {
+        let cloudRecordId = record as? CloudRecordId
+        if( cloudRecordId != nil ) {
+            let operation = CKModifyRecordsOperation(recordsToSave: nil, recordIDsToDelete: [cloudRecordId!.record.recordID])
+            operation.modifyRecordsCompletionBlock = {
+                (savedRecords: [CKRecord]?, deletedRecordIDs: [CKRecordID]?, error: Error?) in
+                completion()
+            }
+            
+            self.publicDB.add(operation)
+
         }
     }
     

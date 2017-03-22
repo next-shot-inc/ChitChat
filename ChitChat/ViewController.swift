@@ -14,7 +14,7 @@ class ThemeCollectionViewCell : UICollectionViewCell {
 }
 
 class ThemesPickerSource : NSObject, UICollectionViewDelegate, UICollectionViewDataSource, UICollectionViewDelegateFlowLayout {
-    let themes = ["flowers", "clovers", "hearts", "music notes"]
+    var themes = [String]()
     weak var controller: FancyTextViewController?
     
     func numberOfSections(in collectionView: UICollectionView) -> Int {
@@ -58,12 +58,17 @@ class FancyTextViewController: UIViewController, UITextViewDelegate {
     @IBOutlet weak var textView: DrawingTextView!
     
     var themePickerSource : ThemesPickerSource?
+    let rdb = ResourceDB()
     
     override func viewDidLoad() {
         super.viewDidLoad()
         // Do any additional setup after loading the view, typically from a nib.
         
         themePickerSource = ThemesPickerSource()
+        for t in rdb.currentCatalog.pictures.keys {
+            themePickerSource!.themes.append(t)
+        }
+        
         themeCollectionView.delegate = themePickerSource
         themeCollectionView.dataSource = themePickerSource
         themePickerSource?.controller = self
@@ -81,17 +86,16 @@ class FancyTextViewController: UIViewController, UITextViewDelegate {
     }
 
     func setTheme(string: String) {
-        var theme = DrawingTextView.theme.test
-        if( string == "flowers" ) {
-            theme = DrawingTextView.theme.flowers
-        } else if( string == "clovers" ) {
-            theme = DrawingTextView.theme.clover
-        } else if( string == "hearts" ) {
-            theme = DrawingTextView.theme.heart
-        } else if ( string == "music notes" ) {
-            theme = DrawingTextView.theme.musicnotes
+        
+        let pictures = rdb.currentCatalog.pictures[string]
+        if( pictures != nil ) {
+            for p in pictures! {
+                let image = UIImage(named: p)
+                if( image != nil ) {
+                    textView.images.append(image!)
+                }
+            }
         }
-        textView.atheme = theme
         textView.setNeedsDisplay()
     }
     

@@ -29,13 +29,12 @@ class DrawingTextView: UILabel {
     //          More complete definition: http://www.mathsisfun.com/sine-cosine-tangent.html
     // cosine: Also takes an angle in degrees and gives you another number from using the two radiuses (radii).
     // *******************************************************
-    
-    enum theme { case flowers, clover, heart, musicnotes, easter, test }
+
     
     @IBInspectable var angle: CGFloat = 0
     @IBInspectable var clockwise: Bool = true
     @IBInspectable var radius : CGFloat = 100
-    @IBInspectable var atheme : theme = .flowers
+    var images = [UIImage]()
     
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -369,28 +368,6 @@ class DrawingTextView: UILabel {
         if( topLine.vertices.count == 0 || botLine.vertices.count == 0 ) {
             return
         }
-        var images = [UIImage]()
-        
-        var names : [String]
-        if( atheme == .flowers ) {
-            names = ["rose", "bluebell", "sunflower", "daffodil", "wallflower"]
-        } else if( atheme == .clover ) {
-            names = ["clover32x32"]
-        } else if ( atheme == .heart ) {
-            names = ["heart", "hearts"]
-        } else if ( atheme == .musicnotes ) {
-            names = ["musicnote1"]
-        } else if( atheme == .easter ) {
-            names = ["easter-egg-1", "easter-egg-2", "easter-egg-3", "easter-egg-4", "easter-egg-5"]
-        } else {
-            names = ["fork32x32"]
-        }
-        for name in names {
-            let image = UIImage(named: name)
-            if( image != nil ) {
-                images.append(image!)
-            }
-        }
         
         guard let context = UIGraphicsGetCurrentContext() else { return }
         let width : CGFloat = 32
@@ -408,8 +385,8 @@ class DrawingTextView: UILabel {
             let pline = ParametricPolyline(polyline: line)
             for loc in locs {
                 var p = pline.location(Double(loc))
-                if( p.x + width > bounds.width ) {
-                    p.x = bounds.width - width
+                if( p.x + width > bounds.width-4 ) {
+                    p.x = bounds.width - width - 4
                 }
                 var rect = CGRect(x: p.x, y: p.y + offset , width: width, height: height)
                 if( images.count == 1 ) {
@@ -419,12 +396,13 @@ class DrawingTextView: UILabel {
                 
                 if( images.count > 0 ) {
                     let n = min(Int(drand48()*Double(images.count)), images.count-1)
-                    let cgimage = images[n].cgImage
+                    images[n].imageRendererFormat.opaque = false
+                    //let cgimage = images[n].cgImage
                     context.saveGState()
-                    let flipVertical = CGAffineTransform(a: 1, b: 0, c: 0, d: -1, tx: 0, ty: rect.size.height+2.0*rect.origin.y)
-                    context.concatenate(flipVertical)
-                    
-                    context.draw(cgimage!, in: rect, byTiling: false)
+                    //let flipVertical = CGAffineTransform(a: 1, b: 0, c: 0, d: -1, tx: 0, ty: rect.size.height+2.0*rect.origin.y)
+                    //context.concatenate(flipVertical)
+                    images[n].draw(in: rect)
+                    //context.draw(cgimage!, in: rect, byTiling: false)
                     context.restoreGState()
                 } else {
                     context.stroke(rect)

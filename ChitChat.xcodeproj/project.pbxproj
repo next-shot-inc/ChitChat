@@ -25,6 +25,7 @@
 		2F4EF7D11E79EEAA006A2D06 /* ConversationThreadHeaderView.xib in Resources */ = {isa = PBXBuildFile; fileRef = 2F4EF7D01E79EEAA006A2D06 /* ConversationThreadHeaderView.xib */; };
 		2F4EF7D51E7C81DC006A2D06 /* DrawingTextView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F4EF7D41E7C81DC006A2D06 /* DrawingTextView.swift */; };
 		2F4EF7D71E7E3A73006A2D06 /* MessageOptions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F4EF7D61E7E3A73006A2D06 /* MessageOptions.swift */; };
+		2F4EF7E61E817BAB006A2D06 /* ResourceDB.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F4EF7E51E817BAB006A2D06 /* ResourceDB.swift */; };
 		2F7840591E74C1BD0069AB75 /* sounds in Resources */ = {isa = PBXBuildFile; fileRef = 2F7840581E74C1BD0069AB75 /* sounds */; };
 		2FF9BE291E7061F5000DF9A8 /* ContactsController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FF9BE281E7061F5000DF9A8 /* ContactsController.swift */; };
 		2FF9BE2B1E70B6D9000DF9A8 /* Login.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FF9BE2A1E70B6D9000DF9A8 /* Login.swift */; };
@@ -78,6 +79,7 @@
 		2F4EF7D01E79EEAA006A2D06 /* ConversationThreadHeaderView.xib */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.xib; path = ConversationThreadHeaderView.xib; sourceTree = "<group>"; };
 		2F4EF7D41E7C81DC006A2D06 /* DrawingTextView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = DrawingTextView.swift; sourceTree = "<group>"; };
 		2F4EF7D61E7E3A73006A2D06 /* MessageOptions.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MessageOptions.swift; sourceTree = "<group>"; };
+		2F4EF7E51E817BAB006A2D06 /* ResourceDB.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ResourceDB.swift; sourceTree = "<group>"; };
 		2F7840581E74C1BD0069AB75 /* sounds */ = {isa = PBXFileReference; lastKnownFileType = folder; path = sounds; sourceTree = "<group>"; };
 		2FF9BE281E7061F5000DF9A8 /* ContactsController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ContactsController.swift; sourceTree = "<group>"; };
 		2FF9BE2A1E70B6D9000DF9A8 /* Login.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Login.swift; sourceTree = "<group>"; };
@@ -156,6 +158,7 @@
 				2FF9BE2A1E70B6D9000DF9A8 /* Login.swift */,
 				2FF9BE281E7061F5000DF9A8 /* ContactsController.swift */,
 				2F32E00A1E6F5AE300EF34E8 /* Model.swift */,
+				2F4EF7E51E817BAB006A2D06 /* ResourceDB.swift */,
 				2FF9BE381E735CA8000DF9A8 /* ModelDB.swift */,
 				2FF9BE331E720511000DF9A8 /* CloudDB.swift */,
 				2F32E0031E6E892400EF34E8 /* MessagesViewController.swift */,
@@ -417,6 +420,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				2FF9BE3D1E749396000DF9A8 /* SpellChecker.swift in Sources */,
+				2F4EF7E61E817BAB006A2D06 /* ResourceDB.swift in Sources */,
 				2F4EF7D51E7C81DC006A2D06 /* DrawingTextView.swift in Sources */,
 				2F32E00B1E6F5AE300EF34E8 /* Model.swift in Sources */,
 				2F32E0041E6E892400EF34E8 /* MessagesViewController.swift in Sources */,

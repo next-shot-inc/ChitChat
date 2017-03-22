@@ -15,6 +15,7 @@ import PhoneNumberKit
 class Contact {
     let label : String
     var phoneNumber = String()
+    var errorPhone = String()
     init(label: String) {
         self.label =  label
     }
@@ -23,8 +24,10 @@ class Contact {
         do {
            let phoneNumber = try phoneNumberKit.parse(number)
            self.phoneNumber = phoneNumberKit.format(phoneNumber, toType: .international)
-        } catch {
-            self.phoneNumber = number
+        } catch let error {
+            let phoneNumberError = error as! PhoneNumberError
+            let string = phoneNumberError.localizedDescription
+            self.errorPhone = string
         }
     }
 }
@@ -57,6 +60,9 @@ class ContactData : NSObject, UITableViewDataSource {
         let contact = contacts[indexPath.row]
         cell.label.text = contact.label
         cell.phoneNumber.text = contact.phoneNumber
+        if( contact.phoneNumber.isEmpty ) {
+            cell.phoneNumber.text = contact.errorPhone
+        }
         
         cell.checkButton.setImage(UIImage(named: "checked"), for: .selected)
         cell.checkButton.setImage(UIImage(named: "unchecked"), for: .normal)
@@ -73,6 +79,10 @@ class NewGroupController : UIViewController, CNContactPickerDelegate, UIImagePic
     @IBOutlet weak var contactsView: UITableView!
     @IBOutlet weak var groupIconButton: UIButton!
     @IBOutlet weak var createButton: UIButton!
+    @IBOutlet weak var iconGroupView: UIView!
+    @IBOutlet weak var selectButton: UIButton!
+    
+    var existingGroup : Group?
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -86,12 +96,40 @@ class NewGroupController : UIViewController, CNContactPickerDelegate, UIImagePic
         createButton.isEnabled = false
         
         groupName.delegate = self
+        
+        if( existingGroup != nil ) {
+            groupName.text = existingGroup!.name
+            groupIconButton.imageView?.image = existingGroup!.icon
+            createButton.setTitle("Edit", for: .normal)
+            self.title = "Edit Group"
+            
+            model.getUsersForGroup(group: existingGroup!, completion: { (users) -> Void in
+                for user in users {
+                    let lc = Contact(label: user.label!)
+                    lc.phoneNumber = user.phoneNumber
+                    self.contactsController?.data.contacts.append(lc)
+                }
+                DispatchQueue.main.async(execute: { () -> Void in
+                    self.contactsView.reloadData()
+                })
+            })
+
+        }
     }
     
     override func viewDidAppear(_ animated: Bool) {
         // Wait until the bounds are ok
         createButton.applyGradient(withColours: [UIColor.white, UIColor.lightGray], gradientOrientation: .vertical)
         createButton.setNeedsDisplay()
+        
+        selectButton.applyGradient(withColours: [UIColor.white, UIColor.lightGray], gradientOrientation: .vertical)
+        selectButton.setNeedsDisplay()
+        
+        iconGroupView!.layer.masksToBounds = true
+        iconGroupView!.layer.cornerRadius = 10
+        iconGroupView!.layer.borderColor = UIColor.darkGray.cgColor
+        iconGroupView!.layer.borderWidth = 1.0
+
     }
     
     // Contacts Picker (done selected)
@@ -100,6 +138,14 @@ class NewGroupController : UIViewController, CNContactPickerDelegate, UIImagePic
         formatter.style = .fullName
         
         contactsController?.data.contacts.removeAll()
+        if( existingGroup != nil ) {
+            let users = model.getUsers(group: existingGroup!)
+            for user in users {
+                let lc = Contact(label: user.label!)
+                lc.phoneNumber = user.phoneNumber
+                self.contactsController?.data.contacts.append(lc)
+            }
+        }
         
         for contact in contacts {
             let lc = Contact(label: formatter.string(from: contact) ?? "???")
@@ -168,7 +214,42 @@ class NewGroupController : UIViewController, CNContactPickerDelegate, UIImagePic
     }
     
     @IBAction func createGroup(_ sender: Any) {
-        if( groupName.text != nil ) {
+        if( existingGroup != nil ) {
+            let users = model.getUsers(group: existingGroup!)
+            var details = String()
+            
+            for c in contactsController!.data.contacts {
+                // Create user
+                if( !c.phoneNumber.isEmpty ) {
+                    model.getUser(phoneNumber: c.phoneNumber, completion: {(user) -> () in
+                        if( user == nil ) {
+                            let newUser = User(
+                                id: RecordId(), label: c.label, phoneNumber: c.phoneNumber
+                            )
+                            model.saveUser(user: newUser)
+                            model.addUserToGroup(group: self.existingGroup!, user: newUser)
+                        } else {
+                            let contained = users.contains(where: { (u) -> Bool in return u.id == user!.id })
+                            if( !contained ) {
+                                model.addUserToGroup(group: self.existingGroup!, user: user!)
+                            }
+                        }
+                    })
+                    
+                    if( !details.isEmpty ) {
+                        details += ", "
+                    }
+                    details += c.label
+                    details += " "
+                }
+            }
+            existingGroup!.name = groupName.text!
+            existingGroup!.details = details
+            existingGroup!.icon = groupIconButton.image(for: .normal)
+            model.saveGroup(group: existingGroup!)
+            
+        } else if( groupName.text != nil ) {
+            
             // Create Group
             let group = Group(id: RecordId(), name: groupName.text!)
             group.icon = groupIconButton.image(for: .normal)
@@ -176,16 +257,29 @@ class NewGroupController : UIViewController, CNContactPickerDelegate, UIImagePic
             let groupActivity = GroupActivity(group_id: group.id)
             model.saveActivity(groupActivity: groupActivity)
             group.activity_id = groupActivity.id
-            model.saveGroup(group: group)
             
             var details = String()
+            for c in contactsController!.data.contacts {
+                // Create user
+                if( !c.phoneNumber.isEmpty ) {
+                    if( !details.isEmpty ) {
+                        details += ", "
+                    }
+                    details += c.label
+                    details += " "
+                }
+            }
+            group.details = details
+            model.saveGroup(group: group)
+            
+            // Add users to group
             for c in contactsController!.data.contacts {
                 // Create user
                 if( !c.phoneNumber.isEmpty ) {
                     model.getUser(phoneNumber: c.phoneNumber, completion: {(user) -> () in
                         if( user == nil ) {
                             let newUser = User(
-                              id: RecordId(), label: c.label, phoneNumber: c.phoneNumber
+                                id: RecordId(), label: c.label, phoneNumber: c.phoneNumber
                             )
                             model.saveUser(user: newUser)
                             model.addUserToGroup(group: group, user: newUser)
@@ -194,15 +288,8 @@ class NewGroupController : UIViewController, CNContactPickerDelegate, UIImagePic
                         }
                     })
                 }
-                
-                if( !details.isEmpty ) {
-                    details += ", "
-                }
-                details += c.label
-                details += " "
-                group.details = details
             }
-            
+
             model.addUserToGroup(group: group, user: model.me())
             
             // Create default thread
@@ -214,10 +301,10 @@ class NewGroupController : UIViewController, CNContactPickerDelegate, UIImagePic
             let message = Message(thread: cthread, user: model.me())
             message.text = "Welcome to ChitChat's group " + groupName.text!
             model.saveMessage(message: message)
-            
-            // Pop this controller.
-            _ = navigationController?.popViewController(animated: true)
         }
+        
+        // Pop this controller.
+        _ = navigationController?.popViewController(animated: true)
     }
 }
 

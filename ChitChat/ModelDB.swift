@@ -40,6 +40,11 @@ protocol DBProtocol {
     func setupNotifications(userId: RecordId)
     func didReceiveNotification(userInfo: [AnyHashable : Any], views: [ModelView])
     func setAppBadgeNumber(number: Int)
+    
+    func setAsUser(user: User)
+    func isCreatedByUser(record: RecordId) -> Bool
+    
+    func deleteRecord(record: RecordId, completion: @escaping () -> Void)
 }
 
 /***************************************************************************************/
@@ -207,6 +212,14 @@ class InMemoryDB : DBProtocol {
     func didReceiveNotification(userInfo: [AnyHashable : Any], views: [ModelView]) {
     }
     func setAppBadgeNumber(number: Int) {
+    }
+    func setAsUser(user: User) {
+    }
+    func isCreatedByUser(record: RecordId) -> Bool {
+        return false
+    }
+    
+    func deleteRecord(record: RecordId, completion: @escaping () -> Void) {
     }
 }
 

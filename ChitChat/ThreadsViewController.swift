@@ -30,18 +30,16 @@ class ThreadThumbUpCell : UICollectionViewCell {
 }
 
 class ThreadRowDelegate: NSObject, UICollectionViewDelegate, UICollectionViewDelegateFlowLayout {
-    weak var threadData: ThreadsDataSource?
+    let threadRowData: ThreadRowData
     weak var controller : ThreadsViewController?
-    let index: Int
     
-    init(ctrler: ThreadsViewController, threadData: ThreadsDataSource, index: Int) {
-        self.threadData = threadData
-        self.index = index
+    init(ctrler: ThreadsViewController, threadRowData: ThreadRowData) {
+        self.threadRowData = threadRowData
         self.controller = ctrler
     }
     
     func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
-        threadData?.selectedCollection = index
+        controller?.selectedConversationThread = threadRowData.cthread
         controller?.performSegue(withIdentifier: "messageSegue", sender: self)
     }
     
@@ -49,7 +47,7 @@ class ThreadRowDelegate: NSObject, UICollectionViewDelegate, UICollectionViewDel
     func collectionView(
         _ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath
     ) -> CGSize {
-        let m = threadData!.threadsSource[index].messages[indexPath.row]
+        let m = threadRowData.messages[indexPath.item]
         if( m.text == "%%Thumb-up%%" ) {
             return CGSize(width: 50, height: 83)
         } else if( m.image != nil ) {
@@ -106,11 +104,11 @@ class ThreadRowData : NSObject, UICollectionViewDataSource {
             mcell.fromName.text = getFromName(message: m)
             labelView = mcell.labelView
             cell = mcell
-            
-            let bg = ColorPalette.backgroundColor(message: m)
-            labelView.layer.backgroundColor = bg.cgColor
         }
-                
+        
+        let bg = ColorPalette.backgroundColor(message: m)
+        labelView.layer.backgroundColor = bg.cgColor
+        
         labelView.layer.masksToBounds = true
         labelView.layer.cornerRadius = 6
         labelView.layer.borderColor = ColorPalette.colors[ColorPalette.States.borderColor]?.cgColor
@@ -223,6 +221,21 @@ class ThreadsTableViewDelegate : NSObject, UITableViewDelegate {
     func tableView(_ tableView: UITableView, heightForHeaderInSection section: Int) -> CGFloat {
         return 32
     }
+    
+    func tableView(_ tableView: UITableView, editActionsForRowAt indexPath: IndexPath) -> [UITableViewRowAction]? {
+        let edit = UITableViewRowAction(style: .destructive, title: "Delete") { action, index in
+            let cthread = self.dataSource.threadsSource[indexPath.section].cthread
+            
+            self.dataSource.threadsSource.remove(at: indexPath.section)
+            self.dataSource.delegates.remove(at: indexPath.section)
+            
+            //tableView.deleteRows(at: [indexPath], with: UITableViewRowAnimation.automatic)
+            tableView.deleteSections([indexPath.section], with: UITableViewRowAnimation.automatic)
+            
+            model.deleteConversationThread(conversationThread: cthread)
+        }
+        return [edit]
+    }
 }
 
 class ThreadsDataView : ModelView {
@@ -248,7 +261,6 @@ class ThreadsDataView : ModelView {
 class ThreadsDataSource : NSObject, UITableViewDataSource {
     var threadsSource = [ThreadRowData]()
     var delegates = [ThreadRowDelegate]()
-    var selectedCollection = -1
     var group: Group
     var modelViews = [ModelView]()
     weak var controller : ThreadsViewController?
@@ -295,7 +307,7 @@ class ThreadsDataSource : NSObject, UITableViewDataSource {
                 self.threadsSource.append(threadRowData)
                 
                 self.delegates.append(
-                    ThreadRowDelegate(ctrler: self.controller!, threadData: self, index: i)
+                    ThreadRowDelegate(ctrler: self.controller!, threadRowData: threadRowData)
                 )
                 
                 let view = ThreadRowDataView(threadData: self, index: i, ctrler: self.controller!)
@@ -337,12 +349,19 @@ class ThreadsDataSource : NSObject, UITableViewDataSource {
         cell.collectionView.delegate = delegates[indexPath.section]
         return cell
     }
+    
+    func tableView(_ tableView: UITableView, canEditRowAt indexPath: IndexPath) -> Bool {
+        let rowData = threadsSource[indexPath.section]
+
+        return model.db_model.isCreatedByUser(record: rowData.cthread.id)
+    }
 }
 
 class ThreadsViewController: UITableViewController {
     var data : ThreadsDataSource?
     var dele : ThreadsTableViewDelegate?
     var group : Group?
+    var selectedConversationThread : ConversationThread?
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -375,11 +394,8 @@ class ThreadsViewController: UITableViewController {
         if( segue.identifier! == "messageSegue" ) {
             let cc = segue.destination as? MessagesViewController
             if( cc != nil ) {
-               let si = data!.selectedCollection
-               if( si != -1 ) {
-                  cc!.conversationThread = data!.threadsSource[si].cthread
-                  cc!.title = cc?.conversationThread?.title
-               }
+                cc!.conversationThread = selectedConversationThread
+                cc!.title = cc?.conversationThread?.title
             }
         }
     }

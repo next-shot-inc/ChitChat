@@ -132,7 +132,7 @@ class GroupUserFolder {
 
 class Message {
     var id : RecordId
-    let conversation_id : RecordId
+    var conversation_id : RecordId
     let user_id : RecordId
     var text = String()
     var image : UIImage?
@@ -176,6 +176,11 @@ class DecorationStamp {
     var theme_id : RecordId
     init(id: RecordId, theme: RecordId, image: UIImage) {
         self.id = id
+        self.theme_id = theme
+        self.image = image
+    }
+    init(theme: RecordId, image: UIImage) {
+        self.id = RecordId()
         self.theme_id = theme
         self.image = image
     }
@@ -467,6 +472,7 @@ class DataModel {
     let db_model : DBProtocol!
     var views = [ModelView]()
     var start_date = Date()
+    var pendingStampRequests = [RecordId:[([DecorationStamp]) -> Void]]()
     
     init(db_model: DBProtocol) {
         self.db_model = db_model
@@ -507,6 +513,8 @@ class DataModel {
                     me = user!
                     self.memory_model.users.append(user!)
                 }
+                
+                self.db_model.setAsUser(user: me!)
                 
                 self.db_model.getActivities(userId: me.id, completion: { (activities) -> Void in
                     self.memory_model.user_activities = activities
@@ -873,6 +881,8 @@ class DataModel {
         db_model.setAppBadgeNumber(number: number)
     }
     
+    /*************************************************/
+    
     func getDecorationThemes(completion: @escaping ([DecorationTheme]) -> Void ) {
         if( memory_model.decorationThemes.count != 0 ) {
             return completion(memory_model.decorationThemes)
@@ -890,11 +900,50 @@ class DataModel {
         if( stamps.count != 0 ) {
             return completion(stamps)
         } else {
-            db_model.getDecorationStamps(theme: theme, completion: { (stamps) -> Void in
-                self.memory_model.updateDecorationStamps(stamps: stamps)
-                return completion(stamps)
-            })
+            // Buffer existing request, so only one request is send to the server
+            var existing_requests = pendingStampRequests[theme.id]
+            if( existing_requests != nil ) {
+                existing_requests!.append(completion)
+            } else {
+                existing_requests = [completion]
+                
+                db_model.getDecorationStamps(theme: theme, completion: { (stamps) -> Void in
+                    self.memory_model.updateDecorationStamps(stamps: stamps)
+                    
+                    let requests = self.pendingStampRequests[theme.id]
+                    if( requests != nil ) {
+                        for r in requests! {
+                            r(stamps)
+                        }
+                    }
+                    self.pendingStampRequests[theme.id] = nil
+                })
+            }
+            pendingStampRequests[theme.id] = existing_requests
         }
+    }
+    
+    func getTheme(name: String) -> DecorationTheme? {
+        for t in memory_model.decorationThemes {
+            if( t.name == name ) {
+                return t
+            }
+        }
+        return nil
+    }
+    
+    /******************************************************************/
+    
+    func deleteConversationThread(conversationThread: ConversationThread) {
+        if( memory_model.conversations != nil ) {
+            let index = memory_model.conversations!.index(where: { (cthread) -> Bool in
+                cthread.id == conversationThread.id
+            })
+            if( index != nil ) {
+                memory_model.conversations!.remove(at: index!)
+            }
+        }
+        db_model.deleteRecord(record: conversationThread.id, completion: { })
     }
 }
 
