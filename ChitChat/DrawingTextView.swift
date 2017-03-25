@@ -385,10 +385,13 @@ class DrawingTextView: UILabel {
             let pline = ParametricPolyline(polyline: line)
             for loc in locs {
                 var p = pline.location(Double(loc))
-                if( p.x + width > bounds.width-4 ) {
-                    p.x = bounds.width - width - 4
+                if( p.x + width/2 > bounds.width ) {
+                    p.x = bounds.width - width/2
                 }
-                var rect = CGRect(x: p.x, y: p.y + offset , width: width, height: height)
+                if( p.x - width/2 < 0 ) {
+                    p.x = width/2
+                }
+                var rect = CGRect(x: p.x - width/2, y: p.y + offset , width: width, height: height)
                 if( images.count == 1 ) {
                     let scale = drand48()*0.5 + 0.5
                     rect.size = rect.size.applying(CGAffineTransform(scaleX: CGFloat(scale), y: CGFloat(scale)))

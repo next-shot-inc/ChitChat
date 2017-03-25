@@ -24,9 +24,10 @@ protocol DBProtocol {
     func getActivitiesForGroups(groups: [Group], completion: @escaping ([GroupActivity]) -> ())
     func getDecorationThemes(completion: @escaping ([DecorationTheme]) -> ())
     func getDecorationStamps(theme: DecorationTheme, completion: @escaping ([DecorationStamp]) -> ())
+    func setMessageFetchTimeLimit(numberOfDays: TimeInterval)
     
     func saveUser(user: User)
-    func saveMessage(message: Message)
+    func saveMessage(message: Message, completion: @escaping () -> ())
     func saveGroup(group: Group)
     func saveActivity(activity: GroupActivity)
     func addUserToGroup(group: Group, user: User)
@@ -174,7 +175,7 @@ class InMemoryDB : DBProtocol {
             users.append(user)
         }
     }
-    func saveMessage(message: Message) {
+    func saveMessage(message: Message, completion : @escaping () -> ()) {
         let contained = messages.contains(where: { mess -> Bool in
             return mess.id == message.id
         })
@@ -220,6 +221,10 @@ class InMemoryDB : DBProtocol {
     }
     
     func deleteRecord(record: RecordId, completion: @escaping () -> Void) {
+    }
+    
+    func setMessageFetchTimeLimit(numberOfDays: TimeInterval) {
+        
     }
 }
 

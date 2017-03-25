@@ -244,6 +244,17 @@ extension Message {
     func registeredForSave() -> Bool {
         return self.id is CloudRecordId
     }
+    func unsaved() -> Bool {
+        if( self.id is CloudRecordId ) {
+            let record = (self.id as! CloudRecordId).record
+            if( record.modificationDate == nil ) {
+                return true
+            }
+            // 10 second difference time between server and device.
+            return record.modificationDate! < Date(timeInterval: -10, since: self.last_modified)
+        }
+        return true
+    }
 }
 
 extension UserActivity {
@@ -316,9 +327,11 @@ extension DecorationTheme {
 class CloudAssets {
     var urls = [URL]()
     let db_model : CloudDBModel
+    var completion : (() -> ())?
     
     init(db_model: CloudDBModel) {
         self.db_model = db_model
+        self.completion = nil
     }
     
     func clean() {
@@ -337,6 +350,9 @@ class CloudAssets {
             print(error!)
         }
         clean()
+        if( completion != nil ) {
+            completion!()
+        }
         db_model.saveCompletionHandler(record: record, error: error)
     }
 
@@ -348,13 +364,18 @@ class CloudDBModel : DBProtocol {
     let publicDB: CKDatabase
     let privateDB: CKDatabase
     var userRecordInfo : (ckrecord: CKRecordID, user: User)?
-        
+    var dateLimit : TimeInterval = 5
+    
     // MARK: - Initializers
     init() {
         container = CKContainer.default()
         publicDB = container.publicCloudDatabase
         privateDB = container.privateCloudDatabase
         userRecordInfo = nil
+    }
+    
+    func setMessageFetchTimeLimit(numberOfDays: TimeInterval) {
+        dateLimit = numberOfDays
     }
     
     func setAsUser(user: User) {
@@ -614,7 +635,7 @@ class CloudDBModel : DBProtocol {
         self.publicDB.save(record, completionHandler: self.saveCompletionHandler)
     }
     
-    func saveMessage(message: Message) {
+    func saveMessage(message: Message, completion: @escaping () -> ()) {
         let dbid = message.id as? CloudRecordId
         var record : CKRecord
         if( dbid == nil ) {
@@ -626,6 +647,7 @@ class CloudDBModel : DBProtocol {
         
         let assets = CloudAssets(db_model: self)
         message.fillRecord(record: record, assets: assets)
+        assets.completion = completion
         
         self.publicDB.save(record, completionHandler: assets.saveCompletionHandler)
     }
@@ -781,7 +803,18 @@ class CloudDBModel : DBProtocol {
     
     func saveCompletionHandler(record: CKRecord?, error: Error?) {
         if( error != nil ) {
+            if( record != nil ) {
+                print(record!)
+            }
             print(error!)
+            
+            // Or if there is a retry delay specified in the error, then use that.
+            if let userInfo = error?._userInfo as? NSDictionary {
+                if let retry = userInfo[CKErrorRetryAfterKey] as? NSNumber {
+                    let seconds = Double(retry)
+                    print("Debug: Should retry in \(seconds) seconds. \(error)")
+                }
+            }
         }
     }
     
@@ -924,7 +957,11 @@ class CloudDBModel : DBProtocol {
     }
 
     func getThreadsForGroup(groupId: RecordId, completion: @escaping ([ConversationThread]) -> ()) {
-        let query = CKQuery(recordType: "ConversationThread", predicate: NSPredicate(format: String("group_id = %@"), argumentArray: [groupId.id]))
+        let numberOfDaysMax = self.dateLimit
+        let secondsInADay : TimeInterval = 24*60*60
+        let date = Date(timeInterval: -numberOfDaysMax*secondsInADay, since: Date())
+        
+        let query = CKQuery(recordType: "ConversationThread", predicate: NSPredicate(format: String("(group_id = %@) AND (last_modified > %@)"), argumentArray: [groupId.id, date]))
         query.sortDescriptors = [NSSortDescriptor(key: "last_modified", ascending: false)]
         publicDB.perform(query, inZoneWith: nil, completionHandler: { results, error -> Void in
             if results != nil && results!.count > 0 {
@@ -949,7 +986,10 @@ class CloudDBModel : DBProtocol {
     }
 
     func getMessagesForThread(threadId: RecordId, completion: @escaping ([Message]) -> ()) {
-        let query = CKQuery(recordType: "Message", predicate: NSPredicate(format: String("thread_id = %@"), argumentArray: [threadId.id]))
+        let numberOfDaysMax = self.dateLimit
+        let secondsInADay : TimeInterval = 24*60*60
+        let date = Date(timeInterval: -numberOfDaysMax*secondsInADay, since: Date())
+        let query = CKQuery(recordType: "Message", predicate: NSPredicate(format: String("(thread_id = %@) AND (last_modified > %@)"), argumentArray: [threadId.id, date]))
         query.sortDescriptors = [NSSortDescriptor(key: "last_modified", ascending: true)]
         publicDB.perform(query, inZoneWith: nil, completionHandler: { results, error -> Void in
             var messages = [Message]()

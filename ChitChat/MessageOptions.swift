@@ -27,6 +27,9 @@ class MessageOptions {
     
     init(options: String) {
         type = "unknown"
+        if( options.isEmpty ) {
+            return
+        }
         
         var jsonResult : Any?
         do {
@@ -56,7 +59,7 @@ class MessageOptions {
         dict.setValue(NSString(string: theme), forKey: "theme")
         
         do {
-            let data = try JSONSerialization.data(withJSONObject: dict, options: [JSONSerialization.WritingOptions.prettyPrinted])
+            let data = try JSONSerialization.data(withJSONObject: dict, options: [])
             return String(data: data, encoding: String.Encoding.utf8)
         } catch {
             return nil

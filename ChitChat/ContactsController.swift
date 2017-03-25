@@ -101,6 +101,7 @@ class NewGroupController : UIViewController, CNContactPickerDelegate, UIImagePic
             groupName.text = existingGroup!.name
             groupIconButton.imageView?.image = existingGroup!.icon
             createButton.setTitle("Edit", for: .normal)
+            createButton.isEnabled = true
             self.title = "Edit Group"
             
             model.getUsersForGroup(group: existingGroup!, completion: { (users) -> Void in
@@ -300,7 +301,7 @@ class NewGroupController : UIViewController, CNContactPickerDelegate, UIImagePic
             // Create first message
             let message = Message(thread: cthread, user: model.me())
             message.text = "Welcome to ChitChat's group " + groupName.text!
-            model.saveMessage(message: message)
+            model.saveMessage(message: message, completion:  {})
         }
         
         // Pop this controller.

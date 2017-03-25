@@ -152,7 +152,7 @@ class GroupData : NSObject, UITableViewDataSource {
     }
     
     func tableView(_ tableView: UITableView, canEditRowAt indexPath: IndexPath) -> Bool {
-        return true
+        return model.db_model.isCreatedByUser(record: groups[indexPath.row].id)
     }
 }
 

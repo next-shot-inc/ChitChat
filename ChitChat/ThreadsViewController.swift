@@ -138,41 +138,25 @@ class ThreadRowDataView  : ModelView {
         if( controller == nil ) {
             return
         }
-        // Update the entire collectionView
-        let tableView = controller!.tableView
-        let dataRow = threadData.threadsSource[index]
-        model.getMessagesForThread(thread: dataRow.cthread, completion: { (messages) -> Void in
-            dataRow.messages = messages
+        // Update the entire tableView (because of thread reordering)
+        controller!.data!.update(tableView: controller!.tableView, completion: {
             DispatchQueue.main.async(execute: {
-                let cell = tableView!.cellForRow(at: IndexPath(row: 0, section: self.index)) as? ThreadCell
-                if( cell != nil ) {
-                    cell!.collectionView.reloadData()
-                    if( dataRow.messages.count > 0 ) {
-                        cell!.collectionView.scrollToItem(at: IndexPath(row: dataRow.messages.count - 1, section: 0), at: .right, animated: true)
-                    }
-                }
+                self.controller!.tableView.reloadData()
             })
         })
     }
     
     func editMessage(message: Message) {
-        let tableView = controller!.tableView
-        
-        model.getMessagesForThread(thread: threadData.threadsSource[index].cthread, completion: { (messages) -> Void in
-            self.threadData.threadsSource[self.index].messages = messages
+        if( controller == nil ) {
+            return
+        }
+
+        // Update the entire tableView (because of thread reordering)
+        controller!.data!.update(tableView: controller!.tableView, completion: {
             DispatchQueue.main.async(execute: {
-                let message_index = messages.index(where: { (mess)-> Bool in
-                    return mess.id == message.id
-                })
-                if( message_index != nil ) {
-                    let cell = tableView!.cellForRow(at: IndexPath(row: 0, section: self.index)) as? ThreadCell
-                    if( cell != nil ) {
-                        cell!.collectionView.reloadItems(at: [IndexPath(row: message_index!, section: 0)])
-                    }
-                }
+                self.controller!.tableView.reloadData()
             })
         })
-        
     }
 }
 
@@ -204,6 +188,12 @@ class ThreadsTableViewDelegate : NSObject, UITableViewDelegate {
         if( cell != nil ) {
             let cthread = dataSource.threadsSource[section].cthread
             cell!.title.text = cthread.title
+            
+            let activity = model.getMyActivity(threadId: cthread.id)
+            if( activity == nil || activity!.last_read < cthread.last_modified ) {
+                cell!.title.text!.append("*")
+            }
+            
             
             let longDateFormatter = DateFormatter()
             longDateFormatter.locale = Locale.current
@@ -296,13 +286,6 @@ class ThreadsDataSource : NSObject, UITableViewDataSource {
         
         model.getThreadsForGroup(group: group, completion: { (threads) -> Void in
             for (i,thread) in threads.enumerated() {
-                var title = thread.title
-                
-                let activity = model.getMyActivity(threadId: thread.id)
-                if( activity == nil || activity!.last_read < thread.last_modified ) {
-                    title.append("*")
-                }
-                
                 let threadRowData = ThreadRowData(cthread: thread)
                 self.threadsSource.append(threadRowData)
                 
@@ -388,6 +371,12 @@ class ThreadsViewController: UITableViewController {
                 self.tableView.reloadData()
             })
         })
+    }
+    
+    override func viewWillDisappear(_ animated: Bool) {
+        if( data != nil ) {
+            model.removeViews(views: data!.modelViews)
+        }
     }
     
     override func prepare(for segue: UIStoryboardSegue, sender: Any?) {

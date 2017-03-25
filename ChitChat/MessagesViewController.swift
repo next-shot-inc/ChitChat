@@ -87,17 +87,20 @@ class EditableMessageCell : UICollectionViewCell, MessageBaseCellDelegate, UITex
     
     @IBAction func send(_ sender: Any) {
         message!.text = textView.text
-        message!.last_modified = Date()
+       
         textView.endEditing(true)
         
         controller!.audioPlayer.play()
         
-        model.saveMessage(message: message!)
+        model.saveMessage(message: message!, completion: {
+            self.controller!.completeAfterSave(message: self.message!)
+        })
         model.updateMyActivity(
             thread: model.getConversationThread(threadId: message!.conversation_id)!,
             date: message!.last_modified,
             withNewMessage: message
         )
+        
     }
     
     @IBAction func spellCheck(_ sender: UIButton) {
@@ -121,7 +124,14 @@ class EditableMessageCell : UICollectionViewCell, MessageBaseCellDelegate, UITex
         if( controller != nil ) {
            controller!.inputContainerView.isHidden = false
            controller!.view.layoutIfNeeded()
-           controller!.messagesView.scrollToItem(at: IndexPath(row: controller!.data!.messages.count-1, section: 0), at: UICollectionViewScrollPosition.bottom, animated: true)
+            
+           message!.text = textView.text
+           message!.last_modified = Date()
+            
+           let index = IndexPath(row: controller!.data!.messages.count-1, section: 0)
+           controller!.messagesView.reloadItems(at: [index])
+            
+           controller!.messagesView.scrollToItem(at: index, at: UICollectionViewScrollPosition.bottom, animated: true)
             
             if( tapper != nil ) {
                 controller!.view.removeGestureRecognizer(tapper!)
@@ -138,7 +148,7 @@ class PictureMessageCell : UICollectionViewCell, MessageBaseCellDelegate  {
     
     @IBOutlet weak var labelView: UIView!
     @IBOutlet weak var icon: UIImageView!
-    @IBOutlet weak var imageView: UIImageView!
+    @IBOutlet weak var decoratedImageView: DecoratedImageView!
     @IBOutlet weak var caption: UILabel!
     @IBOutlet weak var fromLabel: UILabel!
     
@@ -149,7 +159,27 @@ class PictureMessageCell : UICollectionViewCell, MessageBaseCellDelegate  {
         return labelView
     }
     func initialize(message: Message, controller : MessagesViewController?) {
-        imageView.image = message.image
+        decoratedImageView.image = message.image
+        
+        let mo = MessageOptions(options: message.options)
+        if( mo.theme == "no frame" || mo.theme.isEmpty ) {
+            decoratedImageView.frameSize = 0
+            decoratedImageView.setNeedsDisplay()
+        } else {
+            let theme = model.getTheme(name: mo.theme)
+            if( theme != nil ) {
+                model.getDecorationStamp(theme: theme!, completion: { (stamps) -> Void in
+                    if( stamps.count >= 1 ) {
+                        self.decoratedImageView.backgroundImage = stamps[0].image
+                        self.decoratedImageView.frameSize = 8
+                    }
+                    DispatchQueue.main.async(execute: {
+                        self.decoratedImageView.setNeedsDisplay()
+                    })
+                })
+            }
+        }
+        
         caption.text = message.text
         fromLabel.text = getFromName(message: message)
         
@@ -182,6 +212,7 @@ class DecoratedMessageCell : UICollectionViewCell, MessageBaseCellDelegate {
     @IBOutlet weak var labelView: UIView!
     @IBOutlet weak var fromLabel: UILabel!
     var waitingForImages = false
+    var activityView: UIActivityIndicatorView?
     
     func containerView() -> UIView? {
         return labelView
@@ -198,6 +229,12 @@ class DecoratedMessageCell : UICollectionViewCell, MessageBaseCellDelegate {
             let theme = model.getTheme(name: string)
             if( theme != nil && waitingForImages == false ) {
                 waitingForImages = true
+                activityView = UIActivityIndicatorView(activityIndicatorStyle: .white)
+                activityView!.color = UIColor.blue
+                activityView!.center = self.center
+                activityView!.startAnimating()
+                self.addSubview(activityView!)
+                
                 model.getDecorationStamp(theme: theme!, completion: { (stamps) -> Void in
                     var images = [UIImage]()
                     for s in stamps {
@@ -207,6 +244,11 @@ class DecoratedMessageCell : UICollectionViewCell, MessageBaseCellDelegate {
                     self.waitingForImages = false
                     DispatchQueue.main.async(execute: {
                          self.textView.setNeedsDisplay()
+                         if( self.activityView != nil ) {
+                            self.activityView!.stopAnimating()
+                            self.activityView!.removeFromSuperview()
+                            self.activityView = nil
+                         }
                     })
                 })
             }
@@ -497,8 +539,8 @@ class DecoratedMessageThemesPickerSource : NSObject, UICollectionViewDelegate, U
         
             mo.theme = themes[indexPath.item].name
             
-           let optionString = mo.getString()
-           m.options = optionString ?? ""
+            let optionString = mo.getString()
+            m.options = optionString ?? ""
 
             // Update message view
            controller!.messagesView.reloadItems(at: [IndexPath(row: controller!.data!.messages.count-1, section: 0)])
@@ -562,6 +604,9 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
     @IBOutlet weak var inputContainerView: UIView!
     @IBOutlet weak var forkAndSendButton: UIButton!
     @IBOutlet weak var sendButton: UIButton!
+    @IBOutlet weak var selectPictureButton: UIButton!
+    @IBOutlet weak var takePictureButton: UIButton!
+    @IBOutlet weak var sendDecoratedMessage: UIButton!
     
     var data : MessagesData?
     var delegate : MessagesViewDelegate?
@@ -577,18 +622,32 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
         super.viewDidLoad()
         // Do any additional setup after loading the view, typically from a nib.
         
-        // Manage the collection view.
-        model.getMessagesForThread(thread: conversationThread!, completion: { (messages) -> Void in
-            self.data = MessagesData(thread: self.conversationThread!, messages: messages, ctrler: self)
-            self.messagesView.dataSource = self.data
-            self.delegate = MessagesViewDelegate(data: self.data!)
-            self.messagesView.delegate = self.delegate
-            
-            DispatchQueue.main.async(execute: {
-                self.messagesView.reloadData()
-                self.messagesView.scrollToItem(
-                    at: IndexPath(row: messages.count-1, section: 0), at: UICollectionViewScrollPosition.bottom, animated: true
-                )
+        self.themesCollectionData = DecoratedMessageThemesPickerSource(controller: self)
+        self.themesCollectionView.delegate = self.themesCollectionData
+        self.themesCollectionView.dataSource = themesCollectionData
+        
+        model.getDecorationThemes(completion: { (themes) -> Void in
+            // Add in Memory decorations
+            model.addDecoration(theme: "no frame", category: "DecoratedImage", stamps: [])
+            model.addDecoration(theme: "wood pine frame", category: "DecoratedImage", stamps: ["purty_wood"])
+            model.addDecoration(theme: "dark wood frame", category: "DecoratedImage", stamps: ["dark_wood"])
+            model.addDecoration(theme: "aluminium frame", category: "DecoratedImage", stamps: ["aluminium"])
+            model.addDecoration(theme: "gold frame", category: "DecoratedImage", stamps: ["gold_frame"])
+
+            // Once the theme collection is there we can load the messages.
+            // Manage the collection view.
+            model.getMessagesForThread(thread: self.conversationThread!, completion: { (messages) -> Void in
+                self.data = MessagesData(thread: self.conversationThread!, messages: messages, ctrler: self)
+                self.messagesView.dataSource = self.data
+                self.delegate = MessagesViewDelegate(data: self.data!)
+                self.messagesView.delegate = self.delegate
+                
+                DispatchQueue.main.async(execute: {
+                    self.messagesView.reloadData()
+                    self.messagesView.scrollToItem(
+                        at: IndexPath(row: messages.count-1, section: 0), at: UICollectionViewScrollPosition.bottom, animated: true
+                    )
+                })
             })
         })
         
@@ -608,17 +667,6 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
         
         modelView = MessagesDataView(ctrler: self)
         decorationThemesView.isHidden = true
-        
-        self.themesCollectionData = DecoratedMessageThemesPickerSource(controller: self)
-        self.themesCollectionView.delegate = self.themesCollectionData
-        self.themesCollectionView.dataSource = themesCollectionData
-
-        model.getDecorationThemes(completion: { (themes) -> Void in
-            self.themesCollectionData!.themes = themes
-            DispatchQueue.main.async(execute: {
-                self.themesCollectionView.reloadData()
-            })
-        })
         
         textViewDelegate = MessagesViewGrowingTextViewDelegate(controller: self)
         textView.delegates = textViewDelegate!
@@ -670,6 +718,17 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
         model.removeViews(views: [modelView!])
     }
     
+    func completeAfterSave(message: Message) {
+        DispatchQueue.main.async(execute: {
+            let index = self.data!.messages.index(where: { (im) -> Bool in
+                return im.id == message.id
+            })
+            if( index != nil ) {
+                self.messagesView.reloadItems(at: [IndexPath(row: index!, section: 0)])
+            }
+        })
+    }
+    
     @IBAction func handleSendButton(_ sender: Any) {
         
         // Create Message
@@ -678,7 +737,9 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
             m.text = self.textView.text
             
             // Add it to DB
-            model.saveMessage(message: m)
+            model.saveMessage(message: m, completion: {
+                self.completeAfterSave(message: m)
+            })
             model.updateMyActivity(
                 thread: conversationThread!, date: m.last_modified, withNewMessage: m
             )
@@ -698,14 +759,14 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
             curMessage!.last_modified = Date()
             
             // Add it to DB
-            model.saveMessage(message: curMessage!)
+            let m = curMessage!
+            model.saveMessage(message: m, completion: {
+                self.completeAfterSave(message: m)
+            })
             model.updateMyActivity(
                 thread: conversationThread!, date: curMessage!.last_modified, withNewMessage: curMessage!
             )
             
-            // Update Interface
-            messagesView.reloadItems(at: [IndexPath(row: data!.messages.count-1, section: 0)])
-
             // Reset placeholder
             self.textView.placeholderAttributedText = NSAttributedString(
                 string: "Type a message...",
@@ -720,6 +781,8 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
         self.sendButton.isEnabled = false
         self.curMessage = nil
         self.curMessageOption = nil
+        
+        enableCreateMessageButtons(state: true)
         
         decorationThemesView.isHidden = true
         self.view.layoutIfNeeded()
@@ -776,31 +839,41 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
         m.text = "%%Thumb-up%%"
         
         // Add it to DB
-        model.saveMessage(message: m)
+        model.saveMessage(message: m, completion: {
+            self.completeAfterSave(message: m)
+        })
         model.updateMyActivity(
             thread: conversationThread!, date: m.last_modified, withNewMessage: m
         )
         
         // Add it to interface
         data?.messages.append(m)
-        messagesView.insertItems(at: [IndexPath(row: data!.messages.count-1, section: 0)])
-        messagesView.scrollToItem(at: IndexPath(row: data!.messages.count-1, section: 0), at: UICollectionViewScrollPosition.bottom, animated: true)
+        let index = IndexPath(row: self.data!.messages.count-1, section: 0)
+        self.messagesView.insertItems(at: [index])
+        self.messagesView.scrollToItem(at: index, at: UICollectionViewScrollPosition.bottom, animated: true)
         
         audioPlayer.play()
+    }
+    
+    func enableCreateMessageButtons(state: Bool) {
+        selectPictureButton.isEnabled = state
+        takePictureButton.isEnabled = state
+        sendDecoratedMessage.isEnabled = state
     }
     
     @IBAction func handleSendPicture(_ sender: Any) {
         let picker = UIImagePickerController()
         picker.delegate = self
-        picker.allowsEditing = true
+        //picker.allowsEditing = true (broken on IPad)
         picker.sourceType = .photoLibrary
+        
         present(picker, animated: true, completion: nil)
     }
     
     @IBAction func handleSendCameraPicture(_ sender: Any) {
         let picker = UIImagePickerController()
         picker.delegate = self
-        picker.allowsEditing = true
+        //picker.allowsEditing = true (broken on IPad)
         picker.sourceType = .camera
         present(picker, animated: true, completion: nil)
     }
@@ -825,9 +898,20 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
             m.text = self.textView.text
             m.image = image
             
+            curMessageOption = MessageOptions(type: "decoratedImage")
+            curMessageOption!.decorated = true
+            m.options = curMessageOption!.getString() ?? ""
+            
             // Add it to interface
             data?.messages.append(m)
             messagesView.insertItems(at: [IndexPath(row: data!.messages.count-1, section: 0)])
+            
+            decorationThemesView.isHidden = false
+            themesCollectionData!.themes = model.getDecorationThemes(category: "DecoratedImage")
+            themesCollectionView.reloadData()
+            
+            self.view.layoutIfNeeded()
+
             messagesView.scrollToItem(at: IndexPath(row: data!.messages.count-1, section: 0), at: UICollectionViewScrollPosition.bottom, animated: true)
             
             if( data!.messages.count > 2 ) {
@@ -835,6 +919,9 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
             }
             
             curMessage = m
+            
+            // Disable creation of other message until this one is done
+            enableCreateMessageButtons(state: false)
             
             self.textView.placeholderAttributedText = NSAttributedString(
                 string: "Enter a caption...",
@@ -863,6 +950,9 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
         messagesView.insertItems(at: [IndexPath(row: data!.messages.count-1, section: 0)])
         
         decorationThemesView.isHidden = false
+        themesCollectionData!.themes = model.getDecorationThemes(category: "DecoratedText")
+        themesCollectionView.reloadData()
+
         self.view.layoutIfNeeded()
         messagesView.scrollToItem(
             at: IndexPath(row: data!.messages.count-1, section: 0), at: UICollectionViewScrollPosition.bottom, animated: true
@@ -873,7 +963,8 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
         
         curMessage = m
         
-        audioPlayer.play()
+        // Disable creation of other message until this one is done
+        enableCreateMessageButtons(state: false)
     }
 
     @IBAction func handleSpellCheck(_ sender: UIButton) {

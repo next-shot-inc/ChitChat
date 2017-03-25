@@ -160,6 +160,7 @@ class DecorationTheme {
     var id: RecordId
     var name : String
     var special_date : Date?
+    var category = "DecoratedText"
     init(name: String) {
         self.id = RecordId()
         self.name = name
@@ -334,6 +335,20 @@ class MemoryModel {
         return included
     }
     
+    func updateThread(message: Message) {
+        if( self.conversations == nil ) {
+            return
+        }
+        
+        let index = conversations!.index( where: { (conv) -> Bool in
+            return conv.id == message.conversation_id
+        })
+        if( index != nil ) {
+            let cthread = conversations![index!]
+            cthread.last_modified = message.last_modified
+        }
+    }
+    
     func update(groupActivity: GroupActivity) {
         if( group_activities == nil ) {
             group_activities = [GroupActivity]()
@@ -422,6 +437,8 @@ class MemoryModelView : ModelView {
             if( index == nil ) {
                 memory_model.messages!.append(message)
             }
+            // Update conversation thread date (as no events is sent)
+            memory_model.updateThread(message: message)
         }
     }
     
@@ -433,6 +450,9 @@ class MemoryModelView : ModelView {
             if( index != nil ) {
                 memory_model.messages!.remove(at: index!)
                 memory_model.messages!.insert(message, at: index!)
+                
+                // Update conversation thread date (as no events is sent)
+                memory_model.updateThread(message: message)
             }
         }
     }
@@ -633,6 +653,12 @@ class DataModel {
         memory_model.group_activities = nil
     }
     
+    func setMessageFetchTimeLimit(numberOfDays: TimeInterval) {
+        db_model.setMessageFetchTimeLimit(numberOfDays: numberOfDays)
+        memory_model.messages = nil
+        memory_model.conversations = nil
+    }
+    
     // In memory query
     
     // Return messages in conversation, sorted from oldest to youngest
@@ -803,8 +829,8 @@ class DataModel {
         }
     }
     
-    func saveMessage(message: Message) {
-        db_model.saveMessage(message: message)
+    func saveMessage(message: Message, completion: @escaping () -> ()) {
+        db_model.saveMessage(message: message, completion: completion)
         for mv in views {
             if( mv.notify_new_message != nil ) {
                 mv.notify_new_message!(message)
@@ -893,6 +919,12 @@ class DataModel {
         })
     }
     
+    func getDecorationThemes(category: String) -> [DecorationTheme] {
+        return memory_model.decorationThemes.filter({ (dt) -> Bool in
+            return dt.category == category
+        })
+    }
+    
     func getDecorationStamp(theme: DecorationTheme, completion: @escaping ([DecorationStamp]) -> Void ) {
         let stamps = memory_model.decorationStamps.filter( { (stamp) -> Bool in
             return stamp.theme_id == theme.id
@@ -930,6 +962,25 @@ class DataModel {
             }
         }
         return nil
+    }
+    
+    func addDecoration(theme: String, category: String, stamps: [String]) {
+        if( memory_model.decorationThemes.contains(where: { (dt) -> Bool in
+            return dt.name == theme
+        }) ) {
+            return
+        }
+        
+        let theme = DecorationTheme(name: theme)
+        theme.category = category
+        memory_model.decorationThemes.append(theme)
+        for s in stamps {
+           let image = UIImage(named: s)
+           if( image != nil ) {
+               let stamp = DecorationStamp(theme: theme.id, image: image!)
+               memory_model.decorationStamps.append(stamp)
+            }
+        }
     }
     
     /******************************************************************/
@@ -997,7 +1048,7 @@ class DBModelTest {
                 for _ in 1...j {
                     message.text += " of some words "
                 }
-                model.saveMessage(message: message)
+                model.saveMessage(message: message, completion: {})
                 
                 // Simulate the fact that I read this message.
                 model.updateMyActivity(thread: thread, date: message.last_modified, withNewMessage: message)
@@ -1012,7 +1063,7 @@ class DBModelTest {
                 
                 thread.last_modified = message.last_modified
                 
-                model.saveMessage(message: message)
+                model.saveMessage(message: message, completion: {})
             }
         }
         
@@ -1023,6 +1074,6 @@ class DBModelTest {
         model.saveConversationThread(conversationThread: thread)
         let message = Message(thread: thread, user: user1)
         message.text = "Welcome to the Main conversation thread."
-        model.saveMessage(message: message)
+        model.saveMessage(message: message, completion: {})
     }
 }
