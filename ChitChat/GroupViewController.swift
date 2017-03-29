@@ -241,6 +241,11 @@ class GroupViewController: UITableViewController {
             self.data = GroupData()
             self.tableView.dataSource = self.data
             
+            // Get settings information to initialize UI stuff.
+            settingsDB.get()
+            model.setMessageFetchTimeLimit(numberOfDays: TimeInterval(settingsDB.settings.nb_of_days_to_fetch))
+            ColorPalette.cur = settingsDB.settings.palette
+            
             // Fetch the groups and update
             model.getGroups(completion: ({ (groups) -> () in
                 DispatchQueue.main.async(execute: { () -> Void in
@@ -253,6 +258,8 @@ class GroupViewController: UITableViewController {
                         self.activityView!.stopAnimating()
                         self.activityView!.removeFromSuperview()
                         self.activityView = nil
+                        
+                        model.deleteOldStuff(numberOfDays: settingsDB.settings.nb_of_days_to_keep)
                     }
                 })
             }))

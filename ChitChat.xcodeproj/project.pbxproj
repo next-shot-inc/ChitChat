@@ -26,7 +26,9 @@
 		2F4EF7D51E7C81DC006A2D06 /* DrawingTextView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F4EF7D41E7C81DC006A2D06 /* DrawingTextView.swift */; };
 		2F4EF7D71E7E3A73006A2D06 /* MessageOptions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F4EF7D61E7E3A73006A2D06 /* MessageOptions.swift */; };
 		2F4EF7E61E817BAB006A2D06 /* ResourceDB.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F4EF7E51E817BAB006A2D06 /* ResourceDB.swift */; };
+		2F708C0C1E8567B600120122 /* DecoratedImageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F708C0B1E8567B600120122 /* DecoratedImageView.swift */; };
 		2F7840591E74C1BD0069AB75 /* sounds in Resources */ = {isa = PBXBuildFile; fileRef = 2F7840581E74C1BD0069AB75 /* sounds */; };
+		2FEBCBA91E84627F008A0690 /* SettingsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FEBCBA81E84627F008A0690 /* SettingsViewController.swift */; };
 		2FF9BE291E7061F5000DF9A8 /* ContactsController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FF9BE281E7061F5000DF9A8 /* ContactsController.swift */; };
 		2FF9BE2B1E70B6D9000DF9A8 /* Login.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FF9BE2A1E70B6D9000DF9A8 /* Login.swift */; };
 		2FF9BE311E710D69000DF9A8 /* Utilities.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FF9BE301E710D69000DF9A8 /* Utilities.swift */; };
@@ -80,7 +82,9 @@
 		2F4EF7D41E7C81DC006A2D06 /* DrawingTextView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = DrawingTextView.swift; sourceTree = "<group>"; };
 		2F4EF7D61E7E3A73006A2D06 /* MessageOptions.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MessageOptions.swift; sourceTree = "<group>"; };
 		2F4EF7E51E817BAB006A2D06 /* ResourceDB.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ResourceDB.swift; sourceTree = "<group>"; };
+		2F708C0B1E8567B600120122 /* DecoratedImageView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = DecoratedImageView.swift; sourceTree = "<group>"; };
 		2F7840581E74C1BD0069AB75 /* sounds */ = {isa = PBXFileReference; lastKnownFileType = folder; path = sounds; sourceTree = "<group>"; };
+		2FEBCBA81E84627F008A0690 /* SettingsViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = SettingsViewController.swift; sourceTree = "<group>"; };
 		2FF9BE281E7061F5000DF9A8 /* ContactsController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ContactsController.swift; sourceTree = "<group>"; };
 		2FF9BE2A1E70B6D9000DF9A8 /* Login.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Login.swift; sourceTree = "<group>"; };
 		2FF9BE301E710D69000DF9A8 /* Utilities.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Utilities.swift; sourceTree = "<group>"; };
@@ -153,6 +157,8 @@
 				2F32DFCE1E6E5B0700EF34E8 /* AppDelegate.swift */,
 				2F32DFD01E6E5B0700EF34E8 /* ViewController.swift */,
 				2F32DFD21E6E5B0700EF34E8 /* Main.storyboard */,
+				2F708C0B1E8567B600120122 /* DecoratedImageView.swift */,
+				2FEBCBA81E84627F008A0690 /* SettingsViewController.swift */,
 				2F4EF7D01E79EEAA006A2D06 /* ConversationThreadHeaderView.xib */,
 				2FF9BE301E710D69000DF9A8 /* Utilities.swift */,
 				2FF9BE2A1E70B6D9000DF9A8 /* Login.swift */,
@@ -419,11 +425,13 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				2F708C0C1E8567B600120122 /* DecoratedImageView.swift in Sources */,
 				2FF9BE3D1E749396000DF9A8 /* SpellChecker.swift in Sources */,
 				2F4EF7E61E817BAB006A2D06 /* ResourceDB.swift in Sources */,
 				2F4EF7D51E7C81DC006A2D06 /* DrawingTextView.swift in Sources */,
 				2F32E00B1E6F5AE300EF34E8 /* Model.swift in Sources */,
 				2F32E0041E6E892400EF34E8 /* MessagesViewController.swift in Sources */,
+				2FEBCBA91E84627F008A0690 /* SettingsViewController.swift in Sources */,
 				2F32E0001E6E5D0400EF34E8 /* GroupViewController.swift in Sources */,
 				2F32E0061E6F1C9100EF34E8 /* GrowingTextViewInternal.swift in Sources */,
 				2F4EF7D71E7E3A73006A2D06 /* MessageOptions.swift in Sources */,

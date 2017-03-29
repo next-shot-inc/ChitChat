@@ -97,12 +97,14 @@ class GroupActivity {
 class ConversationThread {
     var id : RecordId
     var group_id : RecordId
+    var user_id : RecordId?
     var last_modified = Date()
     var title = String()
     
-    init(id: RecordId, group_id: RecordId) {
+    init(id: RecordId, group_id: RecordId, user_id: RecordId?) {
         self.id = id
         self.group_id = group_id
+        self.user_id = user_id
     }
 }
 
@@ -195,6 +197,7 @@ class ModelView {
     var notify_edit_message : ((_ message: Message) -> Void)?
     var notify_new_conversation : ((_ cthread: ConversationThread) -> Void)?
     var notify_edit_group_activity : ((_ activity: GroupActivity) -> Void)?
+    var notify_delete_conversation : ((_ id: RecordId) -> Void)?
 }
 
 class MemoryModel {
@@ -427,6 +430,7 @@ class MemoryModelView : ModelView {
         self.notify_new_conversation = new_cthread
         self.notify_new_group = new_group
         self.notify_edit_group_activity = edited_group_activity
+        self.notify_delete_conversation = delete_cthread
     }
     
     func new_message(message: Message) {
@@ -464,6 +468,17 @@ class MemoryModelView : ModelView {
             })
             if( !contained ) {
                 memory_model.conversations!.append(cthread)
+            }
+        }
+    }
+    
+    func delete_cthread(id: RecordId) {
+        if( memory_model.conversations != nil ) {
+            let index = memory_model.conversations!.index(where: { (conv) -> Bool in
+                return conv.id == id
+            })
+            if( index != nil ) {
+                memory_model.conversations!.remove(at: index!)
             }
         }
     }
@@ -844,11 +859,15 @@ class DataModel {
     }
     
     func saveConversationThread(conversationThread: ConversationThread) {
+        let oldConv = conversationThread.id is CloudRecordId
+        
         db_model.saveConversationThread(conversationThread: conversationThread)
         
-        for mv in views {
-            if( mv.notify_new_conversation != nil ) {
-                mv.notify_new_conversation!(conversationThread)
+        if( oldConv == false ) {
+           for mv in views {
+               if( mv.notify_new_conversation != nil ) {
+                   mv.notify_new_conversation!(conversationThread)
+               }
             }
         }
     }
@@ -994,8 +1013,24 @@ class DataModel {
                 memory_model.conversations!.remove(at: index!)
             }
         }
-        db_model.deleteRecord(record: conversationThread.id, completion: { })
+        db_model.deleteConversation(cthread: conversationThread, messages: getMessagesForThread(thread: conversationThread), user: me(), completion: {})
     }
+    
+    func deleteOldStuff(numberOfDays: Int) {
+        let numberOfDaysMax : TimeInterval = TimeInterval(numberOfDays)
+        let secondsInADay : TimeInterval = 24*60*60
+        let date = Date(timeInterval: -numberOfDaysMax*secondsInADay, since: Date())
+
+        DispatchQueue.main.asyncAfter(deadline: DispatchTime.now() + 10, execute: {
+            self.db_model.deleteOldMessages(olderThan: date, user: self.me(), completion: {
+                self.db_model.deleteOldConversationThread(olderThan: date, user: self.me(), completion: {})
+            })
+        })
+
+    }
+    
+    /*******************************************************************/
+    
 }
 
 var model : DataModel!
@@ -1038,7 +1073,7 @@ class DBModelTest {
         Thread.sleep(forTimeInterval: 30)
         
         for i in 1...3 {
-            let thread = ConversationThread(id: RecordId(), group_id: group1.id)
+            let thread = ConversationThread(id: RecordId(), group_id: group1.id, user_id: user1.id)
             thread.title = String("Thread " + String(i))
             model.saveConversationThread(conversationThread: thread)
             
@@ -1069,7 +1104,7 @@ class DBModelTest {
         
         Thread.sleep(forTimeInterval: 30)
         
-        let thread = ConversationThread(id: RecordId(), group_id: group2.id)
+        let thread = ConversationThread(id: RecordId(), group_id: group2.id, user_id: model.me().id)
         thread.title = String("Main")
         model.saveConversationThread(conversationThread: thread)
         let message = Message(thread: thread, user: user1)

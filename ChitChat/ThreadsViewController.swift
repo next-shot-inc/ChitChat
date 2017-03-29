@@ -14,6 +14,7 @@ class ThreadMessageCell : UICollectionViewCell {
     @IBOutlet weak var fromName: UILabel!
     @IBOutlet weak var label: UILabel!
     @IBOutlet weak var labelView: UIView!
+    @IBOutlet weak var decoratedIndicator: UIImageView!
 }
 
 class ThreadMessageWithImageCell : UICollectionViewCell {
@@ -104,6 +105,9 @@ class ThreadRowData : NSObject, UICollectionViewDataSource {
             mcell.fromName.text = getFromName(message: m)
             labelView = mcell.labelView
             cell = mcell
+            
+            let mo = MessageOptions(options: m.options)
+            mcell.decoratedIndicator.isHidden = !mo.decorated
         }
         
         let bg = ColorPalette.backgroundColor(message: m)
@@ -235,6 +239,7 @@ class ThreadsDataView : ModelView {
         controller = ctrler
         super.init()
         notify_new_conversation = newConversation
+        notify_delete_conversation = deleteConversation
     }
     
     func newConversation(cthread: ConversationThread) {
@@ -242,6 +247,16 @@ class ThreadsDataView : ModelView {
             self.controller!.data!.update(tableView: self.controller!.tableView, completion: {
                  DispatchQueue.main.async(execute: {
                      self.controller!.tableView.reloadData()
+                })
+            })
+        }
+    }
+    
+    func deleteConversation(id: RecordId) {
+        if( controller != nil  ) {
+            self.controller!.data!.update(tableView: self.controller!.tableView, completion: {
+                DispatchQueue.main.async(execute: {
+                    self.controller!.tableView.reloadData()
                 })
             })
         }

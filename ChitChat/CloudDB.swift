@@ -23,6 +23,14 @@ class CloudRecordId : RecordId {
     }
 }
 
+class ReferenceCloudRecordId : RecordId {
+    var recordId : CKRecordID
+    init(recordId: CKRecordID, id: String) {
+        self.recordId = recordId
+        super.init(string: id)
+    }
+}
+
 extension RecordId {
     convenience init(record: CKRecord, forKey: String) {
         self.init(string: String(record.object(forKey: forKey) as! NSString))
@@ -148,10 +156,27 @@ extension GroupActivity {
 }
 
 extension ConversationThread {
-    convenience init(record: CKRecord) {
+    convenience init(record: CKRecord, createdByUser: Bool) {
+        let gr_ref = record["group_reference"] as? CKReference
+        let group_id : RecordId
+        if( gr_ref == nil ) {
+            group_id = RecordId(record: record, forKey: "group_id")
+        } else {
+            let id = String(record["group_id"] as! NSString)
+            group_id = ReferenceCloudRecordId(recordId: gr_ref!.recordID, id: id)
+        }
+        let raw_user_id = record["user_id"] as? NSString
+        var user_id : RecordId?
+        if( user_id == nil && createdByUser ) {
+            user_id = model.me().id
+        } else if( raw_user_id != nil ) {
+            user_id = RecordId(string: String(raw_user_id!))
+        }
+        
         self.init(
             id: CloudRecordId(record: record),
-            group_id: RecordId(record: record, forKey: "group_id")
+            group_id: group_id,
+            user_id: user_id
         )
         self.title = String(record["title"] as! NSString)
         self.last_modified = Date(timeIntervalSince1970: (record["last_modified"] as! NSDate).timeIntervalSince1970)
@@ -162,9 +187,14 @@ extension ConversationThread {
         record["group_id"] = NSString(string: self.group_id.id)
         if( self.group_id is CloudRecordId ) {
             record["group_reference"] = CKReference(record: (self.group_id as! CloudRecordId).record, action: .none)
+        } else if( self.group_id is ReferenceCloudRecordId ) {
+            record["group_reference"] = CKReference(recordID: (self.group_id as! ReferenceCloudRecordId).recordId, action: .none)
         }
         record["title"] = NSString(string: self.title)
         record["last_modified"] = NSDate(timeIntervalSince1970: self.last_modified.timeIntervalSince1970)
+        if( self.user_id != nil ) {
+            record["user_id"] = NSString(string: self.user_id!.id)
+        }
     }
 }
 
@@ -387,9 +417,13 @@ class CloudDBModel : DBProtocol {
     func isCreatedByUser(record: RecordId) -> Bool {
         let cloudRecordId = record as? CloudRecordId
         if( cloudRecordId != nil ) {
-            return cloudRecordId!.record.creatorUserRecordID == userRecordInfo?.ckrecord || cloudRecordId!.record.creatorUserRecordID?.recordName == "__defaultOwner__"
+            return isCreatedByUser(record: cloudRecordId!.record)
         }
         return false
+    }
+    
+    func isCreatedByUser(record: CKRecord) -> Bool {
+        return record.creatorUserRecordID == userRecordInfo?.ckrecord || record.creatorUserRecordID?.recordName == "__defaultOwner__"
     }
     
     func setupNotifications(cthread: ConversationThread) {
@@ -489,6 +523,29 @@ class CloudDBModel : DBProtocol {
             })
         })
         
+        let delete_key = "delete_type_ConversationThread_group_id_\(groupId.id)"
+        
+        subscribe(subscriptionId: delete_key, predicateFormat: predicateFormat, createSubscription: { () -> Void in
+            
+            let delete_cthread_subscription = CKQuerySubscription(
+                recordType: "ConversationThread", predicate: NSPredicate(format: predicateFormat, argumentArray: [groupId.id]),
+                subscriptionID: delete_key, options: [CKQuerySubscriptionOptions.firesOnRecordDeletion]
+            )
+            let notificationInfo = CKNotificationInfo()
+            notificationInfo.soundName = "default"
+            notificationInfo.desiredKeys = ["id"]
+            notificationInfo.shouldSendContentAvailable = true // To make sure it is sent
+            
+            delete_cthread_subscription.notificationInfo = notificationInfo
+            
+            self.publicDB.save(delete_cthread_subscription, completionHandler: { (sub, error) -> Void in
+                if( error != nil ) {
+                    print(error!)
+                }
+            })
+        })
+
+        
         let edit_key = "edit_type_GroupActivity_group_id_\(groupId.id)"
         
         subscribe(subscriptionId: edit_key, predicateFormat: predicateFormat, createSubscription: { () -> Void in
@@ -542,6 +599,18 @@ class CloudDBModel : DBProtocol {
             let queryNotification = notification as! CKQueryNotification
             let recordId = queryNotification.recordID
             if( recordId != nil ) {
+                if( queryNotification.queryNotificationReason == .recordDeleted ) {
+                    let rid = queryNotification.recordFields?["id"] as? NSString
+                    if( rid != nil ) {
+                        let recordId = RecordId(string: String(rid!))
+                        for view in views {
+                            if( view.notify_delete_conversation != nil ) {
+                                view.notify_delete_conversation!(recordId)
+                            }
+                        }
+                    }
+                    return
+                }
                 publicDB.fetch(withRecordID: recordId!, completionHandler: { (record, error) -> Void in
                     if( record != nil ) {
                         if( record!.recordType == "Message" ) {
@@ -562,12 +631,14 @@ class CloudDBModel : DBProtocol {
                                 }
                             }
                         } else if( record!.recordType == "ConversationThread" ) {
-                            let cthread = ConversationThread(record: record!)
+                            let cthread = ConversationThread(record: record!, createdByUser: false )
                             DispatchQueue.main.async {
-                                for view in views {
-                                    if( view.notify_new_conversation != nil ) {
-                                        view.notify_new_conversation!(cthread)
-                                    }
+                                if( queryNotification.queryNotificationReason == .recordCreated ) {
+                                   for view in views {
+                                       if( view.notify_new_conversation != nil ) {
+                                            view.notify_new_conversation!(cthread)
+                                       }
+                                   }
                                 }
                             }
                         } else if( record!.recordType == "GroupActivity" ) {
@@ -823,6 +894,9 @@ class CloudDBModel : DBProtocol {
     func getUser(userId: RecordId, completion: @escaping (User) -> ()) {
         let query = CKQuery(recordType: "User", predicate: NSPredicate(format: String("user_id = %@"), argumentArray: [userId.id]))
         publicDB.perform(query, inZoneWith: nil, completionHandler: { results, error -> Void in
+            
+            self.getCompletionHandler(error: error)
+            
             if results!.count > 0 {
                 let record = results![0]
                 let user = User(record: record)
@@ -839,9 +913,7 @@ class CloudDBModel : DBProtocol {
                 let user = User(record: record)
                 completion(user)
             } else {
-                if( error != nil ) {
-                    print(error!)
-                }
+                self.getCompletionHandler(error: error)
                 completion(nil)
             }
         })
@@ -850,6 +922,8 @@ class CloudDBModel : DBProtocol {
     func getGroupsForUser(userId: RecordId, completion: @escaping ([Group]) -> ()) {
         let query = CKQuery(recordType: "GroupUserFolder", predicate: NSPredicate(format: String("user_id = %@"), argumentArray: [userId.id]))
         publicDB.perform(query, inZoneWith: nil, completionHandler: { results, error -> Void in
+            self.getCompletionHandler(error: error)
+            
             if results != nil && results!.count > 0 {
                 var gr_rids = [CKRecordID]()
                 for r in results! {
@@ -912,6 +986,9 @@ class CloudDBModel : DBProtocol {
     func getUsersForGroup(groupId: RecordId, completion: @escaping ([User]) -> ()) {
         let query = CKQuery(recordType: "GroupUserFolder", predicate: NSPredicate(format: String("group_id = %@"), argumentArray: [groupId.id]))
         publicDB.perform(query, inZoneWith: nil, completionHandler: { results, error -> Void in
+            
+            self.getCompletionHandler(error: error)
+            
             if results != nil && results!.count > 0 {
                 var ur_rids = [CKRecordID]()
                 for r in results! {
@@ -947,6 +1024,8 @@ class CloudDBModel : DBProtocol {
     func getActivityForGroup(groupId: RecordId, completion: @escaping (GroupActivity?) -> ()) {
         let query = CKQuery(recordType: "GroupActivity", predicate: NSPredicate(format: String("group_id = %@"), argumentArray: [groupId.id]))
         publicDB.perform(query, inZoneWith: nil, completionHandler: { results, error -> Void in
+            self.getCompletionHandler(error: error)
+            
             if results != nil && results!.count > 0 {
                 let activity = GroupActivity(record: results![0])
                 completion(activity)
@@ -964,10 +1043,12 @@ class CloudDBModel : DBProtocol {
         let query = CKQuery(recordType: "ConversationThread", predicate: NSPredicate(format: String("(group_id = %@) AND (last_modified > %@)"), argumentArray: [groupId.id, date]))
         query.sortDescriptors = [NSSortDescriptor(key: "last_modified", ascending: false)]
         publicDB.perform(query, inZoneWith: nil, completionHandler: { results, error -> Void in
+            self.getCompletionHandler(error: error)
             if results != nil && results!.count > 0 {
                 var conversationThreads = [ConversationThread]()
                 for r in results! {
-                   let cthread = ConversationThread(record: r)
+                    let co = self.isCreatedByUser(record: r)
+                    let cthread = ConversationThread(record: r, createdByUser: co)
                     conversationThreads.append(cthread)
                 }
                 completion(conversationThreads)
@@ -978,8 +1059,12 @@ class CloudDBModel : DBProtocol {
     func getThread(threadId: RecordId, completion: @escaping (ConversationThread?) -> ()) {
         let query = CKQuery(recordType: "ConversationThread", predicate: NSPredicate(format: String("id = %@"), argumentArray: [threadId.id]))
         publicDB.perform(query, inZoneWith: nil, completionHandler: { results, error -> Void in
+            if( error != nil ) {
+                self.getCompletionHandler(error: error)
+            }
             if results != nil && results!.count > 0 {
-                let cthread = ConversationThread(record: results![0])
+                let co = self.isCreatedByUser(record: results![0])
+                let cthread = ConversationThread(record: results![0], createdByUser: co)
                 completion(cthread)
             }
         })
@@ -992,6 +1077,7 @@ class CloudDBModel : DBProtocol {
         let query = CKQuery(recordType: "Message", predicate: NSPredicate(format: String("(thread_id = %@) AND (last_modified > %@)"), argumentArray: [threadId.id, date]))
         query.sortDescriptors = [NSSortDescriptor(key: "last_modified", ascending: true)]
         publicDB.perform(query, inZoneWith: nil, completionHandler: { results, error -> Void in
+            self.getCompletionHandler(error: error)
             var messages = [Message]()
             if( results != nil ) {
                 for r in results! {
@@ -1006,6 +1092,7 @@ class CloudDBModel : DBProtocol {
     func getActivity(userId: RecordId, threadId: RecordId, completion: @escaping (UserActivity?) -> ()) {
         let query = CKQuery(recordType: "UserActivity", predicate: NSPredicate(format: String("(thread_id = %@) AND (user_id = %@)"), argumentArray: [threadId.id, userId.id]))
         publicDB.perform(query, inZoneWith: nil, completionHandler: { results, error -> Void in
+            self.getCompletionHandler(error: error)
             if results != nil && results!.count > 0 {
                 let record = results![0]
                 let usera = UserActivity(record: record)
@@ -1019,6 +1106,8 @@ class CloudDBModel : DBProtocol {
     func getActivities(userId: RecordId, completion: @escaping ([UserActivity]) -> ()) {
         let query = CKQuery(recordType: "UserActivity", predicate: NSPredicate(format: String("user_id = %@"), argumentArray: [userId.id]))
         publicDB.perform(query, inZoneWith: nil, completionHandler: { results, error -> Void in
+            self.getCompletionHandler(error: error)
+            
             if results != nil {
                 var user_acs = [UserActivity]()
                 for record in results! {
@@ -1033,6 +1122,8 @@ class CloudDBModel : DBProtocol {
     func getDecorationStamps(theme: DecorationTheme, completion: @escaping ([DecorationStamp]) -> ()) {
         let query = CKQuery(recordType: "DecorationStamp", predicate: NSPredicate(format: "theme_id = %@", argumentArray: [theme.id.id]))
         publicDB.perform(query, inZoneWith: nil, completionHandler: { results, error -> Void in
+            self.getCompletionHandler(error: error)
+            
             if results != nil {
                 var stamps = [DecorationStamp]()
                 for record in results! {
@@ -1041,6 +1132,7 @@ class CloudDBModel : DBProtocol {
                 }
                 completion(stamps)
             }
+            
         })
 
     }
@@ -1056,11 +1148,54 @@ class CloudDBModel : DBProtocol {
                 }
                 completion(themes)
             } else {
-                if( error != nil ) {
-                    print(error!)
-                }
+                self.getCompletionHandler(error: error)
             }
         })
+    }
+
+    func getCompletionHandler(error: Error?) {
+        if( error != nil ) {
+            print(error!)
+            
+            // Or if there is a retry delay specified in the error, then use that.
+            if let userInfo = error?._userInfo as? NSDictionary {
+                if let retry = userInfo[CKErrorRetryAfterKey] as? NSNumber {
+                    let seconds = Double(retry)
+                    print("Debug: Should retry in \(seconds) seconds. \(error)")
+                }
+            }
+        }
+    }
+
+    
+    /******************************************************************************************************/
+    
+    func deleteConversation(cthread: ConversationThread, messages: [Message], user: User, completion: @escaping () -> ()) {
+        let cloudRecordId = cthread.id as? CloudRecordId
+        if( cloudRecordId == nil ) {
+            return
+        }
+        
+        var recordIDsArray: [CKRecordID] = [cloudRecordId!.record.recordID]
+        for message in messages {
+            if( message.user_id == user.id ) {
+                let messageRecordId = message.id as? CloudRecordId
+                if( messageRecordId != nil ) {
+                    recordIDsArray.append(messageRecordId!.record.recordID)
+                }
+            }
+        }
+        
+        let operation = CKModifyRecordsOperation(recordsToSave: nil, recordIDsToDelete: recordIDsArray)
+        operation.modifyRecordsCompletionBlock = {
+            (savedRecords: [CKRecord]?, deletedRecordIDs: [CKRecordID]?, error: Error?) in
+            
+            print("delete conversation ", cthread.title)
+            
+            completion()
+        }
+        
+        self.publicDB.add(operation)
     }
     
     class DeleteCompletionConfirmation {
@@ -1161,4 +1296,57 @@ class CloudDBModel : DBProtocol {
             self.publicDB.add(operation)
         }
     }
+    
+    func deleteOldMessages(olderThan: Date, user: User, completion: @escaping () -> ()) {
+        let query = CKQuery(recordType: "Message", predicate: NSPredicate(format: String("(user_id = %@) AND (last_modified <= %@)"), argumentArray: [user.id.id, olderThan]))
+        publicDB.perform(query, inZoneWith: nil, completionHandler: { (records, error) in
+            var recordIDsArray: [CKRecordID] = []
+            for record in records! {
+                recordIDsArray.append(record.recordID)
+            }
+            
+            let operation = CKModifyRecordsOperation(recordsToSave: nil, recordIDsToDelete: recordIDsArray)
+            operation.modifyRecordsCompletionBlock = {
+                (savedRecords: [CKRecord]?, deletedRecordIDs: [CKRecordID]?, error: Error?) in
+                print("deleted old message for user ", user.label ?? "unknown")
+                
+                if( error != nil ) {
+                    print(error!)
+                }
+                
+                completion()
+            }
+            
+            self.publicDB.add(operation)
+        })
+    }
+    
+    func deleteOldConversationThread(olderThan: Date, user: User, completion: @escaping () -> ()) {
+        let query = CKQuery(recordType: "ConversationThread", predicate: NSPredicate(format: String("(user_id = %@) AND (last_modified <= %@)"), argumentArray: [user.id.id, olderThan]))
+        publicDB.perform(query, inZoneWith: nil, completionHandler: { (records, error) in
+            if( error != nil ) {
+                print(error!)
+            }
+            
+            var recordIDsArray: [CKRecordID] = []
+            for record in records! {
+                recordIDsArray.append(record.recordID)
+            }
+            
+            let operation = CKModifyRecordsOperation(recordsToSave: nil, recordIDsToDelete: recordIDsArray)
+            operation.modifyRecordsCompletionBlock = {
+                (savedRecords: [CKRecord]?, deletedRecordIDs: [CKRecordID]?, error: Error?) in
+                print("deleted old converstation threads for user ", user.label ?? "unknown")
+                
+                if( error != nil ) {
+                    print(error!)
+                }
+                
+                completion()
+            }
+            
+            self.publicDB.add(operation)
+        })
+    }
+
 }

@@ -76,9 +76,38 @@ class SpellChecker {
         }
     }
     
-    func check() {
+    func lang() -> String? {
+        if( textView != nil ) {
+            return textView!.textInputMode?.primaryLanguage
+        } else {
+            return gtextView!.textInputMode?.primaryLanguage
+        }
+    }
+    
+    func check(completion: @escaping (_ nb_errors: Int) -> ()) {
+        // Check keyboard language against supported languages.
+        let supportedLanguages = [
+            "ast-ES", "be-BY", "br-FR", "ca-ES", "ca-ES-valencia", "da-DK",
+            "de", "de-AT", "de-CH", "de-DE", "el-GR", "en", "en-AU", "en-CA", "en-GB", "en-NZ", "en-US", "en-ZA",
+            "eo", "es", "fa", "fr", "gl-ES", "it", "ja-JP", "km-KH", "nl",
+            "pl-PL", "pt", "pt-AO", "pt-BR", "pt-MZ", "pt-PT", "ro-RO", "ru-RU",
+            "sk-SK", "sl-SI", "sv", "ta-IN", "tl-PH", "uk-UA", "zh-CN", "auto"
+        ]
+        
+        var lang = self.lang() ?? "auto"
+        if( !supportedLanguages.contains(lang) ) {
+            // Try without the extansion
+            let firstDash = lang.characters.index(of: "-")
+            if( firstDash != nil ) {
+                lang = lang.substring(to: firstDash!)
+                if( !supportedLanguages.contains(lang) ) {
+                    lang = "auto"
+                }
+            }
+        }
+    
         //1
-        let urlAsString = "https://languagetool.org/api/v2/check?language=auto&text="
+        let urlAsString = "https://languagetool.org/api/v2/check?language=\(lang)&text="
         let encodedString = text().addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed)
         let fullURLString = urlAsString + encodedString!
         
@@ -122,21 +151,21 @@ class SpellChecker {
                         for i in 0..<jsonMatchArray.count {
                             let jsonDict = jsonMatchArray[i] as! NSDictionary
                             let rule = jsonDict["rule"] as! NSDictionary
-                            let ruleCategory = rule["category"] as! NSDictionary
-                            let ruleCategoryId = ruleCategory["id"] as! NSString
+                            let issueType = rule["issueType"] as! NSString
                             let offset = jsonDict["offset"] as! Int
                             let length = jsonDict["length"] as! Int
                             
                             let range = NSRange(location: offset, length: length)
-                            if( ruleCategoryId == "GRAMMAR" || ruleCategoryId == "CONFUSED_WORDS" || ruleCategoryId == "MISC" ) {
-                                 astring.addAttributes(badgrammarAttributes, range: range)
-                            } else if( ruleCategoryId == "TYPOS") {
+                            if( issueType == "misspelling" ) {
                                 astring.addAttributes(misspellAttributes, range: range)
+                            } else {
+                                astring.addAttributes(badgrammarAttributes, range: range)
                             }
                         }
                         
                         DispatchQueue.main.async(execute: {
                             self.set(text: astring)
+                            completion(jsonMatchArray.count)
                         })
                     }
                 }

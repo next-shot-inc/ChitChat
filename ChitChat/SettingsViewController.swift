@@ -9,14 +9,70 @@
 import Foundation
 import UIKit
 
+struct Settings {
+    var nb_of_days_to_fetch = 5
+    var nb_of_days_to_keep = 10
+    var palette = 0
+}
+
+class SettingsDB {
+    var settings = Settings()
+    
+    let keyStore : NSUbiquitousKeyValueStore?
+    init() {
+        keyStore = NSUbiquitousKeyValueStore()
+        
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(SettingsDB.ubiquitousKeyValueStoreDidChange(_:)),
+            name: NSUbiquitousKeyValueStore.didChangeExternallyNotification,
+            object: keyStore
+        )
+    }
+    
+    @objc func ubiquitousKeyValueStoreDidChange(_ notification: Notification) {
+        // Update local values
+    }
+    
+    func get() {
+        let nb_of_days_to_fetch = keyStore?.double(forKey: "nb_of_days_to_fetch")
+        if( nb_of_days_to_fetch != nil && nb_of_days_to_fetch! > 0 ) {
+            settings.nb_of_days_to_fetch = Int(nb_of_days_to_fetch!)
+        }
+        
+        let nb_of_days_to_keep = keyStore?.double(forKey: "nb_of_days_to_keep")
+        if( nb_of_days_to_keep != nil && nb_of_days_to_keep! > 0 ) {
+            settings.nb_of_days_to_keep = Int(nb_of_days_to_keep!)
+        }
+        
+        let palette = keyStore?.double(forKey: "color_palette_index")
+        if( palette != nil ) {
+            settings.palette = Int(palette!)
+        }
+
+    }
+    
+    func put() {
+        guard let keyStore = self.keyStore else { return }
+        keyStore.set(Double(settings.nb_of_days_to_fetch), forKey: "nb_of_days_to_fetch")
+        keyStore.set(Double(settings.nb_of_days_to_keep), forKey: "nb_of_days_to_keep")
+        keyStore.set(Double(settings.palette), forKey: "color_palette_index")
+        keyStore.synchronize()
+    }
+}
+
+let settingsDB = SettingsDB()
+
 class SettingsViewController: UIViewController {
     
-    @IBOutlet weak var weeksLabel: UILabel!
-    @IBOutlet weak var dayStepper: UIStepper!
+    @IBOutlet weak var displayDaysLabel: UILabel!
+    @IBOutlet weak var displayDaysStepper: UIStepper!
     @IBOutlet weak var bluePalette: UIButton!
     @IBOutlet weak var greenPalette: UIButton!
     @IBOutlet weak var redPallette: UIButton!
     @IBOutlet weak var curPalette: UIImageView!
+    @IBOutlet weak var keepDaysLabel: UILabel!
+    @IBOutlet weak var keepDaysStepper: UIStepper!
+    
     var buttons = [UIButton]()
     var images = ["palette_red", "palette_green", "palette_blue" ]
     
@@ -36,12 +92,23 @@ class SettingsViewController: UIViewController {
             b.layer.borderWidth = 1.0
         }
         
+        settingsDB.get()
+        ColorPalette.cur = settingsDB.settings.palette
+        displayDaysStepper.value = Double(settingsDB.settings.nb_of_days_to_fetch)
+        displayDaysLabel.text = String(settingsDB.settings.nb_of_days_to_fetch)
+        keepDaysStepper.value = Double(settingsDB.settings.nb_of_days_to_keep)
+        keepDaysLabel.text = String(settingsDB.settings.nb_of_days_to_keep)
+        
         curPalette.image = UIImage(named: images[ColorPalette.cur])
     }
     
     override func didReceiveMemoryWarning() {
         super.didReceiveMemoryWarning()
         // Dispose of any resources that can be recreated.
+    }
+    
+    override func viewWillDisappear(_ animated: Bool) {
+        settingsDB.put()
     }
     
     func buttonSelection(button: UIButton) {
@@ -52,6 +119,7 @@ class SettingsViewController: UIViewController {
                 button.isHighlighted = false
                 button.isSelected = false
             } else {
+                settingsDB.settings.palette = i
                 ColorPalette.cur = i
                 curPalette.image = UIImage(named: images[i])
             }
@@ -68,9 +136,18 @@ class SettingsViewController: UIViewController {
         buttonSelection(button: sender)
     }
     
-    @IBAction func weeksStepper(_ sender: UIStepper) {
-        weeksLabel.text = String(Int(sender.value))
+    @IBAction func displayDaysStepper(_ sender: UIStepper) {
+        displayDaysLabel.text = String(Int(sender.value))
+        
         model.setMessageFetchTimeLimit(numberOfDays: sender.value)
+        
+        settingsDB.settings.nb_of_days_to_fetch = Int(sender.value)
+    }
+    
+    @IBAction func keepDaysStepper(_ sender: UIStepper) {
+        keepDaysLabel.text = String(Int(sender.value))
+        
+        settingsDB.settings.nb_of_days_to_keep = Int(sender.value)
     }
 }
 

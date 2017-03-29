@@ -184,7 +184,14 @@ class NewGroupController : UIViewController, CNContactPickerDelegate, UIImagePic
         _ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [String : Any]
     ) {
         let chosenImage = info[UIImagePickerControllerOriginalImage] as! UIImage
-        groupIconButton.setImage(chosenImage.resize(newSize: CGSize(width: 32, height: 32)), for: .normal)
+        
+        let imageSize = chosenImage.size
+        let sx = 32/imageSize.width
+        let sy = 32/imageSize.height
+        let sc = min(sx, sy)
+        let imageScaledSize = CGSize(width: imageSize.width*sc, height: imageSize.height*sc)
+
+        groupIconButton.setImage(chosenImage.resize(newSize: imageScaledSize), for: .normal)
         
         dismiss(animated: true, completion: nil)
     }
@@ -294,7 +301,7 @@ class NewGroupController : UIViewController, CNContactPickerDelegate, UIImagePic
             model.addUserToGroup(group: group, user: model.me())
             
             // Create default thread
-            let cthread = ConversationThread(id: RecordId(), group_id: group.id)
+            let cthread = ConversationThread(id: RecordId(), group_id: group.id, user_id: model.me().id)
             cthread.title = "Main"
             model.saveConversationThread(conversationThread: cthread)
             

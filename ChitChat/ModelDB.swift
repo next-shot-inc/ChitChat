@@ -46,6 +46,9 @@ protocol DBProtocol {
     func isCreatedByUser(record: RecordId) -> Bool
     
     func deleteRecord(record: RecordId, completion: @escaping () -> Void)
+    func deleteConversation(cthread: ConversationThread, messages: [Message], user: User, completion: @escaping () -> ())
+    func deleteOldConversationThread(olderThan: Date, user: User, completion: @escaping () -> ())
+    func deleteOldMessages(olderThan: Date, user: User, completion: @escaping () -> ())
 }
 
 /***************************************************************************************/
@@ -221,6 +224,15 @@ class InMemoryDB : DBProtocol {
     }
     
     func deleteRecord(record: RecordId, completion: @escaping () -> Void) {
+    }
+    
+    func deleteConversation(cthread: ConversationThread, messages: [Message], user: User, completion: @escaping () -> ()) {
+    }
+    
+    func deleteOldMessages(olderThan: Date, user: User, completion: @escaping () -> ()) {
+    }
+    
+    func deleteOldConversationThread(olderThan: Date, user: User, completion: @escaping () -> ()) {
     }
     
     func setMessageFetchTimeLimit(numberOfDays: TimeInterval) {

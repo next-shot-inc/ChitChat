@@ -35,11 +35,14 @@ func getFromName(message: Message) -> String {
 }
 
 class MessageCell : UICollectionViewCell, MessageBaseCellDelegate {
-    
+    weak var controller: MessagesViewController?
     @IBOutlet weak var label: UILabel!
     @IBOutlet weak var labelView: UIView!
     @IBOutlet weak var icon: UIImageView!
     @IBOutlet weak var fromLabel: UILabel!
+    @IBOutlet weak var editButton: UIButton!
+    
+    var message: Message?
     
     func userIcon() -> UIImageView? {
         return icon
@@ -49,108 +52,39 @@ class MessageCell : UICollectionViewCell, MessageBaseCellDelegate {
     }
     
     func initialize(message: Message, controller : MessagesViewController?) {
+        self.message = message
+        self.controller = controller
+        
         label.text = message.text
     
         fromLabel.text = getFromName(message: message)
         
         let bg = ColorPalette.backgroundColor(message: message)
         labelView.backgroundColor = bg
+        
+        editButton.isEnabled = message.user_id.id == model.me().id.id &&
+            controller?.data?.messages.last === message
     }
-}
 
-class EditableMessageCell : UICollectionViewCell, MessageBaseCellDelegate, UITextViewDelegate {
-    var message: Message?
-    var controller : MessagesViewController?
-    var tapper : UITapGestureRecognizer?
-    
-    @IBOutlet weak var fromLabel: UILabel!
-    @IBOutlet weak var labelView: UIView!
-    @IBOutlet weak var textView: UITextView!
-    
-    func userIcon() -> UIImageView? {
-        return nil
-    }
-    func containerView() -> UIView? {
-        return labelView
-    }
-    
-    func initialize(message: Message, controller : MessagesViewController?) {
-        self.message = message
-        self.controller = controller
-        textView.text = message.text
-        textView.delegate = self
-        fromLabel.text = getFromName(message: message)
+    @IBAction func editAction(_ sender: Any) {
+        guard let ctrler = controller else { return }
+        ctrler.curMessage = message
+        ctrler.textView.text = message?.text
         
-        let bg = ColorPalette.backgroundColor(message: message)
-        labelView.backgroundColor = bg
-    }
-    
-    @IBAction func send(_ sender: Any) {
-        message!.text = textView.text
-       
-        textView.endEditing(true)
-        
-        controller!.audioPlayer.play()
-        
-        model.saveMessage(message: message!, completion: {
-            self.controller!.completeAfterSave(message: self.message!)
-        })
-        model.updateMyActivity(
-            thread: model.getConversationThread(threadId: message!.conversation_id)!,
-            date: message!.last_modified,
-            withNewMessage: message
-        )
-        
-    }
-    
-    @IBAction func spellCheck(_ sender: UIButton) {
-        controller!.audioPlayer.play()
-        
-        let checker = SpellChecker(textView: textView)
-        checker.check()
-    }
-    
-    func textViewShouldBeginEditing(_ textView: UITextView) -> Bool {
-        controller?.inputContainerView.isHidden = true
-        
-        tapper = UITapGestureRecognizer(target: self, action:#selector(endEditingWithTouch))
-        tapper!.cancelsTouchesInView = false
-        controller?.view.addGestureRecognizer(tapper!)
-
-        return true
-    }
-    
-    func textViewDidEndEditing(_ textView: UITextView) {
-        if( controller != nil ) {
-           controller!.inputContainerView.isHidden = false
-           controller!.view.layoutIfNeeded()
-            
-           message!.text = textView.text
-           message!.last_modified = Date()
-            
-           let index = IndexPath(row: controller!.data!.messages.count-1, section: 0)
-           controller!.messagesView.reloadItems(at: [index])
-            
-           controller!.messagesView.scrollToItem(at: index, at: UICollectionViewScrollPosition.bottom, animated: true)
-            
-            if( tapper != nil ) {
-                controller!.view.removeGestureRecognizer(tapper!)
-            }
-        }
-    }
-    
-    func endEditingWithTouch() {
-        textView.resignFirstResponder()
+        ctrler.enableCreateMessageButtons(state: false)
     }
 }
 
 class PictureMessageCell : UICollectionViewCell, MessageBaseCellDelegate  {
+    var message: Message?
+    weak var controller : MessagesViewController?
     
     @IBOutlet weak var labelView: UIView!
     @IBOutlet weak var icon: UIImageView!
     @IBOutlet weak var decoratedImageView: DecoratedImageView!
     @IBOutlet weak var caption: UILabel!
     @IBOutlet weak var fromLabel: UILabel!
+    @IBOutlet weak var editButton: UIButton!
     
     func userIcon() -> UIImageView? {
         return icon
@@ -160,6 +94,8 @@ class PictureMessageCell : UICollectionViewCell, MessageBaseCellDelegate  {
     }
     func initialize(message: Message, controller : MessagesViewController?) {
         decoratedImageView.image = message.image
+        self.message = message
+        self.controller = controller
         
         let mo = MessageOptions(options: message.options)
         if( mo.theme == "no frame" || mo.theme.isEmpty ) {
@@ -185,6 +121,20 @@ class PictureMessageCell : UICollectionViewCell, MessageBaseCellDelegate  {
         
         let bg = ColorPalette.backgroundColor(message: message)
         labelView.backgroundColor = bg
+        
+        editButton.isEnabled = message.user_id.id == model.me().id.id &&
+            controller?.data?.messages.last === message
+
+    }
+    
+    @IBAction func editAction(_ sender: Any) {
+        guard let ctrler = controller else { return }
+        ctrler.curMessage = message
+        ctrler.textView.text = message?.text
+        
+        ctrler.enableCreateMessageButtons(state: false)
+        
+        // Allow editing of theme?
     }
 }
 
@@ -211,8 +161,12 @@ class DecoratedMessageCell : UICollectionViewCell, MessageBaseCellDelegate {
     @IBOutlet weak var textView: DrawingTextView!
     @IBOutlet weak var labelView: UIView!
     @IBOutlet weak var fromLabel: UILabel!
+    @IBOutlet weak var editButton: UIButton!
+    
     var waitingForImages = false
-    var activityView: UIActivityIndicatorView?
+    weak var controller : MessagesViewController?
+    var message: Message?
+    var messageOption: MessageOptions?
     
     func containerView() -> UIView? {
         return labelView
@@ -223,17 +177,15 @@ class DecoratedMessageCell : UICollectionViewCell, MessageBaseCellDelegate {
     }
     
     func initialize(message: Message, controller : MessagesViewController?) {
+        self.controller = controller
+        self.message = message
+        
         textView.text = message.text
         
         func setTheme(string: String) {
             let theme = model.getTheme(name: string)
             if( theme != nil && waitingForImages == false ) {
                 waitingForImages = true
-                activityView = UIActivityIndicatorView(activityIndicatorStyle: .white)
-                activityView!.color = UIColor.blue
-                activityView!.center = self.center
-                activityView!.startAnimating()
-                self.addSubview(activityView!)
                 
                 model.getDecorationStamp(theme: theme!, completion: { (stamps) -> Void in
                     var images = [UIImage]()
@@ -244,24 +196,56 @@ class DecoratedMessageCell : UICollectionViewCell, MessageBaseCellDelegate {
                     self.waitingForImages = false
                     DispatchQueue.main.async(execute: {
                          self.textView.setNeedsDisplay()
-                         if( self.activityView != nil ) {
-                            self.activityView!.stopAnimating()
-                            self.activityView!.removeFromSuperview()
-                            self.activityView = nil
-                         }
                     })
                 })
             }
         }
-        let mo = MessageOptions(options: message.options)
-        setTheme(string: mo.theme)
+        messageOption = MessageOptions(options: message.options)
+        setTheme(string: messageOption!.theme)
 
         fromLabel.text = getFromName(message: message)
         
         let bg = ColorPalette.backgroundColor(message: message)
         labelView.backgroundColor = bg
+        
+        editButton.isEnabled = message.user_id.id == model.me().id.id &&
+                               controller?.data?.messages.last === message
+        
+    }
+    
+    @IBAction func editAction(_ sender: Any) {
+        guard let ctrler = controller else { return }
+        guard let message = self.message else { return }
+        ctrler.curMessage = message
+        ctrler.textView.text = message.text
+        
+        // Allow editing of theme
+        ctrler.decorationThemesView.isHidden = false
+        ctrler.themesCollectionData!.themes = model.getDecorationThemes(category: "DecoratedText")
+        ctrler.themesCollectionView.reloadData()
+        ctrler.curMessageOption = messageOption
+        
+        let theme = messageOption!.theme
+        let index = ctrler.themesCollectionData!.themes.index { (decorationTheme) -> Bool in
+            return decorationTheme.name == theme
+        }
+        if( index != nil ) {
+            // Select the current theme
+            let indexPath = IndexPath(item: index!, section: 0)
+            ctrler.themesCollectionView.selectItem(at: indexPath, animated: false, scrollPosition: .top)
+        }
+        
+        // Re-layout stuff.
+        ctrler.view.layoutIfNeeded()
+        ctrler.messagesView.scrollToItem(
+            at: IndexPath(row: ctrler.data!.messages.count-1, section: 0), at: UICollectionViewScrollPosition.bottom, animated: true
+        )
+
+        ctrler.enableCreateMessageButtons(state: false)
     }
 }
+
+/*****************************************************/
 
 protocol MessageBaseCellSizeDelegate {
     func size(message: Message, collectionView: UICollectionView) -> CGSize
@@ -272,6 +256,7 @@ class TextMessageCellSizeDelegate : MessageBaseCellSizeDelegate {
         let text = message.text
         //let nstext = NSString(string: text)
         
+        let heightFromLabel : CGFloat = 16
         let spacing : CGFloat = 10
         let width = collectionView.bounds.width - 3*spacing
         let label = UILabel()
@@ -279,10 +264,11 @@ class TextMessageCellSizeDelegate : MessageBaseCellSizeDelegate {
         label.lineBreakMode = .byWordWrapping
         label.text = text
         label.font = UIFont.systemFont(ofSize: 17)
+        label.adjustsFontSizeToFitWidth = false
         
         let size = label.sizeThatFits(CGSize(width: width, height: 1500))
         //let rect = nstext.boundingRect(with: CGSize(width: width, height: 1500), options: .usesLineFragmentOrigin, attributes: [NSFontAttributeName: UIFont.systemFont(ofSize: 17)], context: nil)
-        return CGSize(width: width, height: max(24,size.height) + 4*spacing + spacing)
+        return CGSize(width: width, height: max(24,size.height) + 4*spacing + heightFromLabel + 17)
     }
 }
 
@@ -321,17 +307,8 @@ class ThumbUpMessageCellSizeDelegate : MessageBaseCellSizeDelegate {
     }
 }
 
-class EditableMessageCellSizeDelate: TextMessageCellSizeDelegate {
-    override func size(message: Message, collectionView: UICollectionView) -> CGSize {
-        let cgsize = super.size(message: message, collectionView: collectionView)
-        let buttonSize = 28
-        let margin = 5
-        return CGSize(width: cgsize.width, height: max(cgsize.height, CGFloat(3*(buttonSize+margin))))
-    }
-}
-
 class MessageCellFactory {
-    enum messageType { case text, editable, image, thumbUp, textDecorated }
+    enum messageType { case text, image, thumbUp, textDecorated }
     
     class func getType(message: Message, collectionView: UICollectionView, indexPath: IndexPath) -> messageType {
         if( message.image != nil ) {
@@ -346,13 +323,6 @@ class MessageCellFactory {
                 return .textDecorated
             }
         }
-        if( message.user_id.id == model.me().id.id &&
-            indexPath.row == collectionView.numberOfItems(inSection: indexPath.section)-1
-        ) {
-            // If last message written by me
-            return .editable
-        }
-
         return .text
     }
     
@@ -366,10 +336,6 @@ class MessageCellFactory {
         case .textDecorated :
             return collectionView.dequeueReusableCell(
                 withReuseIdentifier: "DecoratedMessageCell", for: indexPath
-            )
-        case .editable:
-            return collectionView.dequeueReusableCell(
-                withReuseIdentifier: "EditableMessageCell", for: indexPath
             )
         case .image:
             return collectionView.dequeueReusableCell(
@@ -389,8 +355,6 @@ class MessageCellFactory {
             return TextMessageCellSizeDelegate()
         case .textDecorated:
             return DecoratedTextMessageCellSizeDelegate()
-        case .editable:
-            return EditableMessageCellSizeDelate()
         case .image:
             return ImageMessageCellSizeDelegate()
         case .thumbUp:
@@ -465,6 +429,8 @@ class MessagesDataView : ModelView {
                 self.controller!.data!.messages = messages
                 self.controller!.messagesView.reloadData()
                 self.controller!.messagesView.scrollToItem(at: IndexPath(row: self.controller!.data!.messages.count-1, section: 0), at: UICollectionViewScrollPosition.bottom, animated: true)
+                
+                self.controller!.continueEditing()
             })
         }
     }
@@ -501,6 +467,7 @@ class MessagesViewDelegate : NSObject, UICollectionViewDelegateFlowLayout {
 
 /***********************************************************************/
 // Theme collection classes
+
 class DecoratedMessageThemeCollectionViewCell : UICollectionViewCell {
     
     @IBOutlet weak var label: UILabel!
@@ -517,9 +484,11 @@ class DecoratedMessageThemesPickerSource : NSObject, UICollectionViewDelegate, U
     func numberOfSections(in collectionView: UICollectionView) -> Int {
         return 1
     }
+    
     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
         return themes.count
     }
+    
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
         let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "DecoratedMessageThemeCollectionViewCell", for: indexPath) as! DecoratedMessageThemeCollectionViewCell
         cell.label.text = themes[indexPath.item].name
@@ -528,6 +497,14 @@ class DecoratedMessageThemesPickerSource : NSObject, UICollectionViewDelegate, U
         cell.layer.cornerRadius = 6
         cell.layer.borderColor = ColorPalette.colors[.borderColor]?.cgColor
         cell.layer.borderWidth = 1.0
+        
+        cell.layer.backgroundColor = nil
+        let selectItems = collectionView.indexPathsForSelectedItems
+        if( selectItems != nil && selectItems!.count > 0 ) {
+            if( selectItems![0] == indexPath ) {
+                cell.layer.backgroundColor = ColorPalette.colors[ColorPalette.States.unread]?.cgColor
+            }
+        }
         
         return cell
     }
@@ -543,7 +520,7 @@ class DecoratedMessageThemesPickerSource : NSObject, UICollectionViewDelegate, U
             m.options = optionString ?? ""
 
             // Update message view
-           controller!.messagesView.reloadItems(at: [IndexPath(row: controller!.data!.messages.count-1, section: 0)])
+            controller!.messagesView.reloadItems(at: [IndexPath(row: controller!.data!.messages.count-1, section: 0)])
             
             // Update selected theme cell
             let cell = collectionView.cellForItem(at: indexPath)
@@ -570,6 +547,8 @@ class DecoratedMessageThemesPickerSource : NSObject, UICollectionViewDelegate, U
     
 }
 
+/******************************************************************************/
+
 // To communicate text changes to the message view.
 class MessagesViewGrowingTextViewDelegate : GrowingTextView.Delegates {
     weak var controller: MessagesViewController?
@@ -584,12 +563,16 @@ class MessagesViewGrowingTextViewDelegate : GrowingTextView.Delegates {
     func localTextViewDidChange(_ view: GrowingTextView) {
         if( controller != nil ) {
             let c = controller!
-            if( c.curMessage != nil && c.curMessageOption != nil ) {
+            if( c.curMessage != nil ) {
                 c.curMessage!.text = view.text
-                c.messagesView.reloadItems(at: [IndexPath(row: c.data!.messages.count-1, section: 0)])
-                c.messagesView.scrollToItem(at: IndexPath(row: c.data!.messages.count-1, section: 0), at: .bottom, animated: true)
+                c.curMessage!.last_modified = Date()
+                
+                let indexPath = IndexPath(row: c.data!.messages.count-1, section: 0)
+                c.messagesView.reloadItems(at: [indexPath])
+                c.messagesView.scrollToItem(at: indexPath, at: .bottom, animated: true)
             }
             c.sendButton.isEnabled = !view.text.isEmpty
+            c.spellCheckButton.setImage(UIImage(named:"spellchecked32x32"), for: .normal)
         }
     }
 }
@@ -607,6 +590,7 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
     @IBOutlet weak var selectPictureButton: UIButton!
     @IBOutlet weak var takePictureButton: UIButton!
     @IBOutlet weak var sendDecoratedMessage: UIButton!
+    @IBOutlet weak var spellCheckButton: UIButton!
     
     var data : MessagesData?
     var delegate : MessagesViewDelegate?
@@ -617,6 +601,7 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
     var themesCollectionData : DecoratedMessageThemesPickerSource?
     var textViewDelegate : MessagesViewGrowingTextViewDelegate?
     var audioPlayer = AVAudioPlayer()
+    var tapper : UITapGestureRecognizer?
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -680,6 +665,11 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
         } catch {
             print("Problem in getting Audio File")
         }
+        
+        tapper = UITapGestureRecognizer(target: self, action:#selector(endEditingWithTouch))
+        tapper!.cancelsTouchesInView = false
+        messagesView.addGestureRecognizer(tapper!)
+
     }
 
     override func didReceiveMemoryWarning() {
@@ -806,7 +796,7 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
         alertCtrler.addAction(UIAlertAction(title: "OK", style: .default, handler:{ alertAction -> Void in
             let textField = alertCtrler.textFields![0]
             if( !textField.text!.isEmpty ) {
-                let newThread = ConversationThread(id: RecordId(), group_id: self.conversationThread!.group_id)
+                let newThread = ConversationThread(id: RecordId(), group_id: self.conversationThread!.group_id, user_id: model.me().id)
                 newThread.title = textField.text!
                 model.saveConversationThread(conversationThread: newThread)
                 
@@ -861,6 +851,18 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
         sendDecoratedMessage.isEnabled = state
     }
     
+    func continueEditing() {
+        // Received a text while editing another message, 
+        // Reset correctly the UI.
+        if( curMessage != nil && !(curMessage!.registeredForSave()) ) {
+            // Add it to interface
+            data?.messages.append(curMessage!)
+            messagesView.insertItems(at: [IndexPath(row: data!.messages.count-1, section: 0)])
+            
+            messagesView.scrollToItem(at: IndexPath(row: data!.messages.count-1, section: 0), at: UICollectionViewScrollPosition.bottom, animated: true)
+        }
+    }
+    
     @IBAction func handleSendPicture(_ sender: Any) {
         let picker = UIImagePickerController()
         picker.delegate = self
@@ -906,10 +908,13 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
             data?.messages.append(m)
             messagesView.insertItems(at: [IndexPath(row: data!.messages.count-1, section: 0)])
             
+            // Handle decoration management
             decorationThemesView.isHidden = false
             themesCollectionData!.themes = model.getDecorationThemes(category: "DecoratedImage")
             themesCollectionView.reloadData()
+            themesCollectionView.selectItem(at: nil, animated: false, scrollPosition: .top)
             
+            // Re-layout stuff
             self.view.layoutIfNeeded()
 
             messagesView.scrollToItem(at: IndexPath(row: data!.messages.count-1, section: 0), at: UICollectionViewScrollPosition.bottom, animated: true)
@@ -952,6 +957,7 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
         decorationThemesView.isHidden = false
         themesCollectionData!.themes = model.getDecorationThemes(category: "DecoratedText")
         themesCollectionView.reloadData()
+        themesCollectionView.selectItem(at: nil, animated: false, scrollPosition: .top)
 
         self.view.layoutIfNeeded()
         messagesView.scrollToItem(
@@ -965,12 +971,27 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
         
         // Disable creation of other message until this one is done
         enableCreateMessageButtons(state: false)
+        self.sendButton.isEnabled = true
     }
 
     @IBAction func handleSpellCheck(_ sender: UIButton) {
-        audioPlayer.play()
+        let activityView = UIActivityIndicatorView(activityIndicatorStyle: .white)
+        activityView.color = UIColor.blue
+        activityView.center = sender.center
+        activityView.startAnimating()
+        sender.addSubview(activityView)
+        
         let checker = SpellChecker(textView: textView)
-        checker.check()
+        checker.check(completion: { (nb_errors) -> () in
+            if( nb_errors > 0 ) {
+                sender.setImage(UIImage(named: "spellchecked_bad"), for: .normal)
+            } else {
+                sender.setImage(UIImage(named: "spellchecked_ok"), for: .normal)
+            }
+            
+            activityView.stopAnimating()
+            activityView.removeFromSuperview()
+        })
     }
     
     // Keyboard handling
@@ -978,7 +999,8 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
         if let userInfo = (sender as NSNotification).userInfo {
             if let _ = (userInfo[UIKeyboardFrameEndUserInfoKey] as? NSValue)?.cgRectValue.size.height {
                 //key point 0,
-                self.bottomConstraint.constant =  0
+                self.bottomConstraint.constant = 0
+            
                 //textViewBottomConstraint.constant = keyboardHeight
                 UIView.animate(withDuration: 0.25, animations: { () -> Void in self.view.layoutIfNeeded() })
             }
@@ -990,11 +1012,16 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
                 self.bottomConstraint.constant = keyboardHeight
                 UIView.animate(withDuration: 0.25, animations: { () -> Void in
                     self.view.layoutIfNeeded()
-                    self.messagesView.scrollToItem(at: IndexPath(row: self.data!.messages.count-1, section: 0), at: UICollectionViewScrollPosition.bottom, animated: true)
+                    if( self.data!.messages.count > 1 ) {
+                        self.messagesView.scrollToItem(at: IndexPath(row: self.data!.messages.count-1, section: 0), at: UICollectionViewScrollPosition.bottom, animated: true)
+                    }
                 })
             }
         }
     }
 
+    func endEditingWithTouch() {
+        _ = textView.resignFirstResponder()
+    }
 }
 
