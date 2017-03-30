@@ -36,7 +36,8 @@ func getFromName(message: Message) -> String {
 
 class MessageCell : UICollectionViewCell, MessageBaseCellDelegate {
     weak var controller: MessagesViewController?
-    @IBOutlet weak var label: UILabel!
+
+    @IBOutlet weak var textView: UITextView!
     @IBOutlet weak var labelView: UIView!
     @IBOutlet weak var icon: UIImageView!
     @IBOutlet weak var fromLabel: UILabel!
@@ -55,15 +56,15 @@ class MessageCell : UICollectionViewCell, MessageBaseCellDelegate {
         self.message = message
         self.controller = controller
         
-        label.text = message.text
+        textView.text = message.text
     
         fromLabel.text = getFromName(message: message)
         
         let bg = ColorPalette.backgroundColor(message: message)
         labelView.backgroundColor = bg
         
-        editButton.isEnabled = message.user_id.id == model.me().id.id &&
-            controller?.data?.messages.last === message
+        editButton.isHidden = !(message.user_id.id == model.me().id.id &&
+            controller?.data?.messages.last === message)
     }
 
     @IBAction func editAction(_ sender: Any) {
@@ -122,8 +123,8 @@ class PictureMessageCell : UICollectionViewCell, MessageBaseCellDelegate  {
         let bg = ColorPalette.backgroundColor(message: message)
         labelView.backgroundColor = bg
         
-        editButton.isEnabled = message.user_id.id == model.me().id.id &&
-            controller?.data?.messages.last === message
+        editButton.isHidden = !(message.user_id.id == model.me().id.id &&
+            controller?.data?.messages.last === message)
 
     }
     
@@ -208,8 +209,8 @@ class DecoratedMessageCell : UICollectionViewCell, MessageBaseCellDelegate {
         let bg = ColorPalette.backgroundColor(message: message)
         labelView.backgroundColor = bg
         
-        editButton.isEnabled = message.user_id.id == model.me().id.id &&
-                               controller?.data?.messages.last === message
+        editButton.isHidden = !(message.user_id.id == model.me().id.id &&
+                               controller?.data?.messages.last === message)
         
     }
     
@@ -257,18 +258,18 @@ class TextMessageCellSizeDelegate : MessageBaseCellSizeDelegate {
         //let nstext = NSString(string: text)
         
         let heightFromLabel : CGFloat = 16
-        let spacing : CGFloat = 10
+        let spacing : CGFloat = 4
         let width = collectionView.bounds.width - 3*spacing
-        let label = UILabel()
-        label.numberOfLines = 0
-        label.lineBreakMode = .byWordWrapping
+        let label = UITextView()
+        //label.numberOfLines = 0
+        //label.lineBreakMode = .byWordWrapping
         label.text = text
         label.font = UIFont.systemFont(ofSize: 17)
-        label.adjustsFontSizeToFitWidth = false
+        //label.adjustsFontSizeToFitWidth = false
         
         let size = label.sizeThatFits(CGSize(width: width, height: 1500))
         //let rect = nstext.boundingRect(with: CGSize(width: width, height: 1500), options: .usesLineFragmentOrigin, attributes: [NSFontAttributeName: UIFont.systemFont(ofSize: 17)], context: nil)
-        return CGSize(width: width, height: max(24,size.height) + 4*spacing + heightFromLabel + 17)
+        return CGSize(width: width, height: max(24,size.height) + 5*spacing + heightFromLabel)
     }
 }
 
@@ -276,8 +277,9 @@ class DecoratedTextMessageCellSizeDelegate : TextMessageCellSizeDelegate {
     override func size(message: Message, collectionView: UICollectionView) -> CGSize {
         let text = message.text
         //let nstext = NSString(string: text)
-        
-        let spacing : CGFloat = 10
+       
+        let heightFromLabel : CGFloat = 16
+        let spacing : CGFloat = 5
         let width = collectionView.bounds.width - 3*spacing
         let label = DrawingTextView()
         label.numberOfLines = 0
@@ -287,7 +289,7 @@ class DecoratedTextMessageCellSizeDelegate : TextMessageCellSizeDelegate {
         
         let size = label.computeSize(CGSize(width: width, height: 1500))
         
-        return CGSize(width: width, height: size.height + 2*spacing)
+        return CGSize(width: width, height: size.height + 4*spacing + heightFromLabel)
     }
 }
 
@@ -602,6 +604,7 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
     var textViewDelegate : MessagesViewGrowingTextViewDelegate?
     var audioPlayer = AVAudioPlayer()
     var tapper : UITapGestureRecognizer?
+    var spellCheckerInputTextViewAccessory: InputTextViewAccessoryViewController?
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -982,15 +985,21 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
         sender.addSubview(activityView)
         
         let checker = SpellChecker(textView: textView)
-        checker.check(completion: { (nb_errors) -> () in
-            if( nb_errors > 0 ) {
-                sender.setImage(UIImage(named: "spellchecked_bad"), for: .normal)
-            } else {
-                sender.setImage(UIImage(named: "spellchecked_ok"), for: .normal)
-            }
+        checker.check(completion: { (issues) -> () in
+            DispatchQueue.main.async(execute: {
+                if( issues.count > 0 ) {
+                    sender.setImage(UIImage(named: "spellchecked_bad"), for: .normal)
+                    
+                    // Not sufficiently helpfull
+                    //self.spellCheckerInputTextViewAccessory = InputTextViewAccessoryViewController(textView: self.textView, issues: issues)
+                    //self.spellCheckerInputTextViewAccessory?.createToolbar(controller: self)
+                } else {
+                    sender.setImage(UIImage(named: "spellchecked_ok"), for: .normal)
+                }
             
-            activityView.stopAnimating()
-            activityView.removeFromSuperview()
+                activityView.stopAnimating()
+                activityView.removeFromSuperview()
+            })
         })
     }
     

@@ -142,6 +142,13 @@ class SettingsViewController: UIViewController {
         model.setMessageFetchTimeLimit(numberOfDays: sender.value)
         
         settingsDB.settings.nb_of_days_to_fetch = Int(sender.value)
+        
+        keepDaysStepper.minimumValue = max(10, sender.value + 1)
+        if( settingsDB.settings.nb_of_days_to_keep  <= Int(sender.value) ) {
+            keepDaysStepper.value = sender.value + 1
+            keepDaysLabel.text = String(Int(sender.value + 1))
+            settingsDB.settings.nb_of_days_to_keep  = Int(sender.value + 1)
+        }
     }
     
     @IBAction func keepDaysStepper(_ sender: UIStepper) {

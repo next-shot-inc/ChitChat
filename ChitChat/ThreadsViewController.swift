@@ -386,12 +386,15 @@ class ThreadsViewController: UITableViewController {
                 self.tableView.reloadData()
             })
         })
+        
+        self.navigationController?.isToolbarHidden = false
     }
     
     override func viewWillDisappear(_ animated: Bool) {
         if( data != nil ) {
             model.removeViews(views: data!.modelViews)
         }
+         self.navigationController?.isToolbarHidden = true
     }
     
     override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
@@ -402,5 +405,40 @@ class ThreadsViewController: UITableViewController {
                 cc!.title = cc?.conversationThread?.title
             }
         }
+    }
+    
+    @IBAction func createNewThread(_ sender: Any) {
+        let alertCtrler = UIAlertController(
+            title: "Create new conversation thread",
+            message: "Please provide a new conversation title",
+            preferredStyle: .alert
+        )
+        alertCtrler.addTextField(configurationHandler:{ (textField) -> Void in
+            textField.placeholder = "Conversation title"
+        })
+        
+        alertCtrler.addAction(UIAlertAction(title: "OK", style: .default, handler:{ alertAction -> Void in
+            let textField = alertCtrler.textFields![0]
+            if( !textField.text!.isEmpty ) {
+                let newThread = ConversationThread(id: RecordId(), group_id: self.group!.id, user_id: model.me().id)
+                newThread.title = textField.text!
+                model.saveConversationThread(conversationThread: newThread)
+                
+                // Create first message
+                let message = Message(thread: newThread, user: model.me())
+                message.text = "Click to edit"
+                model.saveMessage(message: message, completion:  {
+                    self.data?.update(tableView: self.tableView, completion: {
+                        DispatchQueue.main.async(execute: { () -> Void in
+                            self.tableView.reloadData()
+                        })
+                    })
+                })
+            }
+        }))
+        
+        alertCtrler.addAction(UIAlertAction(title: "Cancel", style: .cancel, handler: nil))
+        self.present(alertCtrler, animated: true, completion: nil)
+
     }
 }

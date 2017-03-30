@@ -39,6 +39,12 @@ import UIKit
 //    ]
 // }
 
+struct SpellCheckerIssue {
+    let offset: Int
+    let length: Int
+    let replacements : [String]
+}
+
 class SpellChecker {
     let textView: UITextView?
     let gtextView: GrowingTextView?
@@ -84,7 +90,7 @@ class SpellChecker {
         }
     }
     
-    func check(completion: @escaping (_ nb_errors: Int) -> ()) {
+    func check(completion: @escaping ([SpellCheckerIssue]) -> ()) {
         // Check keyboard language against supported languages.
         let supportedLanguages = [
             "ast-ES", "be-BY", "br-FR", "ca-ES", "ca-ES-valencia", "da-DK",
@@ -148,8 +154,17 @@ class SpellChecker {
                     
                         let jsonMessage = jsonResult! as! NSDictionary
                         let jsonMatchArray = jsonMessage["matches"] as! NSArray
+                        
+                        var issues = [SpellCheckerIssue]()
                         for i in 0..<jsonMatchArray.count {
                             let jsonDict = jsonMatchArray[i] as! NSDictionary
+                            let jsonReplacements = jsonDict["replacements"] as! NSArray
+                            var replacements = [String]()
+                            for j in 0 ..< jsonReplacements.count {
+                                let replacement = jsonReplacements[j] as! NSDictionary
+                                let replacement_value = replacement["value"] as! NSString
+                                replacements.append(String(replacement_value))
+                            }
                             let rule = jsonDict["rule"] as! NSDictionary
                             let issueType = rule["issueType"] as! NSString
                             let offset = jsonDict["offset"] as! Int
@@ -161,15 +176,112 @@ class SpellChecker {
                             } else {
                                 astring.addAttributes(badgrammarAttributes, range: range)
                             }
+                            
+                            issues.append(SpellCheckerIssue(offset: offset, length: length, replacements: replacements))
                         }
                         
                         DispatchQueue.main.async(execute: {
                             self.set(text: astring)
-                            completion(jsonMatchArray.count)
+                            completion(issues)
                         })
                     }
                 }
         })
         task.resume()
+    }
+}
+
+/*
+ * Class to manage a toolbar that allows to move accross the different issues and propose replacements.
+ */
+class InputTextViewAccessoryViewController {
+    let textView: GrowingTextView
+    let issues : [SpellCheckerIssue]
+    var replace0 : UIBarButtonItem?
+    var replace1 : UIBarButtonItem?
+    var nextItem : UIBarButtonItem?
+    var curIssue = 0
+    var changeOffset = 0
+    
+    init(textView: GrowingTextView, issues: [SpellCheckerIssue]) {
+        self.textView = textView
+        self.issues = issues
+    }
+    
+    func createToolbar(controller: UIViewController) {
+        let toolbar = UIToolbar(frame: CGRect(x: 0, y: 0, width: controller.view.frame.size.width, height: 44))
+        nextItem = UIBarButtonItem(barButtonSystemItem: .play, target: self, action: #selector(InputTextViewAccessoryViewController.nextIssue))
+        replace0 = UIBarButtonItem(title: "", style: .plain, target: self, action: #selector(InputTextViewAccessoryViewController.replaceWithFirst))
+        replace1 = UIBarButtonItem(title: "", style: .plain, target: self, action: #selector(InputTextViewAccessoryViewController.replaceWithSecond))
+        let completeItem = UIBarButtonItem(title: "Done", style: .done, target: self, action: #selector(InputTextViewAccessoryViewController.completeEditing))
+        let space = UIBarButtonItem(barButtonSystemItem: UIBarButtonSystemItem.flexibleSpace, target: nil, action: nil)
+        toolbar.items = [nextItem!, replace0!, replace1!, space, completeItem]
+        textView.textViewInputAccessoryView = toolbar
+        
+        if( textView.isFirstResponder ) {
+            // If the keyboard is already shown, need to hide and show it to show the additional toolbar.
+            _ = textView.resignFirstResponder()
+            _ = textView.becomeFirstResponder()
+        }
+        
+        curIssue = 0
+        setupForCurrentIssue()
+    }
+    
+    func setupForCurrentIssue() {
+        if( curIssue+1 == issues.count ) {
+            nextItem?.isEnabled = false
+        }
+        let issue = issues[curIssue]
+        if( issue.replacements.count > 0 ) {
+            replace0?.title = issue.replacements[0]
+        }
+        if( issue.replacements.count > 1 ) {
+            replace1?.title = issue.replacements[1]
+            replace1?.isEnabled = true
+        } else {
+            replace1?.title = ""
+            replace1?.isEnabled = false
+        }
+        
+        textView.selectedRange = NSRange(location: issue.offset + changeOffset, length: issue.length)
+    }
+    
+    @objc func completeEditing() {
+        _ = textView.resignFirstResponder()
+        textView.textViewInputAccessoryView = nil
+    }
+    
+    @objc func nextIssue() {
+        curIssue += 1
+        setupForCurrentIssue()
+    }
+    
+    func replaceWith(index: Int) {
+        let issue = issues[curIssue]
+        guard var text = textView.text else { return }
+        
+        let start = text.index(text.startIndex, offsetBy: issue.offset + changeOffset)
+        let end = text.index(text.startIndex, offsetBy: issue.offset + changeOffset + issue.length)
+        text.replaceSubrange(start ..< end , with: issue.replacements[index])
+        
+        textView.text = text
+        
+        changeOffset += (issue.replacements[index].characters.count - issue.length)
+        
+        // Move to next issue after replacement (otherwise changeOffset is wrong)
+        if( curIssue < issues.count-1 ) {
+            nextIssue()
+        } else {
+            completeEditing()
+        }
+    }
+    
+    @objc func replaceWithFirst() {
+        replaceWith(index: 0)
+    }
+    
+    @objc func replaceWithSecond() {
+        replaceWith(index: 1)
     }
 }
