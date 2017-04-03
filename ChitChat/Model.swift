@@ -9,6 +9,7 @@
 import Foundation
 import UIKit
 import CoreData
+import KeychainSwift
 
 class RecordId : Hashable {
     let id : String
@@ -32,6 +33,8 @@ class User {
     var icon: UIImage?
     var label : String?
     var phoneNumber : String
+    var passKey : String?
+    var recoveryKey : String?
     
     init(id: RecordId, label: String, phoneNumber: String) {
         self.id = id
@@ -58,6 +61,22 @@ class UserActivity {
         self.user_id = user_id
         self.thread_id = thread_id
         self.last_read = Date()
+    }
+}
+
+class UserInvitation {
+    var id: RecordId
+    var from_user_id: RecordId
+    var to_user: String
+    var to_group_id: RecordId
+    var accepted = false
+    var date_created = Date()
+    
+    init(id: RecordId, from_user_id: RecordId, to_group_id: RecordId, to_user: String) {
+        self.id = id
+        self.from_user_id = from_user_id
+        self.to_group_id = to_group_id
+        self.to_user = to_user
     }
 }
 
@@ -516,7 +535,7 @@ class DataModel {
         views.append(model_view)
     }
     
-    func getUserInfo(completion: @escaping (Bool) -> Void) {
+    func getUserInfo(completion: @escaping (_ status: Bool, _ new_user: Bool) -> Void) {
         guard let appDelegate =
             UIApplication.shared.delegate as? AppDelegate else {
                 return
@@ -534,6 +553,29 @@ class DataModel {
             print("Could not fetch. \(error), \(error.userInfo)")
         }
         
+        let keychain = KeychainSwift()
+        keychain.synchronizable = true
+        let password = keychain.get("password")
+        if( password == nil ) {
+            print("Could not get User Password")
+            completion(false, false)
+            return
+        }
+        
+        func hash(string: String) -> Int {
+            var h = 5381
+            for v in string.unicodeScalars {
+                let v = v.value
+                h = ((h << 5) &+ h) &+ Int(v)
+            }
+            return h
+        }
+        func hexKey(value: Int) -> String {
+            var number = value
+            let data = NSData(bytes: &number, length: MemoryLayout<Int>.size)
+            return data.base64EncodedString(options: [])
+        }
+        
         if( userInfo != nil ) {
             db_model.getUser(phoneNumber: userInfo!.telephoneNumber!, completion: {(user) -> () in
                 var me : User!
@@ -541,10 +583,26 @@ class DataModel {
                     let user0 = User(
                         id: RecordId(), label: userInfo!.name!, phoneNumber: userInfo!.telephoneNumber!
                     )
+                    let augmented_password = user0.id.id + password!
+                    user0.passKey = hexKey(value: hash(string: augmented_password))
+                    
                     self.db_model.saveUser(user: user0)
                     self.memory_model.users.append(user0)
+                    
                     me = user0
                 } else {
+                    let augmented_password = user!.id.id + password!
+                    let passKey = hexKey(value: hash(string: augmented_password))
+                    if( user!.passKey == nil || user!.passKey!.isEmpty ) {
+                        user!.passKey = passKey
+                        self.db_model.saveUser(user: user!)
+                    }
+                    if( passKey != user!.passKey ) {
+                        print("Password invalid")
+                        completion(false, false)
+                        return
+                    }
+                    
                     me = user!
                     self.memory_model.users.append(user!)
                 }
@@ -553,12 +611,12 @@ class DataModel {
                 
                 self.db_model.getActivities(userId: me.id, completion: { (activities) -> Void in
                     self.memory_model.user_activities = activities
-                    completion(true)
+                    completion(true, user==nil)
                 })
             })
         } else {
             print("Could not get User Info")
-            completion(false)
+            completion(false, false)
         }
     }
     
@@ -575,33 +633,44 @@ class DataModel {
         return table
     }
     
+    private func sortGroup(groups: [Group], completion : @escaping([Group]) -> ()) {
+        getActivitiesForGroups(
+            groups: groups,
+            completion: { (activities) -> Void in
+                let table = self.createGroupActivityTable(groups: groups, activities: activities)
+                let sorted_groups = groups.sorted(
+                    by: { (g1, g2) -> Bool in table[g1.id]!.last_modified > table[g2.id]!.last_modified }
+                )
+                completion(sorted_groups)
+        })
+    }
+    
+    func getGroupInvitations(completion: @escaping ([UserInvitation], [Group]) -> ()) {
+        db_model.getUserInvitations(to_user: me().phoneNumber, completion: { (invitations, groups) -> () in
+            self.memory_model.update(groups: groups)
+            
+            self.sortGroup(groups: groups, completion: { (sorted_groups) -> () in
+                completion(invitations, sorted_groups)
+            })
+        })
+    }
+    
     // Get groups sorted by activities
     func getGroups(completion: @escaping ([Group]) -> ()) {
         if( memory_model.groups != nil ) {
             let groups = memory_model.groups!
-            // Before return get the activies
-            getActivitiesForGroups(
-                groups: groups,
-                completion: { (activities) -> Void in
-                    let table = self.createGroupActivityTable(groups: groups, activities: activities)
-                    let sorted_groups = groups.sorted(by: { (g1, g2) -> Bool in table[g1.id]!.last_modified > table[g2.id]!.last_modified })
-                    return completion(sorted_groups)
-                }
-            )
+            
+            return sortGroup( groups: groups, completion: { (sorted_groups) -> Void in
+                completion(sorted_groups)
+            })
         }
-        db_model.getGroupsForUser(userId: me().id, completion: ({ (groups) -> () in
+        db_model.getGroupsForUser(userId: me().id, completion: { (groups) -> () in
             self.memory_model.update(groups: groups)
             
-            // Before return get the activies
-            self.getActivitiesForGroups(
-                groups: self.memory_model.groups!,
-                completion: { (activities) -> Void in
-                    let table = self.createGroupActivityTable(groups: self.memory_model.groups!, activities: activities)
-                    let sorted_groups = self.memory_model.groups!.sorted(by: { (g1, g2) -> Bool in table[g1.id]!.last_modified > table[g2.id]!.last_modified })
-                    return completion(sorted_groups)
-                }
-            )
-        }))
+            self.sortGroup(groups: self.memory_model.groups!, completion: { (sorted_groups) -> () in
+                return completion(sorted_groups)
+            })
+        })
     }
     
     // Get Users for Group
@@ -834,6 +903,10 @@ class DataModel {
         memory_model.update(user: user)
     }
     
+    func saveUserInvitation(userInvitation: UserInvitation) {
+        db_model.saveUserInvitation(userInvitation: userInvitation)
+    }
+    
     func saveGroup(group: Group) {
         db_model.saveGroup(group: group)
         
@@ -1023,7 +1096,9 @@ class DataModel {
 
         DispatchQueue.main.asyncAfter(deadline: DispatchTime.now() + 10, execute: {
             self.db_model.deleteOldMessages(olderThan: date, user: self.me(), completion: {
-                self.db_model.deleteOldConversationThread(olderThan: date, user: self.me(), completion: {})
+                self.db_model.deleteOldConversationThread(olderThan: date, user: self.me(), completion: {
+                    self.db_model.deleteIrrelevantInvitations(olderThan: date, user: self.me(), completion: {})
+                })
             })
         })
 

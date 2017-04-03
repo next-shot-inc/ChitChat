@@ -231,11 +231,11 @@ class NewGroupController : UIViewController, CNContactPickerDelegate, UIImagePic
                 if( !c.phoneNumber.isEmpty ) {
                     model.getUser(phoneNumber: c.phoneNumber, completion: {(user) -> () in
                         if( user == nil ) {
-                            let newUser = User(
-                                id: RecordId(), label: c.label, phoneNumber: c.phoneNumber
+                            let newUserInvitation = UserInvitation(
+                                id: RecordId(), from_user_id: model.me().id,
+                                to_group_id: self.existingGroup!.id, to_user: c.phoneNumber
                             )
-                            model.saveUser(user: newUser)
-                            model.addUserToGroup(group: self.existingGroup!, user: newUser)
+                            model.saveUserInvitation(userInvitation: newUserInvitation)
                         } else {
                             let contained = users.contains(where: { (u) -> Bool in return u.id == user!.id })
                             if( !contained ) {
@@ -286,12 +286,12 @@ class NewGroupController : UIViewController, CNContactPickerDelegate, UIImagePic
                 if( !c.phoneNumber.isEmpty ) {
                     model.getUser(phoneNumber: c.phoneNumber, completion: {(user) -> () in
                         if( user == nil ) {
-                            let newUser = User(
-                                id: RecordId(), label: c.label, phoneNumber: c.phoneNumber
+                            let newUserInvitation = UserInvitation(
+                                id: RecordId(), from_user_id: model.me().id, to_group_id: group.id, to_user: c.phoneNumber
                             )
-                            model.saveUser(user: newUser)
-                            model.addUserToGroup(group: group, user: newUser)
+                            model.saveUserInvitation(userInvitation: newUserInvitation)
                         } else {
+                            // Should we automatically add the user to the group or go through the invitation process
                             model.addUserToGroup(group: group, user: user!)
                         }
                     })

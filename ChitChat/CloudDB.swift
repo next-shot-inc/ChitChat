@@ -49,6 +49,15 @@ extension User {
         if( imageData.length != 0 ) {
             self.icon = UIImage(data: imageData as Data)!
         }
+        let passKeyRecord = record["passKey"] as? NSString
+        if( passKeyRecord != nil ) {
+            self.passKey = String(passKeyRecord!)
+        }
+        
+        let recoveryKeyRecord = record["recoveryKey"] as? NSString
+        if( recoveryKeyRecord != nil ) {
+            self.recoveryKey = String(recoveryKeyRecord!)
+        }
     }
     
     func fillRecord(record: CKRecord) {
@@ -60,6 +69,40 @@ extension User {
         } else {
             record["iconBytes"] = NSData()
         }
+        if( self.passKey != nil ) {
+            record["passKey"] = NSString(string: self.passKey!)
+        }
+        if( self.recoveryKey != nil ) {
+            record["recoveryKey"] = NSString(string: self.recoveryKey!)
+        }
+    }
+}
+
+extension UserInvitation {
+    convenience init(record: CKRecord) {
+        self.init(
+            id: CloudRecordId(record: record),
+            from_user_id : RecordId(record: record, forKey: "from_user_id"),
+            to_group_id: RecordId(record: record, forKey: "to_group_id"),
+            to_user : String(record["to_user"] as! NSString)
+        )
+        self.date_created = Date(
+            timeIntervalSince1970: (record["date_created"] as! NSDate).timeIntervalSince1970
+        )
+        self.accepted = (record["accepted"] as! NSNumber) as! Bool
+    }
+    
+    func fillRecord(record: CKRecord) {
+        record["id"] = NSString(string: self.id.id)
+        record["from_user_id"] = NSString(string: self.from_user_id.id)
+        record["to_group_id"] = NSString(string: self.to_group_id.id)
+        record["to_user"] = NSString(string: self.to_user)
+        let gdbid = to_group_id as? CloudRecordId
+        if( gdbid != nil ) {
+            record["to_group_reference"] = CKReference(record: gdbid!.record, action: .none)
+        }
+        record["date_created"] = NSDate(timeIntervalSince1970: self.date_created.timeIntervalSince1970)
+        record["accepted"] = NSNumber(booleanLiteral: self.accepted)
     }
 }
 
@@ -410,7 +453,11 @@ class CloudDBModel : DBProtocol {
     
     func setAsUser(user: User) {
         container.fetchUserRecordID(completionHandler: { (recordId, error) -> Void in
-            self.userRecordInfo = (recordId!, user)
+            if( error != nil ) {
+                print(error!)
+            } else if( recordId != nil ) {
+                self.userRecordInfo = (recordId!, user)
+            }
         })
     }
     
@@ -681,7 +728,7 @@ class CloudDBModel : DBProtocol {
         let badgeResetOperation = CKModifyBadgeOperation(badgeValue: number)
         badgeResetOperation.modifyBadgeCompletionBlock = { (error) -> Void in
             if error != nil {
-                print("Error resetting badge: \(error)")
+                print("Error resetting badge: \(String(describing: error!))")
             }
             else {
                 UIApplication.shared.applicationIconBadgeNumber = number
@@ -703,6 +750,19 @@ class CloudDBModel : DBProtocol {
         }
         user.fillRecord(record: record)
         
+        self.publicDB.save(record, completionHandler: self.saveCompletionHandler)
+    }
+    
+    func saveUserInvitation(userInvitation: UserInvitation) {
+        let dbid = userInvitation.id as? CloudRecordId
+        var record : CKRecord
+        if( dbid == nil ) {
+            record = CKRecord(recordType: "UserInvitation")
+            userInvitation.id = CloudRecordId(record: record, id: userInvitation.id.id)
+        } else {
+            record = dbid!.record
+        }
+        userInvitation.fillRecord(record: record)
         self.publicDB.save(record, completionHandler: self.saveCompletionHandler)
     }
     
@@ -883,7 +943,7 @@ class CloudDBModel : DBProtocol {
             if let userInfo = error?._userInfo as? NSDictionary {
                 if let retry = userInfo[CKErrorRetryAfterKey] as? NSNumber {
                     let seconds = Double(retry)
-                    print("Debug: Should retry in \(seconds) seconds. \(error)")
+                    print("Debug: Should retry in \(seconds) seconds. \(String(describing: error!))")
                 }
             }
         }
@@ -908,13 +968,59 @@ class CloudDBModel : DBProtocol {
     func getUser(phoneNumber: String, completion: @escaping (User?) -> Void) {
         let query = CKQuery(recordType: "User", predicate: NSPredicate(format: String("phoneNumber = %@"), argumentArray: [phoneNumber]))
         publicDB.perform(query, inZoneWith: nil, completionHandler: { results, error -> Void in
-            if results!.count > 0 {
-                let record = results![0]
-                let user = User(record: record)
-                completion(user)
-            } else {
+            if( error != nil ) {
                 self.getCompletionHandler(error: error)
-                completion(nil)
+            } else if( results != nil ) {
+                if results!.count > 0 {
+                    let record = results![0]
+                    let user = User(record: record)
+                    completion(user)
+                } else {
+                    self.getCompletionHandler(error: error)
+                    completion(nil)
+                }
+            }
+        })
+    }
+    
+    func getUserInvitations(to_user: String, completion: @escaping ([UserInvitation], [Group]) -> ()) {
+        let query = CKQuery(recordType: "UserInvitation", predicate: NSPredicate(
+            format: String("(to_user = %@) AND (accepted == 0)"), argumentArray: [to_user])
+        )
+        publicDB.perform(query, inZoneWith: nil, completionHandler: { results, error -> Void in
+            if( error != nil ) {
+                self.getCompletionHandler(error: error)
+            }
+            
+            if( results != nil ) {
+                var invitations = [UserInvitation]()
+                var gr_rids = [CKRecordID]()
+                for r in results! {
+                    let invitation = UserInvitation(record: r)
+                    invitations.append(invitation)
+                    let gr_ref = r["to_group_reference"] as! CKReference
+                    gr_rids.append(gr_ref.recordID)
+                }
+                
+                let fetchOp = CKFetchRecordsOperation(recordIDs: gr_rids)
+                fetchOp.database = self.publicDB
+                fetchOp.fetchRecordsCompletionBlock = ({ recordsTable , error -> Void in
+                    if( recordsTable == nil ) {
+                        return
+                    }
+                    var groups = [Group]()
+                    for gr_id in gr_rids {
+                        let record = recordsTable![gr_id]
+                        if( record != nil ) {
+                            let group = Group(record: record!)
+                            groups.append(group)
+                        }
+                    }
+                    completion(invitations, groups)
+                })
+                fetchOp.start()
+            } else {
+                completion([], [])
             }
         })
     }
@@ -1153,6 +1259,7 @@ class CloudDBModel : DBProtocol {
         })
     }
 
+    // Generic function to handles "fetch" request errors.
     func getCompletionHandler(error: Error?) {
         if( error != nil ) {
             print(error!)
@@ -1161,7 +1268,7 @@ class CloudDBModel : DBProtocol {
             if let userInfo = error?._userInfo as? NSDictionary {
                 if let retry = userInfo[CKErrorRetryAfterKey] as? NSNumber {
                     let seconds = Double(retry)
-                    print("Debug: Should retry in \(seconds) seconds. \(error)")
+                    print("Debug: Should retry in \(seconds) seconds. \(error!)")
                 }
             }
         }
@@ -1198,8 +1305,10 @@ class CloudDBModel : DBProtocol {
         self.publicDB.add(operation)
     }
     
-    class DeleteCompletionConfirmation {
-        let types = ["User", "Group", "Message", "UserActivity", "ConversationThread", "GroupUserFolder", "GroupActivity", "subscriptions"]
+    /*******************************************************************************************/
+    
+    private class DeleteCompletionConfirmation {
+        let types = ["User", "UserInvitation", "Group", "Message", "UserActivity", "ConversationThread", "GroupUserFolder", "GroupActivity", "subscriptions"]
         var done = [String:Bool]()
         let fullCompletion : () -> Void
         
@@ -1249,7 +1358,7 @@ class CloudDBModel : DBProtocol {
         }
     }
     
-    func deleteAllRecords(recordType: String, completion: @escaping (String) -> ()) {
+    private func deleteAllRecords(recordType: String, completion: @escaping (String) -> ()) {
     
         // fetch records from iCloud, get their recordID and then delete them
         
@@ -1272,7 +1381,7 @@ class CloudDBModel : DBProtocol {
         })
     }
     
-    func deleteAllSubscriptions(completion: @escaping (String) -> ()) {
+    private func deleteAllSubscriptions(completion: @escaping (String) -> ()) {
         publicDB.fetchAllSubscriptions { (subscriptions, error) in
             if( subscriptions == nil ) {
                 if( error != nil ) {
@@ -1297,56 +1406,73 @@ class CloudDBModel : DBProtocol {
         }
     }
     
+    /************************************************************************************/
+    
+    private func deleteUserRecords(records: [CKRecord]?, error: Error?, user: User, message: String, completion: @escaping () -> ()) {
+        if( error != nil ) {
+            print(error!)
+            return
+        }
+        if( records == nil ) {
+            return
+        }
+        
+        var recordIDsArray: [CKRecordID] = []
+        for record in records! {
+            recordIDsArray.append(record.recordID)
+        }
+        
+        let operation = CKModifyRecordsOperation(recordsToSave: nil, recordIDsToDelete: recordIDsArray)
+        operation.modifyRecordsCompletionBlock = {
+            (savedRecords: [CKRecord]?, deletedRecordIDs: [CKRecordID]?, error: Error?) in
+            print(message, user.label ?? "unknown")
+            
+            if( error != nil ) {
+                print(error!)
+            }
+            
+            completion()
+        }
+        
+        self.publicDB.add(operation)
+
+    }
+    
     func deleteOldMessages(olderThan: Date, user: User, completion: @escaping () -> ()) {
         let query = CKQuery(recordType: "Message", predicate: NSPredicate(format: String("(user_id = %@) AND (last_modified <= %@)"), argumentArray: [user.id.id, olderThan]))
         publicDB.perform(query, inZoneWith: nil, completionHandler: { (records, error) in
-            var recordIDsArray: [CKRecordID] = []
-            for record in records! {
-                recordIDsArray.append(record.recordID)
-            }
-            
-            let operation = CKModifyRecordsOperation(recordsToSave: nil, recordIDsToDelete: recordIDsArray)
-            operation.modifyRecordsCompletionBlock = {
-                (savedRecords: [CKRecord]?, deletedRecordIDs: [CKRecordID]?, error: Error?) in
-                print("deleted old message for user ", user.label ?? "unknown")
-                
-                if( error != nil ) {
-                    print(error!)
-                }
-                
-                completion()
-            }
-            
-            self.publicDB.add(operation)
+            self.deleteUserRecords(records: records, error: error, user: user, message: "Delete old Messages for ", completion: completion)
         })
     }
     
     func deleteOldConversationThread(olderThan: Date, user: User, completion: @escaping () -> ()) {
         let query = CKQuery(recordType: "ConversationThread", predicate: NSPredicate(format: String("(user_id = %@) AND (last_modified <= %@)"), argumentArray: [user.id.id, olderThan]))
         publicDB.perform(query, inZoneWith: nil, completionHandler: { (records, error) in
-            if( error != nil ) {
-                print(error!)
-            }
-            
-            var recordIDsArray: [CKRecordID] = []
-            for record in records! {
-                recordIDsArray.append(record.recordID)
-            }
-            
-            let operation = CKModifyRecordsOperation(recordsToSave: nil, recordIDsToDelete: recordIDsArray)
-            operation.modifyRecordsCompletionBlock = {
-                (savedRecords: [CKRecord]?, deletedRecordIDs: [CKRecordID]?, error: Error?) in
-                print("deleted old converstation threads for user ", user.label ?? "unknown")
-                
-                if( error != nil ) {
-                    print(error!)
-                }
-                
-                completion()
-            }
-            
-            self.publicDB.add(operation)
+            self.deleteUserRecords(records: records, error: error, user: user, message: "Delete old conversations for ", completion: completion)
         })
     }
 
+    func deleteIrrelevantInvitations(olderThan: Date, user: User, completion: @escaping () -> ()) {
+        // OR queries are not supported by CloudKit. 
+        // For more information see: https://developer.apple.com/library/ios/documentation/CloudKit/Reference/CKQuery_class/ 
+        //
+        // So decompose query into two queries: old invitations
+        let query1 = CKQuery(
+            recordType: "UserInvitation",
+            predicate: NSPredicate(format: String("(from_user_id = %@) AND (date_created <= %@"), argumentArray: [user.id.id, olderThan])
+        )
+        publicDB.perform(query1, inZoneWith: nil, completionHandler: { (records, error) in
+            self.deleteUserRecords(records: records, error: error, user: user, message: "Delete old invitations for ", completion: completion)
+        })
+
+        // and accepted invitations.
+        let query2 = CKQuery(
+            recordType: "UserInvitation",
+            predicate: NSPredicate(format: String("(from_user_id = %@) AND (accepted == 1"), argumentArray: [user.id.id])
+        )
+        publicDB.perform(query2, inZoneWith: nil, completionHandler: { (records, error) in
+            self.deleteUserRecords(records: records, error: error, user: user, message: "Delete accepted invitations for ", completion: completion)
+        })
+
+    }
 }

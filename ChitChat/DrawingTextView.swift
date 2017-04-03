@@ -148,7 +148,7 @@ class DrawingTextView: UILabel {
             // Are we writing clockwise (right way up at 12 o'clock, upside down at 6 o'clock)
             // or anti-clockwise (right way up at 6 o'clock)?
             let direction: CGFloat = clockwise ? -1 : 1
-            let radiantAngle = angle/180*CGFloat(M_PI)
+            let radiantAngle = angle/180*CGFloat(Double.pi)
             
             // Compute bounding box of string
             var thetaI = radiantAngle - direction * totalArc / 2
@@ -231,9 +231,9 @@ class DrawingTextView: UILabel {
             // Are we writing clockwise (right way up at 12 o'clock, upside down at 6 o'clock)
             // or anti-clockwise (right way up at 6 o'clock)?
             let direction: CGFloat = clockwise ? -1 : 1
-            let slantCorrection = clockwise ? -CGFloat(M_PI_2) : CGFloat(M_PI_2)
+            let slantCorrection = clockwise ? -CGFloat(Double.pi/2) : CGFloat(Double.pi/2)
             
-            let radiantAngle = angle/180*CGFloat(M_PI)
+            let radiantAngle = angle/180*CGFloat(Double.pi)
             
             if( ri == 0 ) {
                 // Compute bounding box of string

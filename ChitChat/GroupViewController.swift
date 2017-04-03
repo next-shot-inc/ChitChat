@@ -206,7 +206,7 @@ class GroupViewController: UITableViewController {
     }
     
     func setup(restart: Bool) {
-        model.getUserInfo(completion: { (status) -> Void in
+        model.getUserInfo(completion: { (status, newUser) -> Void in
             
             if( status == false ) {
                 self.data = GroupData()
@@ -246,23 +246,55 @@ class GroupViewController: UITableViewController {
             model.setMessageFetchTimeLimit(numberOfDays: TimeInterval(settingsDB.settings.nb_of_days_to_fetch))
             ColorPalette.cur = settingsDB.settings.palette
             
-            // Fetch the groups and update
-            model.getGroups(completion: ({ (groups) -> () in
-                DispatchQueue.main.async(execute: { () -> Void in
-                    
-                    self.manageModelView(newGroups: groups, oldGroups: self.data!.groups)
-                    self.data!.groups = groups
-                    self.tableView.reloadData()
-                    
-                    if( self.activityView != nil ) {
-                        self.activityView!.stopAnimating()
-                        self.activityView!.removeFromSuperview()
-                        self.activityView = nil
-                        
-                        model.deleteOldStuff(numberOfDays: settingsDB.settings.nb_of_days_to_keep)
+            // Right now group invitations arrive only when user does not initially exist.
+            // But if the invitation process is generalized (in ContactsController) then 
+            // the logic here will have to change.
+            if( newUser ) {
+                model.getGroupInvitations(completion: { (invitations, groups) -> () in
+                    // implicitely accept all invitations (could modify table view for explicit acceptance)
+                    for g in groups {
+                        model.addUserToGroup(group: g, user: model.me())
                     }
+                    // Mark the invitation has accepted.
+                    for invitation in invitations {
+                        invitation.accepted = true
+                        model.saveUserInvitation(userInvitation: invitation)
+                    }
+                    
+                    // Show groups in table View
+                    DispatchQueue.main.async(execute: { () -> Void in
+                        self.manageModelView(newGroups: groups, oldGroups: self.data!.groups)
+                        self.data!.groups = groups
+                        self.tableView.reloadData()
+                        
+                        if( self.activityView != nil ) {
+                            self.activityView!.stopAnimating()
+                            self.activityView!.removeFromSuperview()
+                            self.activityView = nil
+                        }
+                    })
                 })
-            }))
+                
+            } else {
+            
+                // Fetch the groups and update
+                model.getGroups(completion: ({ (groups) -> () in
+                    DispatchQueue.main.async(execute: { () -> Void in
+                        
+                        self.manageModelView(newGroups: groups, oldGroups: self.data!.groups)
+                        self.data!.groups = groups
+                        self.tableView.reloadData()
+                        
+                        if( self.activityView != nil ) {
+                            self.activityView!.stopAnimating()
+                            self.activityView!.removeFromSuperview()
+                            self.activityView = nil
+                            
+                            model.deleteOldStuff(numberOfDays: settingsDB.settings.nb_of_days_to_keep)
+                        }
+                    })
+                }))
+            }
         })
 
     }

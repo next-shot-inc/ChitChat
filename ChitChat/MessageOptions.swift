@@ -46,7 +46,7 @@ class MessageOptions {
             let jsonMessage = jsonResult! as! NSDictionary
             version = (jsonMessage["version"] as! NSString) as String
             type = (jsonMessage["type"] as! NSString) as String
-            decorated = (jsonMessage["decorated"] as! NSNumber) as Bool
+            decorated = (jsonMessage["decorated"] as! NSNumber) as! Bool
             theme = (jsonMessage["theme"] as! NSString) as String
         }
     }

@@ -10,11 +10,13 @@ import Foundation
 import UIKit
 import CoreData
 import PhoneNumberKit
+import KeychainSwift
 
 class LoginViewController : UIViewController, UITextFieldDelegate {
     @IBOutlet weak var telephone: UITextField!
     @IBOutlet weak var userName: UITextField!
     @IBOutlet weak var loginButton: UIButton!
+    @IBOutlet weak var passwordField: UITextField!
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -23,6 +25,7 @@ class LoginViewController : UIViewController, UITextFieldDelegate {
         
         telephone.delegate = self
         userName.delegate = self
+        passwordField.delegate = self
         
         let tapper = UITapGestureRecognizer(target: self, action:#selector(endEditing))
         tapper.cancelsTouchesInView = false
@@ -36,6 +39,24 @@ class LoginViewController : UIViewController, UITextFieldDelegate {
     
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
+        
+        // Fetch app data for users that had used the app before but did not provide all information.
+        guard let appDelegate =
+            UIApplication.shared.delegate as? AppDelegate else {
+                return
+        }
+        let managedContext = appDelegate.persistentContainer.viewContext
+        let fetchRequest = NSFetchRequest<NSManagedObject>(entityName: "UserInfo")
+        do {
+            let entities = try managedContext.fetch(fetchRequest)
+            if( entities.count >= 1 ) {
+                let userInfo = entities[0] as? UserInfo
+                telephone.text = userInfo?.telephoneNumber
+                userName.text = userInfo?.name
+            }
+        } catch let error as NSError {
+            print("Could not fetch. \(error), \(error.userInfo)")
+        }
         
         // Wait until the bounds are ok
         loginButton.applyGradient(withColours: [UIColor.white, UIColor.lightGray], gradientOrientation: .vertical)
@@ -81,17 +102,22 @@ class LoginViewController : UIViewController, UITextFieldDelegate {
             print("Could not save. \(error), \(error.userInfo)")
         }
         
+        let keychain = KeychainSwift()
+        keychain.synchronizable = true
+        keychain.set(passwordField.text!, forKey: "password")
+        
         // Pop this controller
         _ = navigationController?.popViewController(animated: true)
     }
     
     // TextField delegate
     func textFieldDidEndEditing(_ textField: UITextField) {
-        loginButton.isEnabled = (!userName.text!.isEmpty) && (!telephone.text!.isEmpty)
+        loginButton.isEnabled = (!userName.text!.isEmpty) && (!telephone.text!.isEmpty) && (!passwordField.text!.isEmpty)
     }
     
     func endEditing() {
         telephone.resignFirstResponder()
         userName.resignFirstResponder()
+        passwordField.resignFirstResponder()
     }
 }

@@ -9,6 +9,7 @@
 import UIKit
 import CoreData
 import UserNotifications
+import KeychainSwift
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -34,6 +35,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         } catch let error as NSError {
             print("Could not fetch. \(error), \(error.userInfo)")
         }
+        
+        let keychain = KeychainSwift()
+        keychain.synchronizable = true
+        let password = keychain.get("password")
+        asLoginInfo = asLoginInfo && password != nil
         
         if ( !asLoginInfo ) {
             //get access to login view

@@ -18,6 +18,7 @@ protocol DBProtocol {
     func getMessagesForThread(threadId: RecordId, completion: @escaping ([Message]) -> ())
     func getUser(userId: RecordId, completion: @escaping (User) -> ())
     func getUser(phoneNumber: String, completion: @escaping (User?) -> ())
+    func getUserInvitations(to_user: String, completion: @escaping ([UserInvitation], [Group]) -> ())
     func getActivities(userId: RecordId, completion: @escaping ([UserActivity]) -> ())
     func getActivity(userId: RecordId, threadId: RecordId, completion: @escaping (UserActivity?) -> ())
     func getActivityForGroup(groupId: RecordId, completion: @escaping (GroupActivity?) -> ())
@@ -27,6 +28,7 @@ protocol DBProtocol {
     func setMessageFetchTimeLimit(numberOfDays: TimeInterval)
     
     func saveUser(user: User)
+    func saveUserInvitation(userInvitation: UserInvitation)
     func saveMessage(message: Message, completion: @escaping () -> ())
     func saveGroup(group: Group)
     func saveActivity(activity: GroupActivity)
@@ -49,6 +51,7 @@ protocol DBProtocol {
     func deleteConversation(cthread: ConversationThread, messages: [Message], user: User, completion: @escaping () -> ())
     func deleteOldConversationThread(olderThan: Date, user: User, completion: @escaping () -> ())
     func deleteOldMessages(olderThan: Date, user: User, completion: @escaping () -> ())
+    func deleteIrrelevantInvitations(olderThan: Date, user: User, completion: @escaping () -> ())
 }
 
 /***************************************************************************************/
@@ -135,6 +138,10 @@ class InMemoryDB : DBProtocol {
         return completion(nil)
     }
     
+    func getUserInvitations(to_user: String, completion: @escaping ([UserInvitation], [Group]) -> ()) {
+        return completion([], [])
+    }
+    
     func getActivity(userId: RecordId, threadId: RecordId, completion: @escaping (UserActivity?) -> ()) {
         for a in user_activities {
             if( a.user_id.id == userId.id && a.thread_id.id == threadId.id ) {
@@ -178,6 +185,10 @@ class InMemoryDB : DBProtocol {
             users.append(user)
         }
     }
+    
+    func saveUserInvitation(userInvitation: UserInvitation) {
+    }
+    
     func saveMessage(message: Message, completion : @escaping () -> ()) {
         let contained = messages.contains(where: { mess -> Bool in
             return mess.id == message.id
@@ -233,6 +244,9 @@ class InMemoryDB : DBProtocol {
     }
     
     func deleteOldConversationThread(olderThan: Date, user: User, completion: @escaping () -> ()) {
+    }
+    
+    func deleteIrrelevantInvitations(olderThan: Date, user: User, completion: @escaping () -> ()) {
     }
     
     func setMessageFetchTimeLimit(numberOfDays: TimeInterval) {
