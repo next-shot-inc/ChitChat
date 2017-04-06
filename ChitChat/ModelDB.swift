@@ -25,6 +25,7 @@ protocol DBProtocol {
     func getActivitiesForGroups(groups: [Group], completion: @escaping ([GroupActivity]) -> ())
     func getDecorationThemes(completion: @escaping ([DecorationTheme]) -> ())
     func getDecorationStamps(theme: DecorationTheme, completion: @escaping ([DecorationStamp]) -> ())
+    func getPollVotes(poll: Message, completion: @escaping ([PollRecord]) -> Void )
     func setMessageFetchTimeLimit(numberOfDays: TimeInterval)
     
     func saveUser(user: User)
@@ -37,10 +38,14 @@ protocol DBProtocol {
     func saveActivity(activity: UserActivity)
     func saveDecorationThemes(themes: [DecorationTheme])
     func saveDecorationStamps(stamps: [DecorationStamp])
+    func savePollVote(pollRecord: PollRecord)
     
     func setupNotifications(cthread: ConversationThread)
+    func removeConversationThreadNotification(cthreadId: RecordId)
     func setupNotifications(groupId: RecordId)
     func setupNotifications(userId: RecordId)
+    func setupPollRecordNotifications(pollId: RecordId)
+    func removePollRecordNotification(pollId: RecordId)
     func didReceiveNotification(userInfo: [AnyHashable : Any], views: [ModelView])
     func setAppBadgeNumber(number: Int)
     
@@ -52,6 +57,7 @@ protocol DBProtocol {
     func deleteOldConversationThread(olderThan: Date, user: User, completion: @escaping () -> ())
     func deleteOldMessages(olderThan: Date, user: User, completion: @escaping () -> ())
     func deleteIrrelevantInvitations(olderThan: Date, user: User, completion: @escaping () -> ())
+    func deleteOldPollRecords(olderThan: Date, user: User, completion: @escaping () -> ()) 
 }
 
 /***************************************************************************************/
@@ -176,6 +182,10 @@ class InMemoryDB : DBProtocol {
     }
     func getDecorationThemes(completion: @escaping ([DecorationTheme]) -> ()) {
     }
+    func getPollVotes(poll: Message, completion: @escaping ([PollRecord]) -> Void ) {
+    }
+    func savePollVote(pollRecord: PollRecord) {
+    }
     
     func saveUser(user: User) {
         let already = users.contains(where: ({ (u) -> Bool in
@@ -220,9 +230,16 @@ class InMemoryDB : DBProtocol {
     
     func setupNotifications(cthread: ConversationThread) {
     }
+    func removeConversationThreadNotification(cthreadId: RecordId) {
+    }
+    
     func setupNotifications(groupId: RecordId) {
     }
     func setupNotifications(userId: RecordId)  {
+    }
+    func setupPollRecordNotifications(pollId: RecordId) {
+    }
+    func removePollRecordNotification(pollId: RecordId) {
     }
     func didReceiveNotification(userInfo: [AnyHashable : Any], views: [ModelView]) {
     }
@@ -247,6 +264,9 @@ class InMemoryDB : DBProtocol {
     }
     
     func deleteIrrelevantInvitations(olderThan: Date, user: User, completion: @escaping () -> ()) {
+    }
+    
+    func deleteOldPollRecords(olderThan: Date, user: User, completion: @escaping () -> ()) {
     }
     
     func setMessageFetchTimeLimit(numberOfDays: TimeInterval) {

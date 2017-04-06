@@ -396,6 +396,25 @@ extension DecorationTheme {
     }
 }
 
+extension PollRecord {
+    convenience init(record: CKRecord) {
+        self.init(
+            id: CloudRecordId(record: record),
+            user_id: RecordId(record: record, forKey: "user_id"),
+            poll_id: RecordId(record: record, forKey: "poll_id"),
+            checked_option: (record["checked_option"] as! NSNumber) as! Int
+        )
+        self.date_created = Date(timeIntervalSince1970: (record["date_created"] as! NSDate).timeIntervalSince1970)
+    }
+    func fillRecord(record: CKRecord) {
+        record["id"] =  NSString(string: self.id.id)
+        record["user_id"] = NSString(string: self.user_id.id)
+        record["poll_id"] = NSString(string: self.poll_id.id)
+        record["checked_option"] = NSNumber(value: self.checked_option)
+        record["date_created"] = NSDate(timeIntervalSince1970: self.date_created.timeIntervalSince1970)
+    }
+}
+
 
 class CloudAssets {
     var urls = [URL]()
@@ -521,6 +540,14 @@ class CloudDBModel : DBProtocol {
         })
     }
     
+    func removeConversationThreadNotification(cthreadId: RecordId) {
+        let new_key = "new_type_Message_thread_id_\(cthreadId.id)_user_id\(model.me().id.id)"
+        unsubscribe(key: new_key, completionHandler: {})
+        
+        let edit_key = "edit_type_Message_thread_id_\(cthreadId.id)_user_id\(model.me().id.id)"
+        unsubscribe(key: edit_key, completionHandler: {})
+    }
+    
     func setupNotifications(userId: RecordId) {
         let predicateFormat = "user_id == %@"
         
@@ -615,6 +642,37 @@ class CloudDBModel : DBProtocol {
         })
 
     }
+    
+    func setupPollRecordNotifications(pollId: RecordId) {
+        let predicateFormat = "poll_id == %@"
+        
+        let new_key = "new_type_PollRecord_poll_id_\(pollId.id)"
+        
+        subscribe(subscriptionId: new_key, predicateFormat: predicateFormat, createSubscription: { () -> Void in
+            
+            let new_pr_subscription = CKQuerySubscription(
+                recordType: "PollRecord", predicate: NSPredicate(format: predicateFormat, argumentArray: [pollId.id]),
+                subscriptionID: new_key, options: [CKQuerySubscriptionOptions.firesOnRecordCreation]
+            )
+            let notificationInfo = CKNotificationInfo()
+            notificationInfo.soundName = "default"
+            notificationInfo.shouldSendContentAvailable = true // To make sure it is sent
+            
+            new_pr_subscription.notificationInfo = notificationInfo
+            
+            self.publicDB.save(new_pr_subscription, completionHandler: { (sub, error) -> Void in
+                if( error != nil ) {
+                    print(error!)
+                }
+            })
+        })
+    }
+    
+    func removePollRecordNotification(pollId: RecordId) {
+        let new_key = "new_type_PollRecord_poll_id_\(pollId.id)"
+        unsubscribe(key: new_key, completionHandler: {})
+    }
+
     
     // If the subscription exists and the predicate is the same, then we don't need to create this subscrioption.
     // If the predicate is different, then we first need to delete the old
@@ -717,6 +775,17 @@ class CloudDBModel : DBProtocol {
                                 }
                             })
 
+                        } else if( record!.recordType == "PollRecord" ) {
+                            let pollRecord = PollRecord(record: record!)
+                            DispatchQueue.main.async {
+                                if( queryNotification.queryNotificationReason == .recordCreated ) {
+                                    for view in views {
+                                        if( view.notify_new_poll_record != nil ) {
+                                            view.notify_new_poll_record!(pollRecord)
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 })
@@ -931,6 +1000,19 @@ class CloudDBModel : DBProtocol {
         self.publicDB.add(ops)
     }
 
+    func savePollVote(pollRecord: PollRecord) {
+        let dbid = pollRecord.id as? CloudRecordId
+        var record : CKRecord
+        if( dbid == nil ) {
+            record = CKRecord(recordType: "PollRecord")
+            pollRecord.id = CloudRecordId(record: record, id: pollRecord.id.id)
+        } else {
+            record = dbid!.record
+        }
+        pollRecord.fillRecord(record: record)
+        
+        self.publicDB.save(record, completionHandler: self.saveCompletionHandler)
+    }
     
     func saveCompletionHandler(record: CKRecord?, error: Error?) {
         if( error != nil ) {
@@ -1258,6 +1340,23 @@ class CloudDBModel : DBProtocol {
             }
         })
     }
+    
+    func getPollVotes(poll: Message, completion: @escaping ([PollRecord]) -> Void ) {
+        let query = CKQuery(recordType: "PollRecord", predicate: NSPredicate(format: "poll_id = %@", argumentArray: [poll.id.id]))
+        publicDB.perform(query, inZoneWith: nil, completionHandler: { results, error -> Void in
+            var votes = [PollRecord]()
+            if results!.count > 0 {
+                for record in results! {
+                    let pollRecord = PollRecord(record: record)
+                    votes.append(pollRecord)
+                }
+                completion(votes)
+            } else {
+                completion(votes)
+                self.getCompletionHandler(error: error)
+            }
+        })
+    }
 
     // Generic function to handles "fetch" request errors.
     func getCompletionHandler(error: Error?) {
@@ -1303,6 +1402,8 @@ class CloudDBModel : DBProtocol {
         }
         
         self.publicDB.add(operation)
+        
+        removeConversationThreadNotification(cthreadId: cthread.id)
     }
     
     /*******************************************************************************************/
@@ -1347,7 +1448,13 @@ class CloudDBModel : DBProtocol {
         }
     }
     
-    func deleteAllRecords(completion: @escaping () -> Void){
+    func deleteAllRecords(subscriptionsOnly: Bool, completion: @escaping () -> Void){
+        if( subscriptionsOnly ) {
+            deleteAllSubscriptions(completion: { (step) -> () in
+                completion()
+            })
+            return
+        }
         let complete = DeleteCompletionConfirmation(full: completion)
         for type in complete.types {
             if( type == "subscriptions" ) {
@@ -1413,7 +1520,8 @@ class CloudDBModel : DBProtocol {
             print(error!)
             return
         }
-        if( records == nil ) {
+        if( records == nil || records!.count == 0 ) {
+            completion()
             return
         }
         
@@ -1448,6 +1556,14 @@ class CloudDBModel : DBProtocol {
     func deleteOldConversationThread(olderThan: Date, user: User, completion: @escaping () -> ()) {
         let query = CKQuery(recordType: "ConversationThread", predicate: NSPredicate(format: String("(user_id = %@) AND (last_modified <= %@)"), argumentArray: [user.id.id, olderThan]))
         publicDB.perform(query, inZoneWith: nil, completionHandler: { (records, error) in
+            
+            if( records != nil ) {
+                for record in records! {
+                    let recordId = RecordId(string: String(record["id"] as! NSString))
+                    self.removeConversationThreadNotification(cthreadId: recordId)
+                }
+            }
+            
             self.deleteUserRecords(records: records, error: error, user: user, message: "Delete old conversations for ", completion: completion)
         })
     }
@@ -1459,7 +1575,7 @@ class CloudDBModel : DBProtocol {
         // So decompose query into two queries: old invitations
         let query1 = CKQuery(
             recordType: "UserInvitation",
-            predicate: NSPredicate(format: String("(from_user_id = %@) AND (date_created <= %@"), argumentArray: [user.id.id, olderThan])
+            predicate: NSPredicate(format: String("(from_user_id = %@) AND (date_created <= %@)"), argumentArray: [user.id.id, olderThan])
         )
         publicDB.perform(query1, inZoneWith: nil, completionHandler: { (records, error) in
             self.deleteUserRecords(records: records, error: error, user: user, message: "Delete old invitations for ", completion: completion)
@@ -1468,11 +1584,17 @@ class CloudDBModel : DBProtocol {
         // and accepted invitations.
         let query2 = CKQuery(
             recordType: "UserInvitation",
-            predicate: NSPredicate(format: String("(from_user_id = %@) AND (accepted == 1"), argumentArray: [user.id.id])
+            predicate: NSPredicate(format: String("(from_user_id = %@) AND (accepted == 1)"), argumentArray: [user.id.id])
         )
         publicDB.perform(query2, inZoneWith: nil, completionHandler: { (records, error) in
             self.deleteUserRecords(records: records, error: error, user: user, message: "Delete accepted invitations for ", completion: completion)
         })
+    }
 
+    func deleteOldPollRecords(olderThan: Date, user: User, completion: @escaping () -> ()) {
+        let query = CKQuery(recordType: "PollRecord", predicate: NSPredicate(format: String("(user_id = %@) AND (date_created <= %@)"), argumentArray: [user.id.id, olderThan]))
+        publicDB.perform(query, inZoneWith: nil, completionHandler: { (records, error) in
+            self.deleteUserRecords(records: records, error: error, user: user, message: "Delete old PollRecords for ", completion: completion)
+        })
     }
 }

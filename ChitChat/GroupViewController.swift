@@ -175,14 +175,19 @@ class GroupViewController: UITableViewController {
         let cloud = true
         if( cloud ) {
             let restart = false
+            let cleanSubscriptions = true
             let cloudDB = CloudDBModel()
             if( restart ) {
-                cloudDB.deleteAllRecords {
+                cloudDB.deleteAllRecords(subscriptionsOnly: false) {
+                    // Once all records have been deleted.
+                    self.doSetup(db: cloudDB, restart: restart)
+                }
+            } else if( cleanSubscriptions ) {
+                cloudDB.deleteAllRecords(subscriptionsOnly: true) {
                     // Once all records have been deleted.
                     self.doSetup(db: cloudDB, restart: restart)
                 }
             } else {
-               let cloudDB = CloudDBModel()
                doSetup(db: cloudDB, restart: restart)
             }
             let loadResourcesToDB = false

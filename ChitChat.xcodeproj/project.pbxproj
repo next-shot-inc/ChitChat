@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		2F0D81B81E91DE7D00A24723 /* PollMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F0D81B71E91DE7D00A24723 /* PollMessage.swift */; };
 		2F32DFCF1E6E5B0700EF34E8 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F32DFCE1E6E5B0700EF34E8 /* AppDelegate.swift */; };
 		2F32DFD11E6E5B0700EF34E8 /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F32DFD01E6E5B0700EF34E8 /* ViewController.swift */; };
 		2F32DFD41E6E5B0700EF34E8 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 2F32DFD21E6E5B0700EF34E8 /* Main.storyboard */; };
@@ -57,6 +58,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		2F0D81B71E91DE7D00A24723 /* PollMessage.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = PollMessage.swift; sourceTree = "<group>"; };
 		2F32DFCB1E6E5B0700EF34E8 /* ChitChat.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ChitChat.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		2F32DFCE1E6E5B0700EF34E8 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		2F32DFD01E6E5B0700EF34E8 /* ViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewController.swift; sourceTree = "<group>"; };
@@ -156,6 +158,7 @@
 				2FF9BE321E71FA9B000DF9A8 /* ChitChat.entitlements */,
 				2F32DFCE1E6E5B0700EF34E8 /* AppDelegate.swift */,
 				2F32DFD01E6E5B0700EF34E8 /* ViewController.swift */,
+				2F0D81B71E91DE7D00A24723 /* PollMessage.swift */,
 				2F32DFD21E6E5B0700EF34E8 /* Main.storyboard */,
 				2F708C0B1E8567B600120122 /* DecoratedImageView.swift */,
 				2FEBCBA81E84627F008A0690 /* SettingsViewController.swift */,
@@ -435,6 +438,7 @@
 				2F32E0001E6E5D0400EF34E8 /* GroupViewController.swift in Sources */,
 				2F32E0061E6F1C9100EF34E8 /* GrowingTextViewInternal.swift in Sources */,
 				2F4EF7D71E7E3A73006A2D06 /* MessageOptions.swift in Sources */,
+				2F0D81B81E91DE7D00A24723 /* PollMessage.swift in Sources */,
 				2F32DFD71E6E5B0700EF34E8 /* ChitChat.xcdatamodeld in Sources */,
 				2FF9BE391E735CA8000DF9A8 /* ModelDB.swift in Sources */,
 				2F32E0021E6E5D4E00EF34E8 /* ThreadsViewController.swift in Sources */,

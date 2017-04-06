@@ -217,6 +217,7 @@ class ModelView {
     var notify_new_conversation : ((_ cthread: ConversationThread) -> Void)?
     var notify_edit_group_activity : ((_ activity: GroupActivity) -> Void)?
     var notify_delete_conversation : ((_ id: RecordId) -> Void)?
+    var notify_new_poll_record : ((_ pollRecord: PollRecord) -> Void)?
 }
 
 class MemoryModel {
@@ -229,6 +230,7 @@ class MemoryModel {
     var groupUserFolder = [(group: Group, user: User)]()
     var decorationThemes = [DecorationTheme]()
     var decorationStamps = [DecorationStamp]()
+    var pollRecords: [PollRecord]?
     
     func update(groups: [Group]) {
         let initialGroup = self.groups
@@ -250,7 +252,7 @@ class MemoryModel {
         // See if some not yet in DB elements exist
         var included = users
         for item in self.groupUserFolder {
-            if( item.group === group ) {
+            if( item.group.id == group.id ) {
                 let contained = users.contains(where: { (cur) -> Bool in
                     cur.id == item.user.id
                 })
@@ -263,7 +265,7 @@ class MemoryModel {
         // Update memory table
         for user in users {
             let contained = self.groupUserFolder.contains(where: { (grp, usr) -> Bool in
-                grp === group && usr === user
+                grp.id == group.id && usr.id == user.id
             })
             if( !contained ) {
                 self.groupUserFolder.append((group: group, user: user))
@@ -435,6 +437,21 @@ class MemoryModel {
         self.decorationStamps.append(contentsOf: stamps)
     }
     
+    func updatePollRecords(pollRecords: [PollRecord]) {
+        if( self.pollRecords == nil ) {
+            self.pollRecords = [PollRecord]()
+            self.pollRecords!.append(contentsOf: pollRecords)
+        } else {
+            for r in pollRecords {
+                let contained = self.pollRecords!.contains(where: { (record) -> Bool in
+                    r.id == record.id
+                })
+                if( !contained ) {
+                    self.pollRecords!.append(r)
+                }
+            }
+        }
+    }
 }
 
 class MemoryModelView : ModelView {
@@ -450,6 +467,7 @@ class MemoryModelView : ModelView {
         self.notify_new_group = new_group
         self.notify_edit_group_activity = edited_group_activity
         self.notify_delete_conversation = delete_cthread
+        self.notify_new_poll_record = new_poll_record
     }
     
     func new_message(message: Message) {
@@ -518,6 +536,10 @@ class MemoryModelView : ModelView {
     
     func edited_group_activity(groupActivity: GroupActivity) {
         memory_model.update(groupActivity: groupActivity)
+    }
+    
+    func new_poll_record(pr: PollRecord) {
+        memory_model.updatePollRecords(pollRecords: [pr])
     }
 }
 
@@ -735,6 +757,7 @@ class DataModel {
         memory_model.conversations = nil
         memory_model.groups = nil
         memory_model.group_activities = nil
+        memory_model.pollRecords = nil
     }
     
     func setMessageFetchTimeLimit(numberOfDays: TimeInterval) {
@@ -975,6 +998,13 @@ class DataModel {
             db_model.setupNotifications(userId: userId)
         }
     }
+    
+    func setupNotificationsForPoll(pollId: RecordId, view: ModelView) {
+        if( view.notify_new_poll_record != nil ) {
+            uniquely_append(view)
+            db_model.setupPollRecordNotifications(pollId: pollId)
+        }
+    }
 
     func receiveRemoteNotification(userInfo: [AnyHashable : Any]) {
         db_model.didReceiveNotification(userInfo: userInfo, views: views)
@@ -1097,7 +1127,9 @@ class DataModel {
         DispatchQueue.main.asyncAfter(deadline: DispatchTime.now() + 10, execute: {
             self.db_model.deleteOldMessages(olderThan: date, user: self.me(), completion: {
                 self.db_model.deleteOldConversationThread(olderThan: date, user: self.me(), completion: {
-                    self.db_model.deleteIrrelevantInvitations(olderThan: date, user: self.me(), completion: {})
+                    self.db_model.deleteIrrelevantInvitations(olderThan: date, user: self.me(), completion: {
+                        self.db_model.deleteOldPollRecords(olderThan: date, user: self.me(), completion: {})
+                    })
                 })
             })
         })
@@ -1105,6 +1137,27 @@ class DataModel {
     }
     
     /*******************************************************************/
+    
+    func getPollVotes(poll: Message, completion: @escaping ([PollRecord]) -> Void ) {
+        if( memory_model.pollRecords != nil ) {
+             let pollRecords = memory_model.pollRecords!.filter( { (record) -> Bool in
+                 return record.poll_id == poll.id
+             })
+             if( pollRecords.count != 0 ) {
+                 return completion(pollRecords)
+            }
+        }
+        db_model.getPollVotes(poll: poll, completion: { (pollRecords) -> Void in
+            self.memory_model.updatePollRecords(pollRecords: pollRecords)
+            completion(pollRecords)
+        })
+    }
+    
+    func savePollVote(pollRecord: PollRecord) {
+        self.memory_model.updatePollRecords(pollRecords: [pollRecord])
+        
+        db_model.savePollVote(pollRecord: pollRecord)
+    }
     
 }
 

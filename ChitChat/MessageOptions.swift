@@ -10,7 +10,7 @@ import Foundation
 
 // 
 // {
-//    type : "message"
+//    type : "decoratedImage" or "decoratedText" or "poll"
 //    version : "1.0"
 //
 // }
@@ -20,6 +20,8 @@ class MessageOptions {
     var type : String
     var decorated : Bool = false
     var theme = String()
+    var pollOptions = [String]()
+    var pollRecord : PollRecord?
     
     init(type: String) {
         self.type = type
@@ -48,6 +50,13 @@ class MessageOptions {
             type = (jsonMessage["type"] as! NSString) as String
             decorated = (jsonMessage["decorated"] as! NSNumber) as! Bool
             theme = (jsonMessage["theme"] as! NSString) as String
+            
+            let jsonPollOptions = jsonMessage["pollOptions"] as? NSArray
+            if( jsonPollOptions != nil ) {
+                for opt in jsonPollOptions! {
+                    pollOptions.append((opt as! NSString) as String)
+                }
+            }
         }
     }
     
@@ -57,6 +66,14 @@ class MessageOptions {
         dict.setValue(NSString(string: version), forKey:  "version")
         dict.setValue(NSNumber(value: decorated), forKey: "decorated")
         dict.setValue(NSString(string: theme), forKey: "theme")
+        
+        if( pollOptions.count > 0 ) {
+            let array = NSMutableArray()
+            for opt in pollOptions {
+                array.add(NSString(string: opt))
+            }
+            dict.setValue(array, forKey: "pollOptions")
+        }
         
         do {
             let data = try JSONSerialization.data(withJSONObject: dict, options: [])

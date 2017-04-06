@@ -310,7 +310,7 @@ class ThumbUpMessageCellSizeDelegate : MessageBaseCellSizeDelegate {
 }
 
 class MessageCellFactory {
-    enum messageType { case text, image, thumbUp, textDecorated }
+    enum messageType { case text, image, thumbUp, textDecorated, polling }
     
     class func getType(message: Message, collectionView: UICollectionView, indexPath: IndexPath) -> messageType {
         if( message.image != nil ) {
@@ -323,6 +323,8 @@ class MessageCellFactory {
             let options = MessageOptions(options: message.options)
             if( options.decorated ) {
                 return .textDecorated
+            } else if( options.type == "poll" ) {
+                return .polling
             }
         }
         return .text
@@ -344,8 +346,12 @@ class MessageCellFactory {
                 withReuseIdentifier: "PictureMessageCell", for: indexPath
             )
         case .thumbUp:
-                return collectionView.dequeueReusableCell(
+            return collectionView.dequeueReusableCell(
                     withReuseIdentifier: "ThumbUpMessageCell", for: indexPath
+            )
+        case .polling:
+            return collectionView.dequeueReusableCell(
+                withReuseIdentifier: "PollMessageCell", for: indexPath
             )
         }
     }
@@ -361,6 +367,8 @@ class MessageCellFactory {
             return ImageMessageCellSizeDelegate()
         case .thumbUp:
             return ThumbUpMessageCellSizeDelegate()
+        case .polling:
+            return PollMessageCellSizeDelegate()
         }
     }
 }
@@ -752,6 +760,10 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
             curMessage!.last_modified = Date()
             
             // Add it to DB
+            if( curMessageOption?.pollRecord != nil ) {
+                model.savePollVote(pollRecord: curMessageOption!.pollRecord!)
+            }
+            
             let m = curMessage!
             model.saveMessage(message: m, completion: {
                 self.completeAfterSave(message: m)
@@ -1001,6 +1013,40 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
                 activityView.removeFromSuperview()
             })
         })
+    }
+    
+    @IBAction func handleSendPoll(_ sender: Any) {
+        // Create Message
+        let m = Message(thread: conversationThread!, user: model.me())
+        m.text = self.textView.text
+        
+        curMessageOption = MessageOptions(type: "poll")
+        curMessageOption!.pollOptions = ["choice #1", "choice #2"]
+        curMessageOption!.pollRecord = PollRecord(id: RecordId(), user_id: model.me().id, poll_id: m.id, checked_option: -1)
+        
+        m.options = curMessageOption!.getString() ?? ""
+        
+        // Add it to interface
+        data?.messages.append(m)
+        messagesView.insertItems(at: [IndexPath(row: data!.messages.count-1, section: 0)])
+    
+        messagesView.scrollToItem(
+            at: IndexPath(row: data!.messages.count-1, section: 0), at: UICollectionViewScrollPosition.bottom, animated: true
+        )
+        if( data!.messages.count > 2 ) {
+            messagesView.reloadItems(at: [IndexPath(row: data!.messages.count-2, section: 0)])
+        }
+        
+        curMessage = m
+        
+        // Disable creation of other message until this one is done
+        enableCreateMessageButtons(state: false)
+        self.sendButton.isEnabled = false
+        
+        self.textView.placeholderAttributedText = NSAttributedString(
+            string: "Enter the poll reason...",
+            attributes: [NSForegroundColorAttributeName: UIColor.gray, NSFontAttributeName: self.textView.font!]
+        )
     }
     
     // Keyboard handling

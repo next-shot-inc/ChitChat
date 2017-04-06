@@ -107,7 +107,13 @@ class ThreadRowData : NSObject, UICollectionViewDataSource {
             cell = mcell
             
             let mo = MessageOptions(options: m.options)
-            mcell.decoratedIndicator.isHidden = !mo.decorated
+            if( mo.decorated ) {
+                mcell.decoratedIndicator.image = UIImage(named: "cool32")
+                mcell.decoratedIndicator.isHidden = false
+            } else if( mo.pollOptions.count > 0 ) {
+                mcell.decoratedIndicator.image = UIImage(named: "polling")
+                mcell.decoratedIndicator.isHidden = false
+            }
         }
         
         let bg = ColorPalette.backgroundColor(message: m)
