@@ -24,8 +24,9 @@ class ResourceDB {
     private var developmentResourceCatalog1_0 = ResourceCatalog()
     private var developmentResourceCatalog1_1 = ResourceCatalog()
     private var developmentResourceCatalog1_2 = ResourceCatalog()
+    private var developmentResourceCatalog1_3 = ResourceCatalog()
     init() {
-        init1_2()
+        init1_3()
     }
     
     func init1_0() {
@@ -67,9 +68,21 @@ class ResourceDB {
         developmentResourceCatalog1_2.append(theme: "ice cream", names: names)
     }
     
+    func init1_3() {
+        var names : [String]
+        names = ["ski", "ski-1", "ski-2", "snowed-chalet", "snowflake", "snowflake-1", "snowing", "snowman"]
+        developmentResourceCatalog1_3.append(theme: "winter", names: names)
+        
+        names = ["leaf", "leaf-1", "mushroom", "mushrooms-2", "nut", "pumpkin", "rain"]
+        developmentResourceCatalog1_3.append(theme: "autumn", names: names)
+        
+        names = ["wedding-cake", "wedding-heart", "wedding-people", "wedding-guests", "wedding-couple", "wedding-bouquet", "wedding-champagne"]
+        developmentResourceCatalog1_3.append(theme: "wedding", names: names)
+    }
+    
     var currentCatalog : ResourceCatalog {
         get {
-            return developmentResourceCatalog1_2
+            return developmentResourceCatalog1_3
         }
     }
     

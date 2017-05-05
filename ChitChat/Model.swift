@@ -602,6 +602,7 @@ class DataModel {
             db_model.getUser(phoneNumber: userInfo!.telephoneNumber!, completion: {(user) -> () in
                 var me : User!
                 if( user == nil ) {
+                    // Create user. Store passkey into DB
                     let user0 = User(
                         id: RecordId(), label: userInfo!.name!, phoneNumber: userInfo!.telephoneNumber!
                     )
@@ -613,9 +614,11 @@ class DataModel {
                     
                     me = user0
                 } else {
+                    // Existing user - test passkey 
                     let augmented_password = user!.id.id + password!
                     let passKey = hexKey(value: hash(string: augmented_password))
                     if( user!.passKey == nil || user!.passKey!.isEmpty ) {
+                        // For users created before password was necessary.
                         user!.passKey = passKey
                         self.db_model.saveUser(user: user!)
                     }
@@ -950,7 +953,7 @@ class DataModel {
     }
     
     func addUserToGroup(group: Group, user: User) {
-        db_model.addUserToGroup(group: group, user: user)
+        db_model.addUserToGroup(group: group, user: user, by: me())
         memory_model.groupUserFolder.append((group: group, user: user))
     }
     

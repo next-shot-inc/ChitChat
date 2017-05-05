@@ -10,7 +10,7 @@ import Foundation
 
 // 
 // {
-//    type : "decoratedImage" or "decoratedText" or "poll"
+//    type : "decoratedImage" or "decoratedText" or "poll" or "thumb-up"
 //    version : "1.0"
 //
 // }
@@ -49,7 +49,11 @@ class MessageOptions {
             version = (jsonMessage["version"] as! NSString) as String
             type = (jsonMessage["type"] as! NSString) as String
             decorated = (jsonMessage["decorated"] as! NSNumber) as! Bool
-            theme = (jsonMessage["theme"] as! NSString) as String
+            
+            let rawTheme = jsonMessage["theme"]
+            if( rawTheme != nil ) {
+               theme = (jsonMessage["theme"] as! NSString) as String
+            }
             
             let jsonPollOptions = jsonMessage["pollOptions"] as? NSArray
             if( jsonPollOptions != nil ) {

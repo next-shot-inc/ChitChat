@@ -199,6 +199,9 @@ class DecoratedMessageCell : UICollectionViewCell, MessageBaseCellDelegate {
                          self.textView.setNeedsDisplay()
                     })
                 })
+            } else {
+                self.textView.images = [UIImage]()
+                self.textView.setNeedsDisplay()
             }
         }
         messageOption = MessageOptions(options: message.options)
@@ -325,6 +328,8 @@ class MessageCellFactory {
                 return .textDecorated
             } else if( options.type == "poll" ) {
                 return .polling
+            } else if( options.type == "thumb-up" ) {
+                return .thumbUp
             }
         }
         return .text
@@ -841,7 +846,8 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
     
     @IBAction func handleSendThumbUp(_ sender: Any) {
         let m = Message(thread: conversationThread!, user: model.me())
-        m.text = "%%Thumb-up%%"
+        m.text = "Thumb-up"
+        m.options = MessageOptions(type: "thumb-up").getString()!
         
         // Add it to DB
         model.saveMessage(message: m, completion: {
@@ -942,6 +948,7 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
             
             // Disable creation of other message until this one is done
             enableCreateMessageButtons(state: false)
+            self.sendButton.isEnabled = true
             
             self.textView.placeholderAttributedText = NSAttributedString(
                 string: "Enter a caption...",
@@ -986,7 +993,6 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
         
         // Disable creation of other message until this one is done
         enableCreateMessageButtons(state: false)
-        self.sendButton.isEnabled = true
     }
 
     @IBAction func handleSpellCheck(_ sender: UIButton) {

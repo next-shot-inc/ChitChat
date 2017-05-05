@@ -33,7 +33,7 @@ protocol DBProtocol {
     func saveMessage(message: Message, completion: @escaping () -> ())
     func saveGroup(group: Group)
     func saveActivity(activity: GroupActivity)
-    func addUserToGroup(group: Group, user: User)
+    func addUserToGroup(group: Group, user: User, by: User)
     func saveConversationThread(conversationThread: ConversationThread)
     func saveActivity(activity: UserActivity)
     func saveDecorationThemes(themes: [DecorationTheme])
@@ -210,7 +210,7 @@ class InMemoryDB : DBProtocol {
     func saveGroup(group: Group) {
         groups.append(group)
     }
-    func addUserToGroup(group: Group, user: User) {
+    func addUserToGroup(group: Group, user: User, by: User) {
         groupUserFolder.entries.append((user_id: user.id, group_id: group.id))
     }
     func saveConversationThread(conversationThread: ConversationThread) {

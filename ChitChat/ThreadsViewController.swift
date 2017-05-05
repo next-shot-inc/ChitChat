@@ -49,12 +49,13 @@ class ThreadRowDelegate: NSObject, UICollectionViewDelegate, UICollectionViewDel
         _ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath
     ) -> CGSize {
         let m = threadRowData.messages[indexPath.item]
-        if( m.text == "%%Thumb-up%%" ) {
-            return CGSize(width: 50, height: 83)
+        let mo = MessageOptions(options: m.options)
+        if( mo.type == "thumb-up" || m.text == "%%Thumb-up%%" ) {
+            return CGSize(width: 50, height: 90)
         } else if( m.image != nil ) {
-            return CGSize(width: 80, height: 83)
+            return CGSize(width: 90, height: 90)
         } else {
-            return CGSize(width: 80, height: 83)
+            return CGSize(width: 90, height: 90)
         }
     }
 
@@ -82,10 +83,11 @@ class ThreadRowData : NSObject, UICollectionViewDataSource {
     
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
         let m = messages[indexPath.row]
+        let mo = MessageOptions(options: m.options)
         var cell : UICollectionViewCell!
         var labelView : UIView!
         
-        if( m.text == "%%Thumb-up%%" ) {
+        if( m.text == "%%Thumb-up%%" || mo.type == "thumb-up" ) {
             let thup_cell = collectionView.dequeueReusableCell(withReuseIdentifier: "ThreadThumbUp", for: indexPath) as! ThreadThumbUpCell
             thup_cell.fromName.text = getFromName(message: m)
             return thup_cell
@@ -106,13 +108,15 @@ class ThreadRowData : NSObject, UICollectionViewDataSource {
             labelView = mcell.labelView
             cell = mcell
             
-            let mo = MessageOptions(options: m.options)
+           
             if( mo.decorated ) {
                 mcell.decoratedIndicator.image = UIImage(named: "cool32")
                 mcell.decoratedIndicator.isHidden = false
             } else if( mo.pollOptions.count > 0 ) {
                 mcell.decoratedIndicator.image = UIImage(named: "polling")
                 mcell.decoratedIndicator.isHidden = false
+            } else {
+                mcell.decoratedIndicator.isHidden = true
             }
         }
         
@@ -189,8 +193,8 @@ class ThreadsTableViewDelegate : NSObject, UITableViewDelegate {
     
     // Return the height of the row.
     func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
-        // To fit the 80x80 collection view cells.
-        return 100
+        // To fit the 90x90 collection view cells.
+        return 110
     }
     
     func tableView(_ tableView: UITableView, viewForHeaderInSection section: Int) -> UIView? {
@@ -432,7 +436,7 @@ class ThreadsViewController: UITableViewController {
                 
                 // Create first message
                 let message = Message(thread: newThread, user: model.me())
-                message.text = "Click to edit"
+                message.text = "Click on the Pen button to edit"
                 model.saveMessage(message: message, completion:  {
                     self.data?.update(tableView: self.tableView, completion: {
                         DispatchQueue.main.async(execute: { () -> Void in

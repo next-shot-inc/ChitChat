@@ -492,6 +492,8 @@ class CloudDBModel : DBProtocol {
         return record.creatorUserRecordID == userRecordInfo?.ckrecord || record.creatorUserRecordID?.recordName == "__defaultOwner__"
     }
     
+    // Notify (with an alert) when a new Message has been added to the thread
+    // Notify when a message has been edited.
     func setupNotifications(cthread: ConversationThread) {
         
         let predicateFormat = "(thread_id == %@) AND (user_id != %@)"
@@ -548,6 +550,7 @@ class CloudDBModel : DBProtocol {
         unsubscribe(key: edit_key, completionHandler: {})
     }
     
+    // Notify (with an alert) when a user has been added to a group
     func setupNotifications(userId: RecordId) {
         let predicateFormat = "user_id == %@"
         
@@ -559,6 +562,10 @@ class CloudDBModel : DBProtocol {
                 subscriptionID: new_key, options: [CKQuerySubscriptionOptions.firesOnRecordCreation]
             )
             let notificationInfo = CKNotificationInfo()
+            notificationInfo.alertLocalizationKey = "New group %1$@ fom %2$@"
+            notificationInfo.shouldBadge = true
+            notificationInfo.alertLocalizationArgs = ["groupName", "fromName"]
+
             notificationInfo.soundName = "default"
             notificationInfo.shouldSendContentAvailable = true // To make sure it is sent
             
@@ -573,6 +580,9 @@ class CloudDBModel : DBProtocol {
 
     }
     
+    // Notify when a new conversation thread is created
+    // Notify when a conversation thread is deleted.
+    // Notify when the group activity record is modified 
     func setupNotifications(groupId: RecordId) {
         let predicateFormat = "group_id == %@"
         
@@ -874,7 +884,7 @@ class CloudDBModel : DBProtocol {
         }
     }
     
-    func addUserToGroup(group: Group, user: User) {
+    func addUserToGroup(group: Group, user: User, by: User) {
         let record = CKRecord(recordType: "GroupUserFolder")
         record["group_id"] = NSString(string: group.id.id)
         record["user_id"] = NSString(string: user.id.id)
@@ -886,6 +896,11 @@ class CloudDBModel : DBProtocol {
         if( udbid != nil ) {
             record["user_reference"] = CKReference(record: udbid!.record, action: .none)
         }
+        // For notification information.
+        if( by.label != nil ) {
+           record["fromName"] = NSString(string: by.label!)
+        }
+        record["groupName"] = NSString(string: group.name)
         self.publicDB.save(record, completionHandler: self.saveCompletionHandler)
     }
     

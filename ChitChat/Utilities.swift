@@ -83,6 +83,7 @@ class ColorPalette {
     enum States : String {
         case unreadHighImportance, unread, mine, borderColor, read, unsent
     }
+    // Red
     static let all_colors : [[States:UIColor]] = [[
         .unreadHighImportance : UIColor(red: 253/256, green: 83/256, blue: 66/255, alpha: 1.0),
         .unread : UIColor(red: 244/256, green: 117/256, blue: 107/256, alpha: 1.0),
@@ -91,6 +92,7 @@ class ColorPalette {
         .read : UIColor(red: 255/256, green: 236/256, blue: 237/256, alpha: 1.0),
         .unsent: UIColor(red: 220/256, green: 220/256, blue: 220/256, alpha: 1.0)
     ],
+    // Green
     [
         .unreadHighImportance : UIColor(red: 253/256, green: 83/256, blue: 66/255, alpha: 1.0),
         .unread : UIColor(red: 143/256, green: 192/256, blue: 169/256, alpha: 1.0),
@@ -99,6 +101,7 @@ class ColorPalette {
         .read : UIColor(red: 200/256, green: 213/256, blue: 185/256, alpha: 1.0),
         .unsent: UIColor(red: 220/256, green: 220/256, blue: 220/256, alpha: 1.0)
     ],
+    // Blue
     [
         .unreadHighImportance : UIColor(red: 230/256, green: 57/256, blue: 70/255, alpha: 1.0),
         .unread : UIColor(red: 168/256, green: 218/256, blue: 220/256, alpha: 1.0),

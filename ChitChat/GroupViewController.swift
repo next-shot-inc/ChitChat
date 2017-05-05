@@ -190,11 +190,6 @@ class GroupViewController: UITableViewController {
             } else {
                doSetup(db: cloudDB, restart: restart)
             }
-            let loadResourcesToDB = false
-            if( loadResourcesToDB ) {
-                let rdb = ResourceDB()
-                rdb.save(catalog: rdb.currentCatalog)
-            }
         } else {
             let memoryDB = InMemoryDB()
             doSetup(db: memoryDB, restart: true)
@@ -204,6 +199,12 @@ class GroupViewController: UITableViewController {
     func doSetup(db: DBProtocol, restart: Bool) {
         
         model = DataModel(db_model: db)
+        
+        let loadResourcesToDB = false
+        if( loadResourcesToDB ) {
+            let rdb = ResourceDB()
+            rdb.save(catalog: rdb.currentCatalog)
+        }
         
         modelView = GroupModelView(ctrler: self)
         
