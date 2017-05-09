@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		2F0C2FAB1EC11ECA008A5449 /* PictureViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F0C2FAA1EC11ECA008A5449 /* PictureViewController.swift */; };
 		2F0D81B81E91DE7D00A24723 /* PollMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F0D81B71E91DE7D00A24723 /* PollMessage.swift */; };
 		2F32DFCF1E6E5B0700EF34E8 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F32DFCE1E6E5B0700EF34E8 /* AppDelegate.swift */; };
 		2F32DFD11E6E5B0700EF34E8 /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F32DFD01E6E5B0700EF34E8 /* ViewController.swift */; };
@@ -58,6 +59,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		2F0C2FAA1EC11ECA008A5449 /* PictureViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = PictureViewController.swift; sourceTree = "<group>"; };
 		2F0D81B71E91DE7D00A24723 /* PollMessage.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = PollMessage.swift; sourceTree = "<group>"; };
 		2F32DFCB1E6E5B0700EF34E8 /* ChitChat.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ChitChat.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		2F32DFCE1E6E5B0700EF34E8 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
@@ -160,6 +162,7 @@
 				2F32DFD01E6E5B0700EF34E8 /* ViewController.swift */,
 				2F0D81B71E91DE7D00A24723 /* PollMessage.swift */,
 				2F32DFD21E6E5B0700EF34E8 /* Main.storyboard */,
+				2F0C2FAA1EC11ECA008A5449 /* PictureViewController.swift */,
 				2F708C0B1E8567B600120122 /* DecoratedImageView.swift */,
 				2FEBCBA81E84627F008A0690 /* SettingsViewController.swift */,
 				2F4EF7D01E79EEAA006A2D06 /* ConversationThreadHeaderView.xib */,
@@ -429,6 +432,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				2F708C0C1E8567B600120122 /* DecoratedImageView.swift in Sources */,
+				2F0C2FAB1EC11ECA008A5449 /* PictureViewController.swift in Sources */,
 				2FF9BE3D1E749396000DF9A8 /* SpellChecker.swift in Sources */,
 				2F4EF7E61E817BAB006A2D06 /* ResourceDB.swift in Sources */,
 				2F4EF7D51E7C81DC006A2D06 /* DrawingTextView.swift in Sources */,

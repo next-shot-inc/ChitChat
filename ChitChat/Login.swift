@@ -34,8 +34,6 @@ class LoginViewController : UIViewController, UITextFieldDelegate {
         let tapper = UITapGestureRecognizer(target: self, action:#selector(endEditing))
         tapper.cancelsTouchesInView = false
         view.addGestureRecognizer(tapper)
-        
-        navigationController?.navigationItem.backBarButtonItem?.isEnabled = false
     }
     
     override func didReceiveMemoryWarning() {
@@ -46,6 +44,7 @@ class LoginViewController : UIViewController, UITextFieldDelegate {
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         
+        navigationController?.isNavigationBarHidden = true
         errorLabel.text = ""
         
         // Fetch app data for users that had used the app before but did not provide all information.
@@ -136,6 +135,7 @@ class LoginViewController : UIViewController, UITextFieldDelegate {
         
         // Pop this controller
         _ = navigationController?.popViewController(animated: true)
+        navigationController?.isNavigationBarHidden = false
     }
     
     // TextField delegate for all text fields in the view
@@ -154,7 +154,21 @@ class LoginViewController : UIViewController, UITextFieldDelegate {
         // Test validity of phone number
         let phoneNumberKit = PhoneNumberKit()
         do {
-            try _ = phoneNumberKit.parse(telephone.text!)
+            let phoneNumber = try phoneNumberKit.parse(telephone.text!)
+            let telephoneNumber = phoneNumberKit.format(phoneNumber, toType: .international)
+            
+            // Get User and if exist already hide password confirmation and enable login.
+            model.getUser(phoneNumber: telephoneNumber, completion: { (user) in
+                if( user != nil && user!.passKey != nil ) {
+                    DispatchQueue.main.async(execute: {
+                        self.confirmPassordField.isHidden = true
+                        self.confirmPasswordLabel.isHidden = true
+                        self.userName.text = user!.label
+                        self.loginButton.isEnabled = (!self.userName.text!.isEmpty) && (!self.passwordField.text!.isEmpty)
+                    })
+                }
+            })
+
         } catch let error as PhoneNumberError {
             errorLabel.text = error.errorDescription
             loginButton.isEnabled = false
@@ -162,16 +176,6 @@ class LoginViewController : UIViewController, UITextFieldDelegate {
             print("something went wrong")
         }
         
-        // Get User and if exist already hide password confirmation and enable login.
-        model.getUser(phoneNumber: telephone.text!, completion: { (user) in
-            if( user != nil && user!.passKey != nil ) {
-                DispatchQueue.main.async(execute: {
-                    self.confirmPassordField.isHidden = true
-                    self.confirmPasswordLabel.isHidden = true
-                    self.loginButton.isEnabled = (!self.userName.text!.isEmpty) && (!self.passwordField.text!.isEmpty)
-                })
-            }
-        })
     }
     
     func endEditing() {

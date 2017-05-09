@@ -48,6 +48,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             
             // Then push login view
             let rootViewController = self.window!.rootViewController as! UINavigationController;
+            
             rootViewController.pushViewController(viewController, animated: true)
         }
         

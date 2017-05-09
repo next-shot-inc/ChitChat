@@ -261,8 +261,9 @@ class TextMessageCellSizeDelegate : MessageBaseCellSizeDelegate {
         //let nstext = NSString(string: text)
         
         let heightFromLabel : CGFloat = 16
-        let spacing : CGFloat = 4
-        let width = collectionView.bounds.width - 3*spacing
+        let hspacing : CGFloat = 10
+        let vspacing : CGFloat = 4
+        let width = collectionView.bounds.width - 2*hspacing
         let label = UITextView()
         //label.numberOfLines = 0
         //label.lineBreakMode = .byWordWrapping
@@ -272,7 +273,7 @@ class TextMessageCellSizeDelegate : MessageBaseCellSizeDelegate {
         
         let size = label.sizeThatFits(CGSize(width: width, height: 1500))
         //let rect = nstext.boundingRect(with: CGSize(width: width, height: 1500), options: .usesLineFragmentOrigin, attributes: [NSFontAttributeName: UIFont.systemFont(ofSize: 17)], context: nil)
-        return CGSize(width: width, height: max(24,size.height) + 5*spacing + heightFromLabel)
+        return CGSize(width: width, height: max(24,size.height) + 5*vspacing + heightFromLabel)
     }
 }
 
@@ -282,8 +283,9 @@ class DecoratedTextMessageCellSizeDelegate : TextMessageCellSizeDelegate {
         //let nstext = NSString(string: text)
        
         let heightFromLabel : CGFloat = 16
-        let spacing : CGFloat = 5
-        let width = collectionView.bounds.width - 3*spacing
+        let hspacing : CGFloat = 10
+        let vspacing : CGFloat = 4
+        let width = collectionView.bounds.width - 2*hspacing
         let label = DrawingTextView()
         label.numberOfLines = 0
         label.lineBreakMode = .byWordWrapping
@@ -292,15 +294,29 @@ class DecoratedTextMessageCellSizeDelegate : TextMessageCellSizeDelegate {
         
         let size = label.computeSize(CGSize(width: width, height: 1500))
         
-        return CGSize(width: width, height: size.height + 4*spacing + heightFromLabel)
+        return CGSize(width: width, height: size.height + 4*vspacing + heightFromLabel)
     }
 }
 
 class ImageMessageCellSizeDelegate : MessageBaseCellSizeDelegate {
     func size(message: Message, collectionView: UICollectionView) -> CGSize {
-        let spacing : CGFloat = 10
-        let width = collectionView.bounds.width - 3*spacing
-        return CGSize(width: width, height: 234)
+        let text = message.text
+        //let nstext = NSString(string: text)
+        
+        let imageSize : CGFloat = 200
+        let heightFromLabel : CGFloat = 16
+        let hspacing : CGFloat = 10
+        let vspacing : CGFloat = 4
+        let width = collectionView.bounds.width - 2*hspacing
+        let label = UILabel()
+        label.numberOfLines = 0
+        label.lineBreakMode = .byWordWrapping
+        label.text = text
+        label.font = UIFont.systemFont(ofSize: 15)
+
+        let size = label.sizeThatFits(CGSize(width: width, height: 1500))
+    
+        return CGSize(width: width, height: imageSize + heightFromLabel + 5*vspacing + size.height)
     }
 }
 
@@ -463,11 +479,13 @@ class MessagesDataView : ModelView {
     }
 }
 
-class MessagesViewDelegate : NSObject, UICollectionViewDelegateFlowLayout {
+class MessagesViewDelegate : NSObject, UICollectionViewDelegate, UICollectionViewDelegateFlowLayout {
     let messageData : MessagesData
+    weak var controller : MessagesViewController?
     
-    init(data: MessagesData) {
+    init(data: MessagesData, ctrler: MessagesViewController) {
         messageData = data
+        controller = ctrler
     }
     
     // Compute the size of a message
@@ -477,6 +495,23 @@ class MessagesViewDelegate : NSObject, UICollectionViewDelegateFlowLayout {
         let m = messageData.messages[indexPath.row]
         let sizer = MessageCellFactory.sizer(message: m, collectionView: collectionView, indexPath: indexPath)
         return sizer.size(message: m, collectionView: collectionView)
+    }
+    
+    // Let the user select a image based message to display the image in a separate window.
+    func collectionView(_ collectionView: UICollectionView, shouldSelectItemAt indexPath: IndexPath) -> Bool {
+        let m = messageData.messages[indexPath.row]
+        if( m.image != nil ) {
+            return true
+        } else {
+            return false
+        }
+    }
+    
+    // Perform the segue to the show picture controller.
+    func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
+        let m = messageData.messages[indexPath.row]
+        controller?.selectedMessage = m
+        controller?.performSegue(withIdentifier: "showPicture", sender: self)
     }
 }
 
@@ -611,6 +646,7 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
     var delegate : MessagesViewDelegate?
     var conversationThread : ConversationThread?
     var curMessage: Message?
+    var selectedMessage : Message?
     var curMessageOption: MessageOptions?
     var modelView : MessagesDataView?
     var themesCollectionData : DecoratedMessageThemesPickerSource?
@@ -640,7 +676,7 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
             model.getMessagesForThread(thread: self.conversationThread!, completion: { (messages) -> Void in
                 self.data = MessagesData(thread: self.conversationThread!, messages: messages, ctrler: self)
                 self.messagesView.dataSource = self.data
-                self.delegate = MessagesViewDelegate(data: self.data!)
+                self.delegate = MessagesViewDelegate(data: self.data!, ctrler: self)
                 self.messagesView.delegate = self.delegate
                 
                 DispatchQueue.main.async(execute: {
@@ -832,7 +868,7 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
                 self.conversationThread = newThread
                 self.data = MessagesData(thread: self.conversationThread!, messages: messages, ctrler: self)
                 self.messagesView.dataSource = self.data
-                self.delegate = MessagesViewDelegate(data: self.data!)
+                self.delegate = MessagesViewDelegate(data: self.data!, ctrler: self)
                 self.messagesView.delegate = self.delegate
 
                 self.messagesView.reloadData()
@@ -1083,6 +1119,16 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
 
     func endEditingWithTouch() {
         _ = textView.resignFirstResponder()
+    }
+    
+    // Segue to show Picture
+    override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
+        if( segue.identifier == "showPicture" ) {
+            let pc = segue.destination as? PictureViewController
+            if( pc != nil ) {
+                pc!.message = selectedMessage
+            }
+        }
     }
 }
 

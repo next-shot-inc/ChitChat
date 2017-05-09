@@ -348,13 +348,13 @@
                                                         <view contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="zQt-RN-kCf">
                                                             <rect key="frame" x="40" y="26" width="242" height="181"/>
                                                             <subviews>
-                                                                <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Please enter caption" textAlignment="natural" lineBreakMode="tailTruncation" numberOfLines="0" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="YaK-NB-XFz">
+                                                                <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" verticalCompressionResistancePriority="1000" text="Please enter caption" textAlignment="natural" lineBreakMode="wordWrap" numberOfLines="0" baselineAdjustment="alignBaselines" minimumScaleFactor="0.80000000000000004" translatesAutoresizingMaskIntoConstraints="NO" id="YaK-NB-XFz">
                                                                     <rect key="frame" x="55.5" y="160" width="132" height="17"/>
                                                                     <fontDescription key="fontDescription" type="system" pointSize="14"/>
                                                                     <nil key="textColor"/>
                                                                     <nil key="highlightedColor"/>
                                                                 </label>
-                                                                <view opaque="NO" contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="74k-v1-Ych" customClass="DecoratedImageView" customModule="ChitChat" customModuleProvider="target">
+                                                                <view opaque="NO" contentMode="scaleToFill" verticalCompressionResistancePriority="250" translatesAutoresizingMaskIntoConstraints="NO" id="74k-v1-Ych" customClass="DecoratedImageView" customModule="ChitChat" customModuleProvider="target">
                                                                     <rect key="frame" x="4" y="4" width="234" height="152"/>
                                                                     <userDefinedRuntimeAttributes>
                                                                         <userDefinedRuntimeAttribute type="number" keyPath="frameSize">
@@ -365,9 +365,11 @@
                                                             </subviews>
                                                             <color key="backgroundColor" white="1" alpha="1" colorSpace="calibratedWhite"/>
                                                             <constraints>
+                                                                <constraint firstAttribute="trailing" relation="greaterThanOrEqual" secondItem="YaK-NB-XFz" secondAttribute="trailing" constant="4" id="8s3-Wt-Nsh"/>
                                                                 <constraint firstItem="YaK-NB-XFz" firstAttribute="top" secondItem="74k-v1-Ych" secondAttribute="bottom" constant="4" id="B4i-8c-zZT"/>
                                                                 <constraint firstItem="74k-v1-Ych" firstAttribute="top" secondItem="zQt-RN-kCf" secondAttribute="top" constant="4" id="Bfn-HW-QsQ"/>
                                                                 <constraint firstAttribute="trailing" secondItem="74k-v1-Ych" secondAttribute="trailing" constant="4" id="QvY-gw-XwK"/>
+                                                                <constraint firstItem="YaK-NB-XFz" firstAttribute="leading" relation="greaterThanOrEqual" secondItem="zQt-RN-kCf" secondAttribute="leading" constant="4" id="gaF-mR-jsi"/>
                                                                 <constraint firstAttribute="bottom" secondItem="YaK-NB-XFz" secondAttribute="bottom" constant="4" id="qei-hF-QWP"/>
                                                                 <constraint firstItem="YaK-NB-XFz" firstAttribute="centerX" secondItem="zQt-RN-kCf" secondAttribute="centerX" id="xie-Lq-ptr"/>
                                                                 <constraint firstItem="74k-v1-Ych" firstAttribute="leading" secondItem="zQt-RN-kCf" secondAttribute="leading" constant="4" id="yG1-XH-fii"/>
@@ -918,10 +920,10 @@
                                                 <nil key="highlightedColor"/>
                                             </label>
                                             <collectionView clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="scaleToFill" dataMode="prototypes" translatesAutoresizingMaskIntoConstraints="NO" id="h0I-Fj-Nj9">
-                                                <rect key="frame" x="0.0" y="21" width="349" height="69"/>
+                                                <rect key="frame" x="0.0" y="21" width="349" height="80"/>
                                                 <color key="backgroundColor" cocoaTouchSystemColor="groupTableViewBackgroundColor"/>
                                                 <constraints>
-                                                    <constraint firstAttribute="height" priority="999" constant="69" id="Vjv-OS-GGr"/>
+                                                    <constraint firstAttribute="height" priority="999" constant="80" id="Vjv-OS-GGr"/>
                                                 </constraints>
                                                 <collectionViewFlowLayout key="collectionViewLayout" minimumLineSpacing="10" minimumInteritemSpacing="10" id="vRb-MM-SjR">
                                                     <size key="itemSize" width="70" height="30"/>
@@ -995,11 +997,67 @@
                         <outlet property="takePictureButton" destination="fO6-l8-EEV" id="1oH-ys-Rkr"/>
                         <outlet property="textView" destination="QOK-ib-R9m" id="xX9-0E-9ka"/>
                         <outlet property="themesCollectionView" destination="h0I-Fj-Nj9" id="jiS-nV-OdH"/>
+                        <segue destination="3X4-Vq-teN" kind="show" identifier="showPicture" id="cup-ht-Iya"/>
                     </connections>
                 </viewController>
                 <placeholder placeholderIdentifier="IBFirstResponder" id="d6o-8w-mS6" userLabel="First Responder" sceneMemberID="firstResponder"/>
             </objects>
             <point key="canvasLocation" x="2500" y="177.66116941529236"/>
+        </scene>
+        <!--PictureViewController-->
+        <scene sceneID="VOr-DE-k9d">
+            <objects>
+                <viewController id="3X4-Vq-teN" userLabel="PictureViewController" customClass="PictureViewController" customModule="ChitChat" customModuleProvider="target" sceneMemberID="viewController">
+                    <layoutGuides>
+                        <viewControllerLayoutGuide type="top" id="YY1-Ib-B7C"/>
+                        <viewControllerLayoutGuide type="bottom" id="bVB-qX-2j8"/>
+                    </layoutGuides>
+                    <view key="view" contentMode="scaleToFill" id="4ZR-Fn-Pp4">
+                        <rect key="frame" x="0.0" y="0.0" width="375" height="667"/>
+                        <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                        <subviews>
+                            <scrollView clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="scaleToFill" ambiguous="YES" translatesAutoresizingMaskIntoConstraints="NO" id="yXF-K1-O2G">
+                                <rect key="frame" x="16" y="72" width="343" height="514"/>
+                                <subviews>
+                                    <imageView contentMode="scaleAspectFit" horizontalHuggingPriority="251" verticalHuggingPriority="251" ambiguous="YES" translatesAutoresizingMaskIntoConstraints="NO" id="Awk-Uw-ZGW" customClass="ShareableImageView" customModule="ChitChat" customModuleProvider="target">
+                                        <rect key="frame" x="24" y="-45" width="293" height="475"/>
+                                    </imageView>
+                                </subviews>
+                                <constraints>
+                                    <constraint firstAttribute="bottom" secondItem="Awk-Uw-ZGW" secondAttribute="bottom" id="2ZH-fg-mC4"/>
+                                    <constraint firstItem="Awk-Uw-ZGW" firstAttribute="leading" secondItem="yXF-K1-O2G" secondAttribute="leading" id="KdD-wb-zmP"/>
+                                    <constraint firstItem="Awk-Uw-ZGW" firstAttribute="trailing" secondItem="yXF-K1-O2G" secondAttribute="trailing" id="XKv-S8-fru"/>
+                                    <constraint firstItem="Awk-Uw-ZGW" firstAttribute="top" secondItem="yXF-K1-O2G" secondAttribute="top" id="pFY-4S-cWJ"/>
+                                </constraints>
+                            </scrollView>
+                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" verticalCompressionResistancePriority="1000" text="Label" textAlignment="natural" lineBreakMode="wordWrap" numberOfLines="0" baselineAdjustment="alignBaselines" minimumScaleFactor="0.80000000000000004" translatesAutoresizingMaskIntoConstraints="NO" id="oCt-Vb-pVi">
+                                <rect key="frame" x="166.5" y="594" width="42" height="21"/>
+                                <fontDescription key="fontDescription" type="system" pointSize="17"/>
+                                <nil key="textColor"/>
+                                <nil key="highlightedColor"/>
+                            </label>
+                        </subviews>
+                        <color key="backgroundColor" white="1" alpha="1" colorSpace="calibratedWhite"/>
+                        <constraints>
+                            <constraint firstItem="oCt-Vb-pVi" firstAttribute="top" secondItem="yXF-K1-O2G" secondAttribute="bottom" constant="8" symbolic="YES" id="1cn-Jx-3Zr"/>
+                            <constraint firstItem="oCt-Vb-pVi" firstAttribute="centerX" secondItem="4ZR-Fn-Pp4" secondAttribute="centerX" id="A1Z-W4-clZ"/>
+                            <constraint firstItem="yXF-K1-O2G" firstAttribute="trailing" secondItem="4ZR-Fn-Pp4" secondAttribute="trailingMargin" id="EgN-eg-BYR"/>
+                            <constraint firstAttribute="trailingMargin" relation="greaterThanOrEqual" secondItem="oCt-Vb-pVi" secondAttribute="trailing" constant="4" id="Emj-Rs-abL"/>
+                            <constraint firstItem="yXF-K1-O2G" firstAttribute="top" secondItem="YY1-Ib-B7C" secondAttribute="bottom" constant="8" id="Y7V-WW-JSH"/>
+                            <constraint firstItem="yXF-K1-O2G" firstAttribute="leading" secondItem="4ZR-Fn-Pp4" secondAttribute="leadingMargin" id="ks0-qz-UsE"/>
+                            <constraint firstItem="bVB-qX-2j8" firstAttribute="top" secondItem="oCt-Vb-pVi" secondAttribute="bottom" constant="8" symbolic="YES" id="paU-88-oVs"/>
+                            <constraint firstItem="oCt-Vb-pVi" firstAttribute="leading" relation="greaterThanOrEqual" secondItem="4ZR-Fn-Pp4" secondAttribute="leadingMargin" constant="4" id="smc-kV-ZoS"/>
+                        </constraints>
+                    </view>
+                    <connections>
+                        <outlet property="imageCaption" destination="oCt-Vb-pVi" id="xsX-ed-wsO"/>
+                        <outlet property="imageView" destination="Awk-Uw-ZGW" id="pcc-nv-dP5"/>
+                        <outlet property="scrollView" destination="yXF-K1-O2G" id="WJn-I1-cMn"/>
+                    </connections>
+                </viewController>
+                <placeholder placeholderIdentifier="IBFirstResponder" id="j2v-CU-bxS" userLabel="First Responder" sceneMemberID="firstResponder"/>
+            </objects>
+            <point key="canvasLocation" x="3285.5999999999999" y="-441.22938530734638"/>
         </scene>
         <!--User Settings-->
         <scene sceneID="DNU-e6-v03">
