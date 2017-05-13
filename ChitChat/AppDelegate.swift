@@ -12,7 +12,7 @@ import UserNotifications
 import KeychainSwift
 
 @UIApplicationMain
-class AppDelegate: UIResponder, UIApplicationDelegate {
+class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterDelegate {
 
     var window: UIWindow?
 
@@ -52,10 +52,14 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             rootViewController.pushViewController(viewController, animated: true)
         }
         
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge], completionHandler: { (granted, error) in
+        let notificationCenter = UNUserNotificationCenter.current()
+        notificationCenter.delegate = self
+        notificationCenter.requestAuthorization(options: [.alert, .badge, .sound], completionHandler: { (granted, error) in
             // Handle Error
+            if( granted ) {
+                application.registerForRemoteNotifications()
+            }
         })
-        application.registerForRemoteNotifications()
         
         if( launchOptions != nil ) {
            let remoteNotification = launchOptions![UIApplicationLaunchOptionsKey.remoteNotification]
@@ -100,6 +104,14 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         } else {
             completionHandler(UIBackgroundFetchResult.failed)
         }
+    }
+    
+    func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
+        //
+    }
+    
+    func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+        //
     }
 
     // MARK: - Core Data stack
@@ -149,5 +161,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         model.saveContext()
     }
 
+    // UNUserNotificationCenterDelegate functions
+    func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
+        completionHandler()
+    }
+    
+    func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+        completionHandler([.alert, .badge, .sound])
+    }
 }
 

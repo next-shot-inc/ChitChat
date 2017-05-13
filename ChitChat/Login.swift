@@ -172,6 +172,20 @@ class LoginViewController : UIViewController, UITextFieldDelegate {
         } catch let error as PhoneNumberError {
             errorLabel.text = error.errorDescription
             loginButton.isEnabled = false
+            
+            // To use old test accounts!
+            model.getUser(phoneNumber: telephone.text!, completion: { (user) in
+                if( user != nil && user!.passKey != nil ) {
+                    DispatchQueue.main.async(execute: {
+                        self.confirmPassordField.isHidden = true
+                        self.confirmPasswordLabel.isHidden = true
+                        self.userName.text = user!.label
+                        self.loginButton.isEnabled = (!self.userName.text!.isEmpty) && (!self.passwordField.text!.isEmpty)
+                    })
+                }
+            })
+
+            
         } catch {
             print("something went wrong")
         }

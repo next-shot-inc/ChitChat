@@ -8,6 +8,12 @@
 
 /* Begin PBXBuildFile section */
 		2F0C2FAB1EC11ECA008A5449 /* PictureViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F0C2FAA1EC11ECA008A5449 /* PictureViewController.swift */; };
+		2F0C2FAD1EC39EC9008A5449 /* libssl.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 2F0C2FAC1EC39EC9008A5449 /* libssl.a */; };
+		2F0C2FAF1EC39EDE008A5449 /* libcrypto.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 2F0C2FAE1EC39EDE008A5449 /* libcrypto.a */; };
+		2F0C2FB31EC3A156008A5449 /* AppleIncRootCertificate.cer in Resources */ = {isa = PBXBuildFile; fileRef = 2F0C2FB21EC3A156008A5449 /* AppleIncRootCertificate.cer */; };
+		2F0C2FB51EC3A1B8008A5449 /* OpenSSLWrappers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F0C2FB41EC3A1B8008A5449 /* OpenSSLWrappers.swift */; };
+		2F0C2FB91EC3A4D8008A5449 /* ProductOptions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F0C2FB81EC3A4D8008A5449 /* ProductOptions.swift */; };
+		2F0C2FBB1EC4E315008A5449 /* BubbleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F0C2FBA1EC4E315008A5449 /* BubbleView.swift */; };
 		2F0D81B81E91DE7D00A24723 /* PollMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F0D81B71E91DE7D00A24723 /* PollMessage.swift */; };
 		2F32DFCF1E6E5B0700EF34E8 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F32DFCE1E6E5B0700EF34E8 /* AppDelegate.swift */; };
 		2F32DFD11E6E5B0700EF34E8 /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F32DFD01E6E5B0700EF34E8 /* ViewController.swift */; };
@@ -60,6 +66,13 @@
 
 /* Begin PBXFileReference section */
 		2F0C2FAA1EC11ECA008A5449 /* PictureViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = PictureViewController.swift; sourceTree = "<group>"; };
+		2F0C2FAC1EC39EC9008A5449 /* libssl.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libssl.a; path = ChitChat/external/openssl/lib/libssl.a; sourceTree = "<group>"; };
+		2F0C2FAE1EC39EDE008A5449 /* libcrypto.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libcrypto.a; path = ChitChat/external/openssl/lib/libcrypto.a; sourceTree = "<group>"; };
+		2F0C2FB11EC3A0D4008A5449 /* openssl.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = openssl.h; sourceTree = "<group>"; };
+		2F0C2FB21EC3A156008A5449 /* AppleIncRootCertificate.cer */ = {isa = PBXFileReference; lastKnownFileType = file; name = AppleIncRootCertificate.cer; path = ../../../Downloads/AppleIncRootCertificate.cer; sourceTree = "<group>"; };
+		2F0C2FB41EC3A1B8008A5449 /* OpenSSLWrappers.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = OpenSSLWrappers.swift; sourceTree = "<group>"; };
+		2F0C2FB81EC3A4D8008A5449 /* ProductOptions.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ProductOptions.swift; sourceTree = "<group>"; };
+		2F0C2FBA1EC4E315008A5449 /* BubbleView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = BubbleView.swift; sourceTree = "<group>"; };
 		2F0D81B71E91DE7D00A24723 /* PollMessage.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = PollMessage.swift; sourceTree = "<group>"; };
 		2F32DFCB1E6E5B0700EF34E8 /* ChitChat.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ChitChat.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		2F32DFCE1E6E5B0700EF34E8 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
@@ -107,6 +120,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				2F0C2FAF1EC39EDE008A5449 /* libcrypto.a in Frameworks */,
+				2F0C2FAD1EC39EC9008A5449 /* libssl.a in Frameworks */,
 				2FF9BE371E7213E9000DF9A8 /* CloudKit.framework in Frameworks */,
 				DD2F44A3C56821B84E6984C7 /* Pods_ChitChat.framework in Frameworks */,
 			);
@@ -155,6 +170,7 @@
 			isa = PBXGroup;
 			children = (
 				2F4EF7D41E7C81DC006A2D06 /* DrawingTextView.swift */,
+				2F0C2FBA1EC4E315008A5449 /* BubbleView.swift */,
 				2F34BAFC1E7796DA0080863D /* Localizable.strings */,
 				2FF9BE3C1E749396000DF9A8 /* SpellChecker.swift */,
 				2FF9BE321E71FA9B000DF9A8 /* ChitChat.entitlements */,
@@ -183,6 +199,10 @@
 				2F32DFD51E6E5B0700EF34E8 /* ChitChat.xcdatamodeld */,
 				2F7840581E74C1BD0069AB75 /* sounds */,
 				2F32E0071E6F1CF300EF34E8 /* GrowingTextView */,
+				2F0C2FB11EC3A0D4008A5449 /* openssl.h */,
+				2F0C2FB41EC3A1B8008A5449 /* OpenSSLWrappers.swift */,
+				2F0C2FB21EC3A156008A5449 /* AppleIncRootCertificate.cer */,
+				2F0C2FB81EC3A4D8008A5449 /* ProductOptions.swift */,
 			);
 			path = ChitChat;
 			sourceTree = "<group>";
@@ -217,6 +237,8 @@
 		2FF9BE351E7213E9000DF9A8 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				2F0C2FAE1EC39EDE008A5449 /* libcrypto.a */,
+				2F0C2FAC1EC39EC9008A5449 /* libssl.a */,
 				2FF9BE361E7213E9000DF9A8 /* CloudKit.framework */,
 				82A3875AFEEADAC73AC3C61E /* Pods_ChitChat.framework */,
 			);
@@ -355,6 +377,7 @@
 			files = (
 				2F34BAFD1E7796DA0080863D /* Localizable.strings in Resources */,
 				2F32DFDC1E6E5B0700EF34E8 /* LaunchScreen.storyboard in Resources */,
+				2F0C2FB31EC3A156008A5449 /* AppleIncRootCertificate.cer in Resources */,
 				2F4EF7D11E79EEAA006A2D06 /* ConversationThreadHeaderView.xib in Resources */,
 				2F32DFD91E6E5B0700EF34E8 /* Assets.xcassets in Resources */,
 				2F7840591E74C1BD0069AB75 /* sounds in Resources */,
@@ -443,12 +466,15 @@
 				2F32E0061E6F1C9100EF34E8 /* GrowingTextViewInternal.swift in Sources */,
 				2F4EF7D71E7E3A73006A2D06 /* MessageOptions.swift in Sources */,
 				2F0D81B81E91DE7D00A24723 /* PollMessage.swift in Sources */,
+				2F0C2FB91EC3A4D8008A5449 /* ProductOptions.swift in Sources */,
 				2F32DFD71E6E5B0700EF34E8 /* ChitChat.xcdatamodeld in Sources */,
 				2FF9BE391E735CA8000DF9A8 /* ModelDB.swift in Sources */,
+				2F0C2FB51EC3A1B8008A5449 /* OpenSSLWrappers.swift in Sources */,
 				2F32E0021E6E5D4E00EF34E8 /* ThreadsViewController.swift in Sources */,
 				2FF9BE311E710D69000DF9A8 /* Utilities.swift in Sources */,
 				2FF9BE291E7061F5000DF9A8 /* ContactsController.swift in Sources */,
 				2F32E0091E6F1D6F00EF34E8 /* GrowingTextView.swift in Sources */,
+				2F0C2FBB1EC4E315008A5449 /* BubbleView.swift in Sources */,
 				2F32DFD11E6E5B0700EF34E8 /* ViewController.swift in Sources */,
 				2FF9BE2B1E70B6D9000DF9A8 /* Login.swift in Sources */,
 				2F32DFCF1E6E5B0700EF34E8 /* AppDelegate.swift in Sources */,
@@ -608,11 +634,17 @@
 				CODE_SIGN_ENTITLEMENTS = ChitChat/ChitChat.entitlements;
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
 				DEVELOPMENT_TEAM = A8SRM3ENGN;
+				"HEADER_SEARCH_PATHS[arch=*]" = "/Users/next-shot/Desktop/ChitChat/ChitChat/external/openssl/include";
 				INFOPLIST_FILE = ChitChat/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 10.2;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/ChitChat/external/openssl/lib",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = "next-shot-inc.com.ChitChat";
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				"SWIFT_OBJC_BRIDGING_HEADER[arch=*]" = ChitChat/openssl.h;
 				SWIFT_VERSION = 3.0;
 			};
 			name = Debug;
@@ -625,11 +657,17 @@
 				CODE_SIGN_ENTITLEMENTS = ChitChat/ChitChat.entitlements;
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
 				DEVELOPMENT_TEAM = A8SRM3ENGN;
+				"HEADER_SEARCH_PATHS[arch=*]" = "/Users/next-shot/Desktop/ChitChat/ChitChat/external/openssl/include";
 				INFOPLIST_FILE = ChitChat/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 10.2;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/ChitChat/external/openssl/lib",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = "next-shot-inc.com.ChitChat";
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				"SWIFT_OBJC_BRIDGING_HEADER[arch=*]" = ChitChat/openssl.h;
 				SWIFT_VERSION = 3.0;
 			};
 			name = Release;

@@ -258,6 +258,10 @@ extension Message {
         if( opt_record != nil ) {
             self.options = String(opt_record as! NSString)
         }
+        let group_id = record["group_id"]
+        if( group_id != nil ) {
+            self.group_id = RecordId(record: record, forKey: "group_id")
+        }
         
         let asset = record["image"] as? CKAsset
         if( asset != nil ) {
@@ -281,6 +285,10 @@ extension Message {
         record["thread_id"] = NSString(string: self.conversation_id.id)
         if( self.conversation_id is CloudRecordId ) {
             record["thread_reference"] = CKReference(record: (self.conversation_id as! CloudRecordId).record, action: .none)
+        }
+        
+        if( self.group_id != nil ) {
+            record["group_id"] = NSString(string: self.group_id!.id)
         }
     
         record["text"] = NSString(string: self.text)
@@ -498,6 +506,8 @@ class CloudDBModel : DBProtocol {
         
         let predicateFormat = "(thread_id == %@) AND (user_id != %@)"
         
+        /*
+         * Superseeded by the group based notification of new messages.
         let new_key = "new_type_Message_thread_id_\(cthread.id.id)_user_id\(model.me().id.id)"
         
         subscribe(subscriptionId: new_key, predicateFormat: predicateFormat, createSubscription: { () -> Void in
@@ -509,6 +519,7 @@ class CloudDBModel : DBProtocol {
             notificationInfo.alertLocalizationKey = "New message fom %1$@ in %2$@: %3$@"
             notificationInfo.shouldBadge = true
             notificationInfo.alertLocalizationArgs = ["fromName", "inThread", "text"]
+            notificationInfo.soundName = "default"
             
             new_message_subscription.notificationInfo = notificationInfo
             
@@ -518,6 +529,7 @@ class CloudDBModel : DBProtocol {
                 }
             })
         })
+        */
         
         let edit_key = "edit_type_Message_thread_id_\(cthread.id.id)_user_id\(model.me().id.id)"
         
@@ -645,6 +657,31 @@ class CloudDBModel : DBProtocol {
             edit_group_activity_subscription.notificationInfo = notificationInfo
             
             self.publicDB.save(edit_group_activity_subscription, completionHandler: { (sub, error) -> Void in
+                if( error != nil ) {
+                    print(error!)
+                }
+            })
+        })
+
+        // New Message
+        let new_message_predicateFormat = "(group_id == %@) AND (user_id != %@)"
+        
+        let new_message_key = "new_type_Message_group_id_\(groupId.id)_user_id\(model.me().id.id)"
+        
+        subscribe(subscriptionId: new_message_key, predicateFormat: new_message_predicateFormat, createSubscription: { () -> Void in
+            let new_message_subscription = CKQuerySubscription(
+                recordType: "Message", predicate: NSPredicate(format: new_message_predicateFormat, argumentArray: [groupId.id, model.me().id.id]),
+                subscriptionID: new_message_key, options: [CKQuerySubscriptionOptions.firesOnRecordCreation]
+            )
+            let notificationInfo = CKNotificationInfo()
+            notificationInfo.alertLocalizationKey = "New message fom %1$@ in %2$@: %3$@"
+            notificationInfo.shouldBadge = true
+            notificationInfo.alertLocalizationArgs = ["fromName", "inThread", "text"]
+            notificationInfo.soundName = "default"
+            
+            new_message_subscription.notificationInfo = notificationInfo
+            
+            self.publicDB.save(new_message_subscription, completionHandler: { (sub, error) -> Void in
                 if( error != nil ) {
                     print(error!)
                 }

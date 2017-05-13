@@ -175,7 +175,7 @@ class GroupViewController: UITableViewController {
         let cloud = true
         if( cloud ) {
             let restart = false
-            let cleanSubscriptions = true
+            let cleanSubscriptions = false
             let cloudDB = CloudDBModel()
             if( restart ) {
                 cloudDB.deleteAllRecords(subscriptionsOnly: false) {

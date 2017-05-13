@@ -155,6 +155,7 @@ class Message {
     var id : RecordId
     var conversation_id : RecordId
     let user_id : RecordId
+    var group_id : RecordId?
     var text = String()
     var image : UIImage?
     var options = String()
@@ -168,6 +169,7 @@ class Message {
         self.conversation_id = thread.id
         self.fromName = user.label!
         self.inThread = thread.title
+        self.group_id = thread.group_id
     }
     
     init(id: RecordId, threadId: RecordId, user_id: RecordId) {
@@ -708,7 +710,7 @@ class DataModel {
     
     func getActivitiesForGroups(groups: [Group], completion: @escaping (([GroupActivity]) -> Void )) {
         let gas = memory_model.getActivitiesForGroups(groups: groups)
-        if( gas.count != 0 ) {
+        if( gas.count == groups.count ) {
             return completion(gas)
         }
         db_model.getActivitiesForGroups(groups: groups, completion: { (activities) -> () in

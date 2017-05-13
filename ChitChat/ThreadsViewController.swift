@@ -13,13 +13,13 @@ class ThreadMessageCell : UICollectionViewCell {
     
     @IBOutlet weak var fromName: UILabel!
     @IBOutlet weak var label: UILabel!
-    @IBOutlet weak var labelView: UIView!
+    @IBOutlet weak var labelView: BubbleView!
     @IBOutlet weak var decoratedIndicator: UIImageView!
 }
 
 class ThreadMessageWithImageCell : UICollectionViewCell {
     
-    @IBOutlet weak var labelView: UIView!
+    @IBOutlet weak var labelView: BubbleView!
     @IBOutlet weak var fromName: UILabel!
     @IBOutlet weak var label: UILabel!
     @IBOutlet weak var imageView: UIImageView!
@@ -27,6 +27,7 @@ class ThreadMessageWithImageCell : UICollectionViewCell {
 
 class ThreadThumbUpCell : UICollectionViewCell {
     
+    @IBOutlet weak var labelView: BubbleView!
     @IBOutlet weak var fromName: UILabel!
 }
 
@@ -51,11 +52,11 @@ class ThreadRowDelegate: NSObject, UICollectionViewDelegate, UICollectionViewDel
         let m = threadRowData.messages[indexPath.item]
         let mo = MessageOptions(options: m.options)
         if( mo.type == "thumb-up" || m.text == "%%Thumb-up%%" ) {
-            return CGSize(width: 50, height: 90)
+            return CGSize(width: 60, height: 121)
         } else if( m.image != nil ) {
-            return CGSize(width: 90, height: 90)
+            return CGSize(width: 110, height: 121)
         } else {
-            return CGSize(width: 90, height: 90)
+            return CGSize(width: 110, height: 121)
         }
     }
 
@@ -85,17 +86,20 @@ class ThreadRowData : NSObject, UICollectionViewDataSource {
         let m = messages[indexPath.row]
         let mo = MessageOptions(options: m.options)
         var cell : UICollectionViewCell!
-        var labelView : UIView!
+        var labelView : BubbleView!
         
         if( m.text == "%%Thumb-up%%" || mo.type == "thumb-up" ) {
             let thup_cell = collectionView.dequeueReusableCell(withReuseIdentifier: "ThreadThumbUp", for: indexPath) as! ThreadThumbUpCell
             thup_cell.fromName.text = getFromName(message: m)
-            return thup_cell
-        }
-        if( m.image != nil ) {
+            labelView = thup_cell.labelView
+            cell = thup_cell
+        } else if( m.image != nil ) {
             let icell = collectionView.dequeueReusableCell(withReuseIdentifier: "ThreadMessageWithImage", for: indexPath) as! ThreadMessageWithImageCell
             
             icell.imageView.image = m.image
+            icell.imageView.layer.masksToBounds = true
+            icell.imageView.layer.cornerRadius = 20
+            
             icell.label.text = m.text
             icell.fromName.text = getFromName(message: m)
             labelView = icell.labelView
@@ -108,7 +112,6 @@ class ThreadRowData : NSObject, UICollectionViewDataSource {
             labelView = mcell.labelView
             cell = mcell
             
-           
             if( mo.decorated ) {
                 mcell.decoratedIndicator.image = UIImage(named: "cool32")
                 mcell.decoratedIndicator.isHidden = false
@@ -121,12 +124,17 @@ class ThreadRowData : NSObject, UICollectionViewDataSource {
         }
         
         let bg = ColorPalette.backgroundColor(message: m)
+        
+        /*
         labelView.layer.backgroundColor = bg.cgColor
         
         labelView.layer.masksToBounds = true
         labelView.layer.cornerRadius = 6
         labelView.layer.borderColor = ColorPalette.colors[ColorPalette.States.borderColor]?.cgColor
         labelView.layer.borderWidth = 1.0
+        */
+        labelView.fillColor = bg
+        labelView.strokeColor = ColorPalette.colors[ColorPalette.States.borderColor]
         
         return cell
     }
@@ -193,8 +201,8 @@ class ThreadsTableViewDelegate : NSObject, UITableViewDelegate {
     
     // Return the height of the row.
     func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
-        // To fit the 90x90 collection view cells.
-        return 110
+        // To fit the 110x110 collection view cells.
+        return 140
     }
     
     func tableView(_ tableView: UITableView, viewForHeaderInSection section: Int) -> UIView? {
