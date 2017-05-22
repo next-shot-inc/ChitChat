@@ -62,7 +62,13 @@ class DecoratedImageView : UIView {
                                        height:imageScaledSize.height - shadowSize)
                 context.saveGState()
                 context.clip(to: frameRect)
-                context.draw(bgI!, in: frameRect, byTiling: true)
+                let flipVertical = CGAffineTransform(a: 1, b: 0, c: 0, d: -1, tx: 0, ty: frameRect.height)
+                context.concatenate(flipVertical)
+                context.draw(bgI!, in: CGRect(origin:
+                        CGPoint(x: backgroundImage!.size.width*CGFloat(drand48()),
+                                y: backgroundImage!.size.height*CGFloat(drand48())),
+                        size: backgroundImage!.size), byTiling: true
+                )
                 context.restoreGState()
             }
             context.setFillColor(UIColor.white.cgColor)

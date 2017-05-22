@@ -34,6 +34,7 @@ class User {
     var label : String?
     var phoneNumber : String
     var passKey : String?
+    var recoveryQuestion: String?
     var recoveryKey : String?
     
     init(id: RecordId, label: String, phoneNumber: String) {
@@ -184,6 +185,7 @@ class DecorationTheme {
     var name : String
     var special_date : Date?
     var category = "DecoratedText"
+    var options : NSDictionary?
     init(name: String) {
         self.id = RecordId()
         self.name = name
@@ -611,7 +613,7 @@ class DataModel {
                     let augmented_password = user0.id.id + password!
                     user0.passKey = hexKey(value: hash(string: augmented_password))
                     
-                    self.db_model.saveUser(user: user0)
+                    self.db_model.saveUser(user: user0, completion: {_ in })
                     self.memory_model.users.append(user0)
                     
                     me = user0
@@ -622,7 +624,7 @@ class DataModel {
                     if( user!.passKey == nil || user!.passKey!.isEmpty ) {
                         // For users created before password was necessary.
                         user!.passKey = passKey
-                        self.db_model.saveUser(user: user!)
+                        self.db_model.saveUser(user: user!, completion: {_ in })
                     }
                     if( passKey != user!.passKey ) {
                         print("Password invalid")
@@ -926,8 +928,8 @@ class DataModel {
         return memory_model.users.first!
     }
     
-    func saveUser(user: User) {
-        db_model.saveUser(user: user)
+    func saveUser(user: User, completion: @escaping (_ status: Bool)-> ()) {
+        db_model.saveUser(user: user, completion: completion)
         memory_model.update(user: user)
     }
     
@@ -1091,7 +1093,7 @@ class DataModel {
         return nil
     }
     
-    func addDecoration(theme: String, category: String, stamps: [String]) {
+    func addDecoration(theme: String, category: String, stamps: [String], options: NSDictionary? = nil) {
         if( memory_model.decorationThemes.contains(where: { (dt) -> Bool in
             return dt.name == theme
         }) ) {
@@ -1100,6 +1102,7 @@ class DataModel {
         
         let theme = DecorationTheme(name: theme)
         theme.category = category
+        theme.options = options
         memory_model.decorationThemes.append(theme)
         for s in stamps {
            let image = UIImage(named: s)
@@ -1181,8 +1184,8 @@ class DBModelTest {
         user1.icon = UIImage(named: "user_male3-32")
         let user2 = User(id: RecordId(), label: "Elli Car", phoneNumber: "3333" )
         user2.icon = UIImage(named: "user_female3-32")
-        model.saveUser(user: user1)
-        model.saveUser(user: user2)
+        model.saveUser(user: user1, completion: {_ in })
+        model.saveUser(user: user2, completion: {_ in })
         
         Thread.sleep(forTimeInterval: 30)
         

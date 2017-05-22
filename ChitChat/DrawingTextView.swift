@@ -125,6 +125,7 @@ class DrawingTextView: UILabel {
         var maxY : CGFloat = -1e+30
         var overallMaxHeight : CGFloat = 0
         var computed = false
+        var curYTranslation : CGFloat = 0
         for (i,range) in ranges.enumerated() {
             if( range.max < range.min ) {
                 continue
@@ -152,11 +153,11 @@ class DrawingTextView: UILabel {
             
             // Compute bounding box of string
             var thetaI = radiantAngle - direction * totalArc / 2
-                        var li = 0
+            var li = 0
             for _ in range.min ... range.max {
                 thetaI += direction * arcs[li] / 2
                 let x = radius * cos(thetaI)
-                let y = radius * sin(thetaI) + CGFloat(i-1)*maxHeight
+                let y = radius * sin(thetaI) + curYTranslation
                 minX = min(minX, x)
                 maxX = max(maxX, x)
                 minY = min(minY, y)
@@ -166,6 +167,11 @@ class DrawingTextView: UILabel {
                 
                 computed = true
             }
+            let verticalPadding : CGFloat = 2
+            curYTranslation += maxHeight + verticalPadding
+            if( i == 0 ) {
+                minY -= (maxHeight+4)
+            }
         }
         
         if( !computed ) {
@@ -173,8 +179,8 @@ class DrawingTextView: UILabel {
         }
         
         var extraSpace : CGFloat = 0
-        if( abs(maxY - minY) < 3*overallMaxHeight + 2*stampHeight ) {
-            extraSpace = 3*overallMaxHeight + 2*stampHeight - abs(maxY - minY)
+        if( abs(maxY - minY) < CGFloat(ranges.count+1)*overallMaxHeight + 2*stampHeight ) {
+            extraSpace = CGFloat(ranges.count+1)*overallMaxHeight + 2*stampHeight - abs(maxY - minY)
         }
         
         let cgSize = CGSize(width: abs(maxX-minX), height: abs(maxY-minY) + extraSpace)
@@ -257,15 +263,15 @@ class DrawingTextView: UILabel {
                     li += 1
                 }
                 
-                context.translateBy(x: (minX + maxX)/2, y: maxY - maxHeight*CGFloat(ranges.count-1))
-                top_polyline.translate(x: (minX + maxX)/2, y: maxY - maxHeight*CGFloat(ranges.count))
+                context.translateBy(x: (minX + maxX)/2, y: maxY - maxHeight*CGFloat(ranges.count-1) + 4)
+                top_polyline.translate(x: (minX + maxX)/2, y: maxY - maxHeight*CGFloat(ranges.count) + 4)
                 
                 bot_polyline.vertices = top_polyline.vertices.reversed()
                 bot_polyline.translate(x: 0, y:2*maxHeight)
             
                 cgSize = CGSize(width: abs(maxX-minX) + maxHeight, height: abs(maxY-minY) + maxHeight*CGFloat(ranges.count))
             } else {
-                let verticalPadding : CGFloat = 4
+                let verticalPadding : CGFloat = 2
                 context.translateBy(x: 0, y: maxHeight+verticalPadding)
                 bot_polyline.translate(x: 0, y: maxHeight+verticalPadding)
             }

@@ -28,7 +28,7 @@ protocol DBProtocol {
     func getPollVotes(poll: Message, completion: @escaping ([PollRecord]) -> Void )
     func setMessageFetchTimeLimit(numberOfDays: TimeInterval)
     
-    func saveUser(user: User)
+    func saveUser(user: User, completion: @escaping (_ status: Bool) -> ())
     func saveUserInvitation(userInvitation: UserInvitation)
     func saveMessage(message: Message, completion: @escaping () -> ())
     func saveGroup(group: Group)
@@ -187,7 +187,7 @@ class InMemoryDB : DBProtocol {
     func savePollVote(pollRecord: PollRecord) {
     }
     
-    func saveUser(user: User) {
+    func saveUser(user: User, completion: @escaping (_ status: Bool) -> ()) {
         let already = users.contains(where: ({ (u) -> Bool in
             user.id == u.id
         }))

@@ -60,9 +60,6 @@ class MessageCell : UICollectionViewCell, MessageBaseCellDelegate {
     
         fromLabel.text = getFromName(message: message)
         
-        let bg = ColorPalette.backgroundColor(message: message)
-        labelView.backgroundColor = bg
-        
         editButton.isHidden = !(message.user_id.id == model.me().id.id &&
             controller?.data?.messages.last === message)
     }
@@ -102,13 +99,17 @@ class PictureMessageCell : UICollectionViewCell, MessageBaseCellDelegate  {
         if( mo.theme == "no frame" || mo.theme.isEmpty ) {
             decoratedImageView.frameSize = 0
             decoratedImageView.setNeedsDisplay()
+            
+            decoratedImageView!.layer.masksToBounds = true
+            decoratedImageView!.layer.cornerRadius = 6
         } else {
             let theme = model.getTheme(name: mo.theme)
             if( theme != nil ) {
                 model.getDecorationStamp(theme: theme!, completion: { (stamps) -> Void in
                     if( stamps.count >= 1 ) {
                         self.decoratedImageView.backgroundImage = stamps[0].image
-                        self.decoratedImageView.frameSize = 8
+                        let v = theme?.options?["framesize"] as? NSNumber
+                        self.decoratedImageView.frameSize = CGFloat(v?.intValue ?? 8)
                     }
                     DispatchQueue.main.async(execute: {
                         self.decoratedImageView.setNeedsDisplay()
@@ -119,9 +120,6 @@ class PictureMessageCell : UICollectionViewCell, MessageBaseCellDelegate  {
         
         caption.text = message.text
         fromLabel.text = getFromName(message: message)
-        
-        let bg = ColorPalette.backgroundColor(message: message)
-        labelView.backgroundColor = bg
         
         editButton.isHidden = !(message.user_id.id == model.me().id.id &&
             controller?.data?.messages.last === message)
@@ -141,11 +139,12 @@ class PictureMessageCell : UICollectionViewCell, MessageBaseCellDelegate  {
 
 class ThumbUpMessageCell : UICollectionViewCell, MessageBaseCellDelegate {
     
+    @IBOutlet weak var labelView: BubbleView!
     @IBOutlet weak var icon: UIImageView!
     @IBOutlet weak var fromLabel: UILabel!
     
     func containerView() -> UIView? {
-        return nil
+        return labelView
     }
     
     func userIcon() -> UIImageView? {
@@ -209,9 +208,6 @@ class DecoratedMessageCell : UICollectionViewCell, MessageBaseCellDelegate {
 
         fromLabel.text = getFromName(message: message)
         
-        let bg = ColorPalette.backgroundColor(message: message)
-        labelView.backgroundColor = bg
-        
         editButton.isHidden = !(message.user_id.id == model.me().id.id &&
                                controller?.data?.messages.last === message)
         
@@ -260,6 +256,8 @@ class TextMessageCellSizeDelegate : MessageBaseCellSizeDelegate {
         let text = message.text
         //let nstext = NSString(string: text)
         
+        let bubblevSpacing: CGFloat = 30
+        let bubblehSpacing: CGFloat = 20
         let heightFromLabel : CGFloat = 16
         let hspacing : CGFloat = 10
         let vspacing : CGFloat = 4
@@ -271,9 +269,12 @@ class TextMessageCellSizeDelegate : MessageBaseCellSizeDelegate {
         label.font = UIFont.systemFont(ofSize: 17)
         //label.adjustsFontSizeToFitWidth = false
         
-        let size = label.sizeThatFits(CGSize(width: width, height: 1500))
+        let size = label.sizeThatFits(CGSize(width: width - bubblehSpacing, height: 1500))
         //let rect = nstext.boundingRect(with: CGSize(width: width, height: 1500), options: .usesLineFragmentOrigin, attributes: [NSFontAttributeName: UIFont.systemFont(ofSize: 17)], context: nil)
-        return CGSize(width: width, height: max(24,size.height) + 5*vspacing + heightFromLabel)
+        return CGSize(
+            width: width,
+            height: max(24,size.height) + 5*vspacing + heightFromLabel + bubblevSpacing
+        )
     }
 }
 
@@ -282,6 +283,8 @@ class DecoratedTextMessageCellSizeDelegate : TextMessageCellSizeDelegate {
         let text = message.text
         //let nstext = NSString(string: text)
        
+        let bubblevSpacing: CGFloat = 30
+        let bubblehSpacing: CGFloat = 20
         let heightFromLabel : CGFloat = 16
         let hspacing : CGFloat = 10
         let vspacing : CGFloat = 4
@@ -292,18 +295,30 @@ class DecoratedTextMessageCellSizeDelegate : TextMessageCellSizeDelegate {
         label.text = text
         label.font = UIFont.systemFont(ofSize: 17)
         
-        let size = label.computeSize(CGSize(width: width, height: 1500))
+        let size = label.computeSize(CGSize(width: width - bubblehSpacing, height: 1500))
         
-        return CGSize(width: width, height: size.height + 4*vspacing + heightFromLabel)
+        return CGSize(width: width, height: size.height + 4*vspacing + heightFromLabel + bubblevSpacing)
     }
 }
 
 class ImageMessageCellSizeDelegate : MessageBaseCellSizeDelegate {
     func size(message: Message, collectionView: UICollectionView) -> CGSize {
         let text = message.text
+        
+        var frameSize : CGFloat = 0
+        let mo = MessageOptions(options: message.options)
+        if( mo.theme == "no frame" || mo.theme.isEmpty ) {
+            frameSize = 0
+        } else {
+            let theme = model.getTheme(name: mo.theme)
+            let v = theme?.options?["framesize"] as? NSNumber
+            frameSize = CGFloat(v?.intValue ?? 8)
+        }
         //let nstext = NSString(string: text)
         
-        let imageSize : CGFloat = 200
+        let bubblevSpacing : CGFloat = 0 // 45
+        let bubblehSpacing: CGFloat = 0 // 20
+        let imageSize : CGFloat = 180 + 2*frameSize
         let heightFromLabel : CGFloat = 16
         let hspacing : CGFloat = 10
         let vspacing : CGFloat = 4
@@ -314,17 +329,17 @@ class ImageMessageCellSizeDelegate : MessageBaseCellSizeDelegate {
         label.text = text
         label.font = UIFont.systemFont(ofSize: 15)
 
-        let size = label.sizeThatFits(CGSize(width: width, height: 1500))
+        let size = label.sizeThatFits(CGSize(width: width - bubblehSpacing, height: 1500))
     
-        return CGSize(width: width, height: imageSize + heightFromLabel + 5*vspacing + size.height)
+        return CGSize(width: width, height: imageSize + heightFromLabel + 5*vspacing + size.height + bubblevSpacing)
     }
 }
 
 class ThumbUpMessageCellSizeDelegate : MessageBaseCellSizeDelegate {
     func size(message: Message, collectionView: UICollectionView) -> CGSize {
-        let spacing : CGFloat = 10
-        let width = collectionView.bounds.width - 3*spacing
-        return CGSize(width: width, height: 60)
+        let hspacing : CGFloat = 10
+        let width = min(300, collectionView.bounds.width - 2*hspacing)
+        return CGSize(width: width, height: 65)
     }
 }
 
@@ -396,20 +411,60 @@ class MessageCellFactory {
 
 class MessagesData : NSObject, UICollectionViewDataSource {
     var messages = [Message]()
+    //var sections = [[Message]](repeating: [Message](), count: 4)
+    //enum sectionType : Int { case today = 3, yesterday = 2, this_week = 1, prev_weeks = 0 }
     weak var controller : MessagesViewController?
     
     init(thread: ConversationThread, messages: [Message], ctrler: MessagesViewController) {
         self.messages = messages
         controller = ctrler
+        
+        //set(messages:  messages)
+    }
+    
+    /*
+    func set(messages: [Message]) {
+        let calendar = Calendar(identifier: .gregorian)
+        let dtoday = Date()
+        let day_of_today = calendar.component(.day, from: dtoday)
+        let week_of_today = calendar.component(.weekOfMonth, from: dtoday)
+        
+        for m in messages {
+            let date = m.last_modified
+            let m_day = calendar.component(.day, from: date)
+            let m_week = calendar.component(.weekOfMonth, from: date)
+            if( m_day == day_of_today ) {
+                sections[sectionType.today.rawValue].append(m)
+            } else if( m_day == day_of_today-1 ) {
+                sections[sectionType.yesterday.rawValue].append(m)
+            } else if( m_week == week_of_today ) {
+                sections[sectionType.this_week.rawValue].append(m)
+            } else {
+                sections[sectionType.prev_weeks.rawValue].append(m)
+            }
+        }
+    }
+    */
+    
+    subscript(indexPath: IndexPath) -> Message {
+        return messages[indexPath.row]
+    }
+    
+    func lastMessageIndex() -> IndexPath {
+        return IndexPath(row: messages.count-1, section: 0)
+    }
+    
+    func numberOfSections(in collectionView: UICollectionView) -> Int {
+        return 1 //sections.count
     }
     
     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
-        return messages.count
+        return messages.count // sections[section].count
     }
     
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
         
-        let m = messages[indexPath.row]
+        let m = self[indexPath]
         let cell = MessageCellFactory.create(message: m, collectionView: collectionView, indexPath: indexPath)
         
         let delegate = cell as? MessageBaseCellDelegate
@@ -424,10 +479,20 @@ class MessagesData : NSObject, UICollectionViewDataSource {
         // common behavior to all cells
         let uiView = cell.containerView()
         if( uiView != nil ) {
-           uiView!.layer.masksToBounds = true
-           uiView!.layer.cornerRadius = 6
-           uiView!.layer.borderColor = ColorPalette.colors[.borderColor]?.cgColor
-           uiView!.layer.borderWidth = 1.0
+            let bg = ColorPalette.backgroundColor(message: message)
+            let bubbleView = uiView as? BubbleView
+            if( bubbleView != nil ) {
+                bubbleView!.fillColor = bg
+                bubbleView!.strokeColor = ColorPalette.colors[.borderColor]
+                bubbleView!.setNeedsDisplay()
+            } else {
+               uiView!.backgroundColor = bg
+
+               uiView!.layer.masksToBounds = true
+               uiView!.layer.cornerRadius = 6
+               uiView!.layer.borderColor = ColorPalette.colors[.borderColor]?.cgColor
+               uiView!.layer.borderWidth = 1.0
+            }
         }
 
         if( cell.userIcon() != nil ) {
@@ -459,7 +524,7 @@ class MessagesDataView : ModelView {
             model.getMessagesForThread(thread: controller!.conversationThread!, completion: { (messages) -> Void in
                 self.controller!.data!.messages = messages
                 self.controller!.messagesView.reloadData()
-                self.controller!.messagesView.scrollToItem(at: IndexPath(row: self.controller!.data!.messages.count-1, section: 0), at: UICollectionViewScrollPosition.bottom, animated: true)
+                self.controller!.messagesView.scrollToItem(at: self.controller!.data!.lastMessageIndex(), at: UICollectionViewScrollPosition.bottom, animated: true)
                 
                 self.controller!.continueEditing()
             })
@@ -559,6 +624,8 @@ class DecoratedMessageThemesPickerSource : NSObject, UICollectionViewDelegate, U
         return cell
     }
     
+    // Initialize message option from selected theme.
+    // Highlight selected cell
     func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
         if( controller != nil && controller!.curMessage != nil ) {
             let m = controller!.curMessage!
@@ -578,12 +645,14 @@ class DecoratedMessageThemesPickerSource : NSObject, UICollectionViewDelegate, U
         }
     }
     
+    // Unhighlight unselected cell.
     func collectionView(_ collectionView: UICollectionView, didDeselectItemAt indexPath: IndexPath) {
         // Update selected theme cell
         let cell = collectionView.cellForItem(at: indexPath)
         cell?.layer.backgroundColor = nil
     }
     
+    // Return item size
     func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
         let spacing : CGFloat = 10
         
@@ -621,7 +690,7 @@ class MessagesViewGrowingTextViewDelegate : GrowingTextView.Delegates {
                 c.messagesView.reloadItems(at: [indexPath])
                 c.messagesView.scrollToItem(at: indexPath, at: .bottom, animated: true)
             }
-            c.sendButton.isEnabled = !view.text.isEmpty
+            c.sendButton.isEnabled = !view.text.isEmpty && (c.curMessageOption == nil || c.curMessageOption!.valid())
             c.spellCheckButton.setImage(UIImage(named:"spellchecked32x32"), for: .normal)
         }
     }
@@ -666,10 +735,27 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
         model.getDecorationThemes(completion: { (themes) -> Void in
             // Add in Memory decorations
             model.addDecoration(theme: "no frame", category: "DecoratedImage", stamps: [])
-            model.addDecoration(theme: "wood pine frame", category: "DecoratedImage", stamps: ["purty_wood"])
-            model.addDecoration(theme: "dark wood frame", category: "DecoratedImage", stamps: ["dark_wood"])
+            model.addDecoration(
+                theme: "wood pine frame", category: "DecoratedImage", stamps: ["purty_wood"],
+                options: ["framesize": 12]
+            )
+            model.addDecoration(theme: "dark wood frame", category: "DecoratedImage", stamps: ["dark_wood"],
+                options: ["framesize" : 12]
+            )
             model.addDecoration(theme: "aluminium frame", category: "DecoratedImage", stamps: ["aluminium"])
             model.addDecoration(theme: "gold frame", category: "DecoratedImage", stamps: ["gold_frame"])
+            model.addDecoration(
+                theme: "flower frame", category: "DecoratedImage", stamps: ["flower frame"],
+                options: ["framesize" : 14]
+            )
+            model.addDecoration(
+                theme: "birds frame", category: "DecoratedImage", stamps: ["birds frame"],
+                options: ["framesize" : 14]
+            )
+            model.addDecoration(
+                theme: "butterflies frame", category: "DecoratedImage", stamps: ["butterflies frame"],
+                options: ["framesize" : 18]
+            )
 
             // Once the theme collection is there we can load the messages.
             // Manage the collection view.
@@ -1019,7 +1105,7 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
 
         self.view.layoutIfNeeded()
         messagesView.scrollToItem(
-            at: IndexPath(row: data!.messages.count-1, section: 0), at: UICollectionViewScrollPosition.bottom, animated: true
+            at: data!.lastMessageIndex(), at: UICollectionViewScrollPosition.bottom, animated: true
         )
         if( data!.messages.count > 2 ) {
             messagesView.reloadItems(at: [IndexPath(row: data!.messages.count-2, section: 0)])
@@ -1110,7 +1196,7 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
                 UIView.animate(withDuration: 0.25, animations: { () -> Void in
                     self.view.layoutIfNeeded()
                     if( self.data!.messages.count > 1 ) {
-                        self.messagesView.scrollToItem(at: IndexPath(row: self.data!.messages.count-1, section: 0), at: UICollectionViewScrollPosition.bottom, animated: true)
+                        self.messagesView.scrollToItem(at: self.data!.lastMessageIndex(), at: UICollectionViewScrollPosition.bottom, animated: true)
                     }
                 })
             }

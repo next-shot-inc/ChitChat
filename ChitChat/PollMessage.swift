@@ -225,6 +225,7 @@ class PollMessageData : NSObject, UITableViewDataSource {
         case .voted:
             let cell = tableView.dequeueReusableCell(withIdentifier: "ResultVoteTableViewCell") as! ResultVoteTableViewCell
             cell.initialize(cell: pollMessageCell!, index: row)
+            cell.isUserInteractionEnabled = false
             return cell
         }
     }
@@ -358,7 +359,9 @@ class PollMessageCell : UICollectionViewCell, MessageBaseCellDelegate {
             }
         }
         pollRecord?.checked_option = index
-        controller?.sendButton.isEnabled = true
+        if( controller != nil ) {
+           controller!.sendButton.isEnabled = !controller!.textView.text.isEmpty
+        }
     }
     
     func changeChoice(text: String, index: Int) {
@@ -407,8 +410,8 @@ class PollMessageCell : UICollectionViewCell, MessageBaseCellDelegate {
 
 class PollMessageCellSizeDelegate : MessageBaseCellSizeDelegate {
     func size(message: Message, collectionView: UICollectionView) -> CGSize {
-        let hspacing : CGFloat = 5
-        let width = collectionView.bounds.width - 3*hspacing
+        let hspacing : CGFloat = 10
+        let width = collectionView.bounds.width - 2*hspacing
         
         let options = MessageOptions(options: message.options)
         let count = max(3, options.pollOptions.count+1)

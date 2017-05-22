@@ -135,6 +135,7 @@ class ThreadRowData : NSObject, UICollectionViewDataSource {
         */
         labelView.fillColor = bg
         labelView.strokeColor = ColorPalette.colors[ColorPalette.States.borderColor]
+        labelView.setNeedsDisplay()
         
         return cell
     }
@@ -313,11 +314,11 @@ class ThreadsDataSource : NSObject, UITableViewDataSource {
     
     // Update each threads collection view
     func update(tableView: UITableView, completion: @escaping () -> Void) {
-        model.removeViews(views: modelViews)
-        threadsSource.removeAll()
-        delegates.removeAll()
-        
         model.getThreadsForGroup(group: group, completion: { (threads) -> Void in
+            model.removeViews(views: self.modelViews)
+            self.threadsSource.removeAll()
+            self.delegates.removeAll()
+            
             for (i,thread) in threads.enumerated() {
                 let threadRowData = ThreadRowData(cthread: thread)
                 self.threadsSource.append(threadRowData)
@@ -444,7 +445,7 @@ class ThreadsViewController: UITableViewController {
                 
                 // Create first message
                 let message = Message(thread: newThread, user: model.me())
-                message.text = "Click on the Pen button to edit"
+                message.text = "Welcome to " + newThread.title
                 model.saveMessage(message: message, completion:  {
                     self.data?.update(tableView: self.tableView, completion: {
                         DispatchQueue.main.async(execute: { () -> Void in

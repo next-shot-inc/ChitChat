@@ -86,4 +86,16 @@ class MessageOptions {
             return nil
         }
     }
+    
+    func valid() -> Bool {
+        if( self.type == "poll" ) {
+            if( pollOptions.count < 2 ) {
+                return false
+            }
+            if( pollRecord != nil && pollRecord!.checked_option == -1 ) {
+                return false
+            }
+        }
+        return true
+    }
 }

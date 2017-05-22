@@ -58,6 +58,11 @@ extension User {
         if( recoveryKeyRecord != nil ) {
             self.recoveryKey = String(recoveryKeyRecord!)
         }
+        
+        let recoveryQuestion = record["recoveryQuestion"] as? NSString
+        if( recoveryQuestion != nil ) {
+            self.recoveryQuestion = String(recoveryQuestion!)
+        }
     }
     
     func fillRecord(record: CKRecord) {
@@ -74,6 +79,9 @@ extension User {
         }
         if( self.recoveryKey != nil ) {
             record["recoveryKey"] = NSString(string: self.recoveryKey!)
+        }
+        if( self.recoveryQuestion != nil ) {
+            record["recoveryQuestion"] = NSString(string: self.recoveryQuestion!)
         }
     }
 }
@@ -727,9 +735,11 @@ class CloudDBModel : DBProtocol {
         publicDB.fetch(withSubscriptionID: subscriptionId, completionHandler: { (subscription, error) in
             let querySub = subscription as? CKQuerySubscription
             if querySub != nil {
-                if predicateFormat != querySub!.predicate.predicateFormat {
-                    self.unsubscribe(key: subscriptionId, completionHandler: createSubscription)
-                }
+                // Always fails: as the query sub.predicate is without variable while the predicate format is with variable.
+                //if predicateFormat != querySub!.predicate.predicateFormat {
+                    //self.unsubscribe(key: subscriptionId, completionHandler: createSubscription)
+                //}
+                // Do nothing
             } else {
                 createSubscription()
             }
@@ -855,7 +865,7 @@ class CloudDBModel : DBProtocol {
     
     /*******************************************************************************/
     
-    func saveUser(user: User) {
+    func saveUser(user: User, completion: @escaping (_ status: Bool) -> ()) {
         let dbid = user.id as? CloudRecordId
         var record : CKRecord
         if( dbid == nil ) {
@@ -866,7 +876,10 @@ class CloudDBModel : DBProtocol {
         }
         user.fillRecord(record: record)
         
-        self.publicDB.save(record, completionHandler: self.saveCompletionHandler)
+        self.publicDB.save(record, completionHandler: ({ (record, error) in
+            self.saveCompletionHandler(record: record, error: error)
+            completion(error == nil)
+        }))
     }
     
     func saveUserInvitation(userInvitation: UserInvitation) {

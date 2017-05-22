@@ -15,6 +15,7 @@ struct Settings {
     var palette = 0
 }
 
+// Store user settings for the application behavior in the cloud key-value store.
 class SettingsDB {
     var settings = Settings()
     
@@ -62,7 +63,7 @@ class SettingsDB {
 
 let settingsDB = SettingsDB()
 
-class SettingsViewController: UIViewController {
+class SettingsViewController: UIViewController, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
     
     @IBOutlet weak var displayDaysLabel: UILabel!
     @IBOutlet weak var displayDaysStepper: UIStepper!
@@ -72,9 +73,12 @@ class SettingsViewController: UIViewController {
     @IBOutlet weak var curPalette: UIImageView!
     @IBOutlet weak var keepDaysLabel: UILabel!
     @IBOutlet weak var keepDaysStepper: UIStepper!
+    @IBOutlet weak var iconButton: UIButton!
+    @IBOutlet weak var userNameTextField: UITextField!
     
     var buttons = [UIButton]()
     var images = ["palette_red", "palette_green", "palette_blue" ]
+    var changedIcon = false
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -100,6 +104,15 @@ class SettingsViewController: UIViewController {
         keepDaysLabel.text = String(settingsDB.settings.nb_of_days_to_keep)
         
         curPalette.image = UIImage(named: images[ColorPalette.cur])
+        
+        if( model.me().icon != nil ) {
+            iconButton.setImage(model.me().icon, for: .normal)
+        }
+        userNameTextField.text = model.me().label
+        
+        let tapper = UITapGestureRecognizer(target: self, action:#selector(endEditing))
+        tapper.cancelsTouchesInView = false
+        view.addGestureRecognizer(tapper)
     }
     
     override func didReceiveMemoryWarning() {
@@ -109,6 +122,20 @@ class SettingsViewController: UIViewController {
     
     override func viewWillDisappear(_ animated: Bool) {
         settingsDB.put()
+        
+        var modifyUser = false
+        let user = model.me()
+        if( changedIcon ) {
+            user.icon = iconButton.image(for: .normal)
+            modifyUser = true
+        }
+        if( user.label != userNameTextField.text ) {
+            user.label = userNameTextField.text
+            modifyUser = true
+        }
+        if( modifyUser ) {
+            model.saveUser(user: user, completion: {_ in })
+        }
     }
     
     func buttonSelection(button: UIButton) {
@@ -155,6 +182,41 @@ class SettingsViewController: UIViewController {
         keepDaysLabel.text = String(Int(sender.value))
         
         settingsDB.settings.nb_of_days_to_keep = Int(sender.value)
+    }
+    
+    // Image picker
+    func imagePickerController(
+        _ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [String : Any]
+    ) {
+        let chosenImage = info[UIImagePickerControllerOriginalImage] as! UIImage
+        
+        let imageSize = chosenImage.size
+        let sx = 32/imageSize.width
+        let sy = 32/imageSize.height
+        let sc = min(sx, sy)
+        let imageScaledSize = CGSize(width: imageSize.width*sc, height: imageSize.height*sc)
+        
+        iconButton.setImage(chosenImage.resize(newSize: imageScaledSize), for: .normal)
+        changedIcon = true
+        
+        dismiss(animated: true, completion: nil)
+    }
+    
+    func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+        dismiss(animated: true, completion: nil)
+    }
+    
+    // Display the Image Picker
+    @IBAction func selectIcon(_ sender: Any) {
+        let picker = UIImagePickerController()
+        picker.delegate = self
+        picker.allowsEditing = false
+        picker.sourceType = .photoLibrary
+        present(picker, animated: true, completion: nil)
+    }
+
+    func endEditing() {
+        userNameTextField.resignFirstResponder()
     }
 }
 

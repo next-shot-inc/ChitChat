@@ -85,12 +85,13 @@ class PictureViewController : UIViewController, UIScrollViewDelegate {
     }
     
     override func viewWillAppear(_ animated: Bool) {
-        let minScaleX = scrollView.frame.size.width / imageView.frame.size.width
-        let minScaleY = scrollView.frame.size.height / imageView.frame.size.height
+        let minScaleX = scrollView.frame.size.width / imageView.image!.size.width
+        let minScaleY = scrollView.frame.size.height / imageView.image!.size.height
         scrollView.minimumZoomScale = min(minScaleX, minScaleY)
         scrollView.maximumZoomScale = 3.0;
         
-        scrollView.contentSize = imageView.frame.size
+        scrollView.contentSize = imageView.image!.size
+        scrollView.zoomScale = max(minScaleX, minScaleY)
         
         super.viewWillAppear(animated)
     }

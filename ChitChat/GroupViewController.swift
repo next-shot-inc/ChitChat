@@ -34,7 +34,9 @@ class GroupTableDelegate : NSObject, UITableViewDelegate {
     }
     
     func tableView(_ tableView: UITableView, editActionsForRowAt indexPath: IndexPath) -> [UITableViewRowAction]? {
-        let edit = UITableViewRowAction(style: .normal, title: "Edit") { action, index in
+        let canEdit = controller != nil && controller!.data != nil ? model.db_model.isCreatedByUser(record: controller!.data!.groups[indexPath.row].id) : false
+        
+        let edit = UITableViewRowAction(style: .normal, title: canEdit ? "Edit" : "View") { action, index in
             let cell = tableView.cellForRow(at: indexPath)
             self.controller?.performSegue(withIdentifier: "newGroupSegue", sender: cell)
         }
@@ -152,7 +154,7 @@ class GroupData : NSObject, UITableViewDataSource {
     }
     
     func tableView(_ tableView: UITableView, canEditRowAt indexPath: IndexPath) -> Bool {
-        return model.db_model.isCreatedByUser(record: groups[indexPath.row].id)
+        return true
     }
 }
 
@@ -353,6 +355,7 @@ class GroupViewController: UITableViewController {
                 let gc = segue.destination as? NewGroupController
                 if( gc != nil ) {
                     gc!.existingGroup = tableCell!.group
+                    gc!.canEdit = gc!.existingGroup != nil ? model.db_model.isCreatedByUser(record: gc!.existingGroup!.id) : false
                 }
             }
         }

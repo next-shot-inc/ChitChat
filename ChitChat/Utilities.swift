@@ -121,7 +121,7 @@ class ColorPalette {
     }
     
     class func backgroundColor(message: Message) -> UIColor {
-        if( message.user_id.id == model.me().id.id ) {
+        if( message.user_id == model.me().id ) {
             if( message.unsaved() ) {
                 return all_colors[cur][.unsent]!
             } else {

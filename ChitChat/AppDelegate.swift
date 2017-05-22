@@ -163,11 +163,19 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
 
     // UNUserNotificationCenterDelegate functions
     func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
+        if( model != nil ) {
+            model.receiveRemoteNotification(userInfo: response.notification.request.content.userInfo)
+        }
         completionHandler()
     }
     
+    // Receive notification while the application is active.
     func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
-        completionHandler([.alert, .badge, .sound])
+        if( model != nil ) {
+            model.receiveRemoteNotification(userInfo: notification.request.content.userInfo)
+        }
+        //completionHandler([.alert, .badge, .sound])
+        completionHandler([])
     }
 }
 

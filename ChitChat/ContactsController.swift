@@ -83,6 +83,7 @@ class NewGroupController : UIViewController, CNContactPickerDelegate, UIImagePic
     @IBOutlet weak var selectButton: UIButton!
     
     var existingGroup : Group?
+    var canEdit = true
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -99,10 +100,16 @@ class NewGroupController : UIViewController, CNContactPickerDelegate, UIImagePic
         
         if( existingGroup != nil ) {
             groupName.text = existingGroup!.name
-            groupIconButton.imageView?.image = existingGroup!.icon
-            createButton.setTitle("Edit", for: .normal)
-            createButton.isEnabled = true
-            self.title = "Edit Group"
+            if( canEdit ) {
+                createButton.setTitle("Save", for: .normal)
+                createButton.isEnabled = true
+                self.title = "Edit Group"
+            } else {
+                selectButton.isEnabled = false
+                groupIconButton.isEnabled = false
+                groupName.isEnabled = false
+                self.title = "View Group"
+            }
             
             model.getUsersForGroup(group: existingGroup!, completion: { (users) -> Void in
                 for user in users {
@@ -131,6 +138,10 @@ class NewGroupController : UIViewController, CNContactPickerDelegate, UIImagePic
         iconGroupView!.layer.borderColor = UIColor.darkGray.cgColor
         iconGroupView!.layer.borderWidth = 1.0
 
+        if( existingGroup != nil && existingGroup!.icon != nil ) {
+            groupIconButton.setImage(existingGroup!.icon, for: .normal)
+            groupIconButton.setNeedsDisplay()
+        }
     }
     
     // Contacts Picker (done selected)
