@@ -75,8 +75,22 @@ class PictureViewController : UIViewController, UIScrollViewDelegate {
     override func viewDidLoad() {
         super.viewDidLoad()
         
+        if( message != nil && message!.largeImage == nil ) {
+            model.getMessageLargeImage(message: message!, completion: {
+                DispatchQueue.main.async(execute: {
+                   if( self.message!.largeImage != nil ) {
+                        self.imageView.image = self.message!.largeImage
+                        self.initializeScale()
+                        self.imageView.setNeedsDisplay()
+                    }
+                })
+            })
+            imageView.image = message?.image
+        } else {
+            imageView.image = message?.largeImage
+        }
         scrollView.delegate = self
-        imageView.image = message?.image
+        
         imageView.ctrler = self
         imageCaption.text = message?.text
         
@@ -85,14 +99,7 @@ class PictureViewController : UIViewController, UIScrollViewDelegate {
     }
     
     override func viewWillAppear(_ animated: Bool) {
-        let minScaleX = scrollView.frame.size.width / imageView.image!.size.width
-        let minScaleY = scrollView.frame.size.height / imageView.image!.size.height
-        scrollView.minimumZoomScale = min(minScaleX, minScaleY)
-        scrollView.maximumZoomScale = 3.0;
-        
-        scrollView.contentSize = imageView.image!.size
-        scrollView.zoomScale = max(minScaleX, minScaleY)
-        
+        initializeScale()
         super.viewWillAppear(animated)
     }
     
@@ -100,4 +107,13 @@ class PictureViewController : UIViewController, UIScrollViewDelegate {
         return imageView
     }
     
+    func initializeScale() {
+        let minScaleX = scrollView.frame.size.width / imageView.image!.size.width
+        let minScaleY = scrollView.frame.size.height / imageView.image!.size.height
+        scrollView.minimumZoomScale = min(minScaleX, minScaleY)
+        scrollView.maximumZoomScale = 3.0;
+        
+        scrollView.contentSize = imageView.image!.size
+        scrollView.zoomScale = min(minScaleX, minScaleY)
+    }
 }

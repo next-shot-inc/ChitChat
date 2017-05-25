@@ -15,7 +15,7 @@ import KeychainSwift
 class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterDelegate {
 
     var window: UIWindow?
-
+    var IAPHelper: InAppPurchaseHelper?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplicationLaunchOptionsKey: Any]?) -> Bool {
         // Override point for customization after application launch.
@@ -67,6 +67,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
                print("Go To Message reading...")
            }
         }
+        
+        IAPHelper = InAppPurchaseHelper()
+        IAPHelper?.requestProducts()
         
         return true
     }

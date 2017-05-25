@@ -32,18 +32,24 @@ class ProductVerification {
         
         // First, we need to verify that the receipt is signed by Apple.
         
-        guard let receiptURL = Bundle.main.appStoreReceiptURL,
-              let certificateURL = Bundle.main.url(forResource: "AppleIncRootCertificate", withExtension: "cer"),
-              let receiptData = NSData(contentsOf: receiptURL),
-              let certificateData = NSData(contentsOf: certificateURL)
-              else {
-                 throw ReceiptError.invalidReceipt
+        guard let receiptURL = Bundle.main.appStoreReceiptURL else {
+            throw ReceiptError.invalidReceipt
+        }
+        guard let certificateURL = Bundle.main.url(forResource: "AppleIncRootCertificate", withExtension: "cer") else {
+            throw ReceiptError.invalidReceipt
+        }
+        guard let receiptData = NSData(contentsOf: receiptURL) else {
+            throw ReceiptError.invalidReceipt
+        }
+        guard let certificateData = NSData(contentsOf: certificateURL) else {
+            throw ReceiptError.invalidReceipt
         }
         let bio = BIOWrapper(data: receiptData)
         let p7 : UnsafeMutablePointer<PKCS7> = d2i_PKCS7_bio(bio.bio, nil)
         
         OpenSSL_add_all_digests()
         
+        // First verify that the receipt is signed by Apple
         let x509Store = X509StoreWrapper()
         let certificate = X509Wrapper(data: certificateData)
         x509Store.addCert(x509: certificate)
@@ -52,6 +58,11 @@ class ProductVerification {
             throw ReceiptError.invalidReceipt
         }
         
+        // Now we begin to parse the receipt and get following information from the receipt:
+        // bundle Identifier
+        // bundle Version
+        // hash data
+        // in-app-purchase receipts, if you have
         if let contents = p7.pointee.d.sign.pointee.contents,
             OBJ_obj2nid(contents.pointee.type) == NID_pkcs7_data ,
             let octets = contents.pointee.d.data

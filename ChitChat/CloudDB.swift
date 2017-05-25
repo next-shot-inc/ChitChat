@@ -98,6 +98,11 @@ extension UserInvitation {
             timeIntervalSince1970: (record["date_created"] as! NSDate).timeIntervalSince1970
         )
         self.accepted = (record["accepted"] as! NSNumber) as! Bool
+        
+        let to_user_label_string = record["to_user_label"] as? NSString
+        if( to_user_label_string != nil ) {
+            self.to_user_label = String(to_user_label_string!)
+        }
     }
     
     func fillRecord(record: CKRecord) {
@@ -111,6 +116,9 @@ extension UserInvitation {
         }
         record["date_created"] = NSDate(timeIntervalSince1970: self.date_created.timeIntervalSince1970)
         record["accepted"] = NSNumber(booleanLiteral: self.accepted)
+        if( to_user_label != nil ) {
+            record["to_user_label"] = NSString(string: to_user_label!)
+        }
     }
 }
 
@@ -320,6 +328,41 @@ extension Message {
                 assets.urls.append(url!)
             }
         }
+        if( self.largeImage != nil ) {
+            let data = UIImageJPEGRepresentation(self.largeImage!, 1.0)
+            let url = NSURL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent(NSUUID().uuidString+".dat")
+            if url != nil {
+                do {
+                    try data!.write(to: url!, options: [.atomic])
+                } catch let e as NSError {
+                    print("Error! \(e)")
+                }
+                let asset = CKAsset(fileURL: url!)
+                record["largeImage"] = asset
+                assets.urls.append(url!)
+            }
+        }
+    }
+    
+    class func getDesiredKeys() -> [String] {
+        return ["id", "user_id", "thread_id", "thread_reference", "group_id", "text", "last_modified", "fromName", "inThread", "options", "image"]
+    }
+    class func getLargeImageKey() -> [String] {
+        return ["largeImage"]
+    }
+    
+    func getLargeImage(record: CKRecord) {
+        let asset = record["largeImage"] as? CKAsset
+        if( asset != nil ) {
+            let imageData: Data
+            do {
+                imageData = try Data(contentsOf: asset!.fileURL)
+                self.largeImage = UIImage(data: imageData)
+            } catch {
+                
+            }
+        }
+
     }
     
     func getCreationDate() -> Date? {
@@ -1172,6 +1215,27 @@ class CloudDBModel : DBProtocol {
         })
     }
     
+    func getUserInvitations(to_group: Group, completion: @escaping ([UserInvitation]) -> ()) {
+        let query = CKQuery(recordType: "UserInvitation", predicate: NSPredicate(
+            format: String("(to_group_id = %@) AND (accepted == 0)"), argumentArray: [to_group.id.id])
+        )
+        publicDB.perform(query, inZoneWith: nil, completionHandler: { results, error -> Void in
+            if( error != nil ) {
+                self.getCompletionHandler(error: error)
+            }
+            
+            if( results != nil ) {
+                var invitations = [UserInvitation]()
+                for r in results! {
+                    let invitation = UserInvitation(record: r)
+                    invitations.append(invitation)
+                }
+                completion(invitations)
+            }
+        })
+
+    }
+    
     func getGroupsForUser(userId: RecordId, completion: @escaping ([Group]) -> ()) {
         let query = CKQuery(recordType: "GroupUserFolder", predicate: NSPredicate(format: String("user_id = %@"), argumentArray: [userId.id]))
         publicDB.perform(query, inZoneWith: nil, completionHandler: { results, error -> Void in
@@ -1329,17 +1393,50 @@ class CloudDBModel : DBProtocol {
         let date = Date(timeInterval: -numberOfDaysMax*secondsInADay, since: Date())
         let query = CKQuery(recordType: "Message", predicate: NSPredicate(format: String("(thread_id = %@) AND (last_modified > %@)"), argumentArray: [threadId.id, date]))
         query.sortDescriptors = [NSSortDescriptor(key: "last_modified", ascending: true)]
-        publicDB.perform(query, inZoneWith: nil, completionHandler: { results, error -> Void in
-            self.getCompletionHandler(error: error)
-            var messages = [Message]()
-            if( results != nil ) {
-                for r in results! {
-                    let message = Message(record: r)
-                    messages.append(message)
-                }
+        
+        var messages = [Message]()
+        
+        let queryOperation = CKQueryOperation(query: query)
+        queryOperation.desiredKeys = Message.getDesiredKeys()
+        queryOperation.recordFetchedBlock = { record -> Void in
+            let message = Message(record: record)
+            messages.append(message)
+        }
+        
+        queryOperation.queryCompletionBlock = { cursor, error -> Void in
+            if( cursor == nil ) {
                 completion(messages)
+            } else {
+                let nqueryOperation = CKQueryOperation(cursor: cursor!)
+                nqueryOperation.queryCompletionBlock = queryOperation.queryCompletionBlock
+                nqueryOperation.recordFetchedBlock = queryOperation.recordFetchedBlock
+                nqueryOperation.desiredKeys = queryOperation.desiredKeys
+                self.publicDB.add(nqueryOperation)
             }
-        })
+        }
+        publicDB.add(queryOperation)
+    }
+    
+    func getMessageLargeImage(message: Message, completion: @escaping () -> ()) {
+        let query = CKQuery(recordType: "Message", predicate: NSPredicate(format: String("id = %@"), argumentArray: [message.id.id]))
+        let queryOperation = CKQueryOperation(query: query)
+        queryOperation.desiredKeys = Message.getLargeImageKey()
+        queryOperation.recordFetchedBlock = { record -> Void in
+            message.getLargeImage(record: record)
+        }
+        
+        queryOperation.queryCompletionBlock = { cursor, error -> Void in
+            if( cursor == nil ) {
+                completion()
+            } else {
+                let nqueryOperation = CKQueryOperation(cursor: cursor!)
+                nqueryOperation.queryCompletionBlock = queryOperation.queryCompletionBlock
+                nqueryOperation.recordFetchedBlock = queryOperation.recordFetchedBlock
+                nqueryOperation.desiredKeys = queryOperation.desiredKeys
+                self.publicDB.add(nqueryOperation)
+            }
+        }
+        publicDB.add(queryOperation)
     }
     
     func getActivity(userId: RecordId, threadId: RecordId, completion: @escaping (UserActivity?) -> ()) {

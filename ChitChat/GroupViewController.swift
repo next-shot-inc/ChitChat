@@ -98,7 +98,7 @@ class GroupData : NSObject, UITableViewDataSource {
         }
         cell.details.text = group.details
         
-        model.getUsersForGroup(group: group, completion: { (users) -> Void in
+        model.getUsersAndInvitedForGroup(group: group, completion: { (users, invitations) -> Void in
             var details = String()
             for user in users {
                 if( !details.isEmpty ) {
@@ -106,8 +106,13 @@ class GroupData : NSObject, UITableViewDataSource {
                 }
                 if( user.label != nil ) {
                     details += user.label!
-                    details += " "
                 }
+            }
+            for invite in invitations {
+                if( !details.isEmpty ) {
+                    details += ", "
+                }
+                details += invite.to_user
             }
             DispatchQueue.main.async(execute: { () -> Void in
                   cell.details.text = details

@@ -136,8 +136,8 @@ class DrawingTextView: UILabel {
             
             // Calculate the arc subtended by each letter and their total
             var maxHeight : CGFloat = 0
-            for i in range.min ... range.max {
-                let attr = characters[i].size(attributes: attributes)
+            for j in range.min ... range.max {
+                let attr = characters[j].size(attributes: attributes)
                 let cw = attr.width
                 let arc = chordToArc(cw, radius: radius)
                 arcs += [arc]

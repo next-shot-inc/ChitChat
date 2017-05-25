@@ -67,6 +67,9 @@ func ASN1ReadString(pointer ptr: inout UnsafePointer<UInt8>?, length:Int) -> Str
     if type == V_ASN1_UTF8STRING {
         let p = UnsafeMutableRawPointer(mutating: ptr!)
         return String(bytesNoCopy: p, length: strLength, encoding: String.Encoding.utf8, freeWhenDone: false)
+    } else if type == V_ASN1_IA5STRING {
+        let p = UnsafeMutableRawPointer(mutating: ptr!)
+        return String(bytesNoCopy: p, length: strLength, encoding: String.Encoding.ascii, freeWhenDone: false)
     }
     return nil
 }

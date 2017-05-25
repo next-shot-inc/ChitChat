@@ -223,11 +223,13 @@ class LoginViewController : UIViewController, UITextFieldDelegate {
                 
                 // Get User and if exist already hide password confirmation and enable login.
                 model.getUser(phoneNumber: telephoneNumber, completion: { (user) in
-                    if( user != nil && user!.passKey != nil ) {
+                    if( user != nil ) {
                         DispatchQueue.main.async(execute: {
                             self.user = user
-                            self.confirmPassordField.isHidden = true
-                            self.confirmPasswordLabel.isHidden = true
+                            if( user!.passKey != nil ) {
+                                self.confirmPassordField.isHidden = true
+                                self.confirmPasswordLabel.isHidden = true
+                            }
                             if( user!.recoveryQuestion != nil ) {
                                self.recoveryLabel.isHidden = true
                                self.recoveryAnswerLabel.isHidden = true
@@ -245,7 +247,7 @@ class LoginViewController : UIViewController, UITextFieldDelegate {
                     }
                 })
                 
-                errorLabel.text = ""
+                errorLabel.text = "Will use " + telephoneNumber
                 
             } catch let error as PhoneNumberError {
                 errorLabel.text = error.errorDescription

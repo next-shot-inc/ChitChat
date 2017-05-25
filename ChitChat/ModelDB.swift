@@ -16,9 +16,11 @@ protocol DBProtocol {
     func getThreadsForGroup(groupId: RecordId, completion: @escaping ([ConversationThread]) -> ())
     func getThread(threadId: RecordId, completion: @escaping (ConversationThread?) -> ())
     func getMessagesForThread(threadId: RecordId, completion: @escaping ([Message]) -> ())
+    func getMessageLargeImage(message: Message, completion: @escaping () -> ())
     func getUser(userId: RecordId, completion: @escaping (User) -> ())
     func getUser(phoneNumber: String, completion: @escaping (User?) -> ())
     func getUserInvitations(to_user: String, completion: @escaping ([UserInvitation], [Group]) -> ())
+    func getUserInvitations(to_group: Group, completion: @escaping ([UserInvitation]) -> ())
     func getActivities(userId: RecordId, completion: @escaping ([UserActivity]) -> ())
     func getActivity(userId: RecordId, threadId: RecordId, completion: @escaping (UserActivity?) -> ())
     func getActivityForGroup(groupId: RecordId, completion: @escaping (GroupActivity?) -> ())
@@ -127,6 +129,10 @@ class InMemoryDB : DBProtocol {
         completion(ms)
     }
     
+    func getMessageLargeImage(message: Message, completion: @escaping () -> ()) {
+        completion()
+    }
+    
     func getUser(userId: RecordId, completion: @escaping (User) -> ()) {
         for u in users {
             if( u.id.id == userId.id ) {
@@ -146,6 +152,9 @@ class InMemoryDB : DBProtocol {
     
     func getUserInvitations(to_user: String, completion: @escaping ([UserInvitation], [Group]) -> ()) {
         return completion([], [])
+    }
+    func getUserInvitations(to_group: Group, completion: @escaping ([UserInvitation]) -> ()) {
+        return completion([])
     }
     
     func getActivity(userId: RecordId, threadId: RecordId, completion: @escaping (UserActivity?) -> ()) {

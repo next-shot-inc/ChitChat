@@ -15,6 +15,8 @@
 		2F0C2FB91EC3A4D8008A5449 /* ProductOptions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F0C2FB81EC3A4D8008A5449 /* ProductOptions.swift */; };
 		2F0C2FBB1EC4E315008A5449 /* BubbleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F0C2FBA1EC4E315008A5449 /* BubbleView.swift */; };
 		2F0D81B81E91DE7D00A24723 /* PollMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F0D81B71E91DE7D00A24723 /* PollMessage.swift */; };
+		2F0FC0511ED49F7D00B93060 /* StoreKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2F0FC0501ED49F7D00B93060 /* StoreKit.framework */; };
+		2F0FC0531ED4B6B400B93060 /* ProductPurchase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F0FC0521ED4B6B400B93060 /* ProductPurchase.swift */; };
 		2F32DFCF1E6E5B0700EF34E8 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F32DFCE1E6E5B0700EF34E8 /* AppDelegate.swift */; };
 		2F32DFD11E6E5B0700EF34E8 /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F32DFD01E6E5B0700EF34E8 /* ViewController.swift */; };
 		2F32DFD41E6E5B0700EF34E8 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 2F32DFD21E6E5B0700EF34E8 /* Main.storyboard */; };
@@ -74,6 +76,8 @@
 		2F0C2FB81EC3A4D8008A5449 /* ProductOptions.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ProductOptions.swift; sourceTree = "<group>"; };
 		2F0C2FBA1EC4E315008A5449 /* BubbleView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = BubbleView.swift; sourceTree = "<group>"; };
 		2F0D81B71E91DE7D00A24723 /* PollMessage.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = PollMessage.swift; sourceTree = "<group>"; };
+		2F0FC0501ED49F7D00B93060 /* StoreKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = StoreKit.framework; path = System/Library/Frameworks/StoreKit.framework; sourceTree = SDKROOT; };
+		2F0FC0521ED4B6B400B93060 /* ProductPurchase.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ProductPurchase.swift; sourceTree = "<group>"; };
 		2F32DFCB1E6E5B0700EF34E8 /* ChitChat.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ChitChat.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		2F32DFCE1E6E5B0700EF34E8 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		2F32DFD01E6E5B0700EF34E8 /* ViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewController.swift; sourceTree = "<group>"; };
@@ -122,6 +126,7 @@
 			files = (
 				2F0C2FAF1EC39EDE008A5449 /* libcrypto.a in Frameworks */,
 				2F0C2FAD1EC39EC9008A5449 /* libssl.a in Frameworks */,
+				2F0FC0511ED49F7D00B93060 /* StoreKit.framework in Frameworks */,
 				2FF9BE371E7213E9000DF9A8 /* CloudKit.framework in Frameworks */,
 				DD2F44A3C56821B84E6984C7 /* Pods_ChitChat.framework in Frameworks */,
 			);
@@ -202,6 +207,7 @@
 				2F0C2FB11EC3A0D4008A5449 /* openssl.h */,
 				2F0C2FB41EC3A1B8008A5449 /* OpenSSLWrappers.swift */,
 				2F0C2FB21EC3A156008A5449 /* AppleIncRootCertificate.cer */,
+				2F0FC0521ED4B6B400B93060 /* ProductPurchase.swift */,
 				2F0C2FB81EC3A4D8008A5449 /* ProductOptions.swift */,
 			);
 			path = ChitChat;
@@ -237,6 +243,7 @@
 		2FF9BE351E7213E9000DF9A8 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				2F0FC0501ED49F7D00B93060 /* StoreKit.framework */,
 				2F0C2FAE1EC39EDE008A5449 /* libcrypto.a */,
 				2F0C2FAC1EC39EC9008A5449 /* libssl.a */,
 				2FF9BE361E7213E9000DF9A8 /* CloudKit.framework */,
@@ -328,6 +335,9 @@
 						DevelopmentTeam = A8SRM3ENGN;
 						ProvisioningStyle = Automatic;
 						SystemCapabilities = {
+							com.apple.InAppPurchase = {
+								enabled = 1;
+							};
 							com.apple.Push = {
 								enabled = 1;
 							};
@@ -466,6 +476,7 @@
 				2F32E0061E6F1C9100EF34E8 /* GrowingTextViewInternal.swift in Sources */,
 				2F4EF7D71E7E3A73006A2D06 /* MessageOptions.swift in Sources */,
 				2F0D81B81E91DE7D00A24723 /* PollMessage.swift in Sources */,
+				2F0FC0531ED4B6B400B93060 /* ProductPurchase.swift in Sources */,
 				2F0C2FB91EC3A4D8008A5449 /* ProductOptions.swift in Sources */,
 				2F32DFD71E6E5B0700EF34E8 /* ChitChat.xcdatamodeld in Sources */,
 				2FF9BE391E735CA8000DF9A8 /* ModelDB.swift in Sources */,

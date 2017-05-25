@@ -16,6 +16,7 @@ class Contact {
     let label : String
     var phoneNumber = String()
     var errorPhone = String()
+    var existing = false
     init(label: String) {
         self.label =  label
     }
@@ -62,12 +63,17 @@ class ContactData : NSObject, UITableViewDataSource {
         cell.phoneNumber.text = contact.phoneNumber
         if( contact.phoneNumber.isEmpty ) {
             cell.phoneNumber.text = contact.errorPhone
+            cell.checkButton.isEnabled = false
         }
         
         cell.checkButton.setImage(UIImage(named: "checked"), for: .selected)
         cell.checkButton.setImage(UIImage(named: "unchecked"), for: .normal)
         
         cell.checkButton.isSelected = !contact.phoneNumber.isEmpty
+        
+        if( contact.existing ) {
+            cell.checkButton.isEnabled = false
+        }
         return cell
     }
 }
@@ -84,6 +90,7 @@ class NewGroupController : UIViewController, CNContactPickerDelegate, UIImagePic
     
     var existingGroup : Group?
     var canEdit = true
+    var activityView: UIActivityIndicatorView?
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -100,28 +107,50 @@ class NewGroupController : UIViewController, CNContactPickerDelegate, UIImagePic
         
         if( existingGroup != nil ) {
             groupName.text = existingGroup!.name
+            selectButton.isEnabled = false
             if( canEdit ) {
                 createButton.setTitle("Save", for: .normal)
-                createButton.isEnabled = true
                 self.title = "Edit Group"
             } else {
-                selectButton.isEnabled = false
                 groupIconButton.isEnabled = false
                 groupName.isEnabled = false
                 self.title = "View Group"
             }
             
-            model.getUsersForGroup(group: existingGroup!, completion: { (users) -> Void in
-                for user in users {
-                    let lc = Contact(label: user.label!)
-                    lc.phoneNumber = user.phoneNumber
-                    self.contactsController?.data.contacts.append(lc)
-                }
+            // As we need to wait for existing users to be displayed.
+            activityView = UIActivityIndicatorView(activityIndicatorStyle: .whiteLarge)
+            
+            model.getUsersAndInvitedForGroup(group: existingGroup!, completion: { (users, invitations) -> Void in
                 DispatchQueue.main.async(execute: { () -> Void in
+                    for user in users {
+                        let lc = Contact(label: user.label!)
+                        lc.phoneNumber = user.phoneNumber
+                        lc.existing = true
+                        self.contactsController?.data.contacts.append(lc)
+                    }
+                    for invite in invitations {
+                        if( invite.to_user_label != nil ) {
+                            let lc = Contact(label: invite.to_user_label!)
+                            lc.phoneNumber = invite.to_user
+                            lc.existing = true
+                            self.contactsController?.data.contacts.append(lc)
+                        }
+                    }
                     self.contactsView.reloadData()
+                    
+                    // Enable buttons only when the in-memory model is ok.
+                    if( self.canEdit ) {
+                        self.createButton.isEnabled = true
+                        self.selectButton.isEnabled = true
+                    }
+                    
+                    if( self.activityView != nil ) {
+                        self.activityView!.stopAnimating()
+                        self.activityView!.removeFromSuperview()
+                        self.activityView = nil
+                    }
                 })
             })
-
         }
     }
     
@@ -142,6 +171,13 @@ class NewGroupController : UIViewController, CNContactPickerDelegate, UIImagePic
             groupIconButton.setImage(existingGroup!.icon, for: .normal)
             groupIconButton.setNeedsDisplay()
         }
+        
+        if( activityView != nil ) {
+            activityView!.color = UIColor.blue
+            activityView!.center = self.view.center
+            activityView!.startAnimating()
+            self.view.addSubview(activityView!)
+        }
     }
     
     // Contacts Picker (done selected)
@@ -149,14 +185,13 @@ class NewGroupController : UIViewController, CNContactPickerDelegate, UIImagePic
         let formatter = CNContactFormatter()
         formatter.style = .fullName
         
-        contactsController?.data.contacts.removeAll()
-        if( existingGroup != nil ) {
-            let users = model.getUsers(group: existingGroup!)
-            for user in users {
-                let lc = Contact(label: user.label!)
-                lc.phoneNumber = user.phoneNumber
-                self.contactsController?.data.contacts.append(lc)
-            }
+        let existing = contactsController?.data.contacts.filter({ (contact) -> Bool in
+            return contact.existing == true
+        })
+        if( existing != nil ) {
+            contactsController?.data.contacts = existing!
+        } else {
+            contactsController?.data.contacts.removeAll()
         }
         
         for contact in contacts {
@@ -234,12 +269,15 @@ class NewGroupController : UIViewController, CNContactPickerDelegate, UIImagePic
     
     @IBAction func createGroup(_ sender: Any) {
         if( existingGroup != nil ) {
-            let users = model.getUsers(group: existingGroup!)
             var details = String()
             
             for c in contactsController!.data.contacts {
-                // Create user
-                if( !c.phoneNumber.isEmpty ) {
+                // Remove bad contacts.
+                if( c.phoneNumber.isEmpty ) {
+                    continue
+                }
+                if( !c.existing ) {
+                    // Add user to group or create an invitation.
                     model.getUser(phoneNumber: c.phoneNumber, completion: {(user) -> () in
                         if( user == nil ) {
                             let newUserInvitation = UserInvitation(
@@ -248,19 +286,14 @@ class NewGroupController : UIViewController, CNContactPickerDelegate, UIImagePic
                             )
                             model.saveUserInvitation(userInvitation: newUserInvitation)
                         } else {
-                            let contained = users.contains(where: { (u) -> Bool in return u.id == user!.id })
-                            if( !contained ) {
-                                model.addUserToGroup(group: self.existingGroup!, user: user!)
-                            }
+                            model.addUserToGroup(group: self.existingGroup!, user: user!)
                         }
                     })
-                    
-                    if( !details.isEmpty ) {
-                        details += ", "
-                    }
-                    details += c.label
-                    details += " "
                 }
+                if( !details.isEmpty ) {
+                    details += ", "
+                }
+                details += c.label
             }
             existingGroup!.name = groupName.text!
             existingGroup!.details = details

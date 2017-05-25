@@ -69,6 +69,7 @@ class UserInvitation {
     var id: RecordId
     var from_user_id: RecordId
     var to_user: String
+    var to_user_label : String?
     var to_group_id: RecordId
     var accepted = false
     var date_created = Date()
@@ -159,6 +160,7 @@ class Message {
     var group_id : RecordId?
     var text = String()
     var image : UIImage?
+    var largeImage: UIImage?
     var options = String()
     var last_modified = Date()
     var fromName = String()   // Information to show inside the alert/summary
@@ -710,6 +712,16 @@ class DataModel {
         })
     }
     
+    func getUsersAndInvitedForGroup(group: Group, completion: @escaping ([User], [UserInvitation]) -> ()) {
+        db_model.getUsersForGroup(groupId: group.id, completion:{ (users) -> () in
+            let included = self.memory_model.update(group: group, users: users)
+            
+            self.db_model.getUserInvitations(to_group: group, completion: { (invitations) in
+                completion(included, invitations)
+            })
+        })
+    }
+    
     func getActivitiesForGroups(groups: [Group], completion: @escaping (([GroupActivity]) -> Void )) {
         let gas = memory_model.getActivitiesForGroups(groups: groups)
         if( gas.count == groups.count ) {
@@ -756,6 +768,10 @@ class DataModel {
             let included = self.memory_model.update(threadId: thread.id, messages: messages)
             completion(included)
         })
+    }
+    
+    func getMessageLargeImage(message: Message, completion: @escaping () -> ()) {
+        db_model.getMessageLargeImage(message: message, completion: completion)
     }
     
     func enterBackgroundMode() {
@@ -829,7 +845,7 @@ class DataModel {
     func getUsers(group: Group) -> [User] {
         var users = [User]()
         for f in memory_model.groupUserFolder {
-            if( f.group === group ) {
+            if( f.group.id == group.id ) {
                 users.append(f.user)
             }
         }

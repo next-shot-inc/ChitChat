@@ -13,6 +13,7 @@ struct Settings {
     var nb_of_days_to_fetch = 5
     var nb_of_days_to_keep = 10
     var palette = 0
+    var purchased_something = false
 }
 
 // Store user settings for the application behavior in the cloud key-value store.
@@ -50,6 +51,10 @@ class SettingsDB {
             settings.palette = Int(palette!)
         }
 
+        let purchased_something = keyStore?.bool(forKey: "purchased_something")
+        if( purchased_something != nil ) {
+            settings.purchased_something = purchased_something!
+        }
     }
     
     func put() {
@@ -57,7 +62,21 @@ class SettingsDB {
         keyStore.set(Double(settings.nb_of_days_to_fetch), forKey: "nb_of_days_to_fetch")
         keyStore.set(Double(settings.nb_of_days_to_keep), forKey: "nb_of_days_to_keep")
         keyStore.set(Double(settings.palette), forKey: "color_palette_index")
+        keyStore.set(Bool(settings.purchased_something), forKey: "purchased_something")
         keyStore.synchronize()
+    }
+}
+
+class SettingsInAppPurchaseView : InApppurchaseView {
+    weak var ctrler: SettingsViewController?
+    init(ctrler: SettingsViewController) {
+        self.ctrler = ctrler
+    }
+    override func did_purchase() {
+        settingsDB.settings.purchased_something = true
+        if( ctrler != nil ) {
+            ctrler!.initPurchaseZone()
+        }
     }
 }
 
@@ -75,10 +94,17 @@ class SettingsViewController: UIViewController, UIImagePickerControllerDelegate,
     @IBOutlet weak var keepDaysStepper: UIStepper!
     @IBOutlet weak var iconButton: UIButton!
     @IBOutlet weak var userNameTextField: UITextField!
+    @IBOutlet weak var IAPProductLabel: UILabel!
+    @IBOutlet weak var IAPProductDesc: UILabel!
+    @IBOutlet weak var IAPProductPrice: UILabel!
+    @IBOutlet weak var purchaseButton: UIButton!
+    @IBOutlet weak var restorePurchaseButton: UIButton!
     
     var buttons = [UIButton]()
     var images = ["palette_red", "palette_green", "palette_blue" ]
     var changedIcon = false
+    var iapView : SettingsInAppPurchaseView?
+    let defaultMaximumKeepDays = 21
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -102,6 +128,7 @@ class SettingsViewController: UIViewController, UIImagePickerControllerDelegate,
         displayDaysLabel.text = String(settingsDB.settings.nb_of_days_to_fetch)
         keepDaysStepper.value = Double(settingsDB.settings.nb_of_days_to_keep)
         keepDaysLabel.text = String(settingsDB.settings.nb_of_days_to_keep)
+        keepDaysStepper.maximumValue = Double(defaultMaximumKeepDays)
         
         curPalette.image = UIImage(named: images[ColorPalette.cur])
         
@@ -113,6 +140,8 @@ class SettingsViewController: UIViewController, UIImagePickerControllerDelegate,
         let tapper = UITapGestureRecognizer(target: self, action:#selector(endEditing))
         tapper.cancelsTouchesInView = false
         view.addGestureRecognizer(tapper)
+        
+        initPurchaseZone()
     }
     
     override func didReceiveMemoryWarning() {
@@ -135,6 +164,44 @@ class SettingsViewController: UIViewController, UIImagePickerControllerDelegate,
         }
         if( modifyUser ) {
             model.saveUser(user: user, completion: {_ in })
+        }
+        
+        if( iapView != nil ) {
+            guard let appDelegate = UIApplication.shared.delegate as? AppDelegate else {
+                return
+            }
+            let iap = appDelegate.IAPHelper!
+            iap.removeView(view: iapView!)
+        }
+    }
+    
+    func initPurchaseZone() {
+        guard let appDelegate = UIApplication.shared.delegate as? AppDelegate else {
+            return
+        }
+        if( appDelegate.IAPHelper!.products.count >= 1 ) {
+            let iap = appDelegate.IAPHelper!
+            let p = iap.products[0]
+            IAPProductLabel.text = p.title
+            IAPProductDesc.text = p.description
+            let nf = NumberFormatter()
+            nf.numberStyle = .currencyAccounting
+            IAPProductPrice.text = nf.string(from: p.price)
+            
+            purchaseButton.isEnabled = true
+            
+            if( settingsDB.settings.purchased_something ) {
+                iap.verifyReceipt()
+                if( p.purchased == true ) {
+                    purchaseButton.isEnabled = false
+                    purchaseButton.setTitle("Already purchased", for: .normal)
+                    if( p.productIdentifier == Products.Id.X2.rawValue ) {
+                        keepDaysStepper.maximumValue = Double(defaultMaximumKeepDays+17)
+                    }
+                }
+            }
+            
+            restorePurchaseButton.isEnabled = true
         }
     }
     
@@ -217,6 +284,31 @@ class SettingsViewController: UIViewController, UIImagePickerControllerDelegate,
 
     func endEditing() {
         userNameTextField.resignFirstResponder()
+    }
+    
+    @IBAction func purchase(_ sender: Any) {
+        guard let appDelegate = UIApplication.shared.delegate as? AppDelegate else {
+            return
+        }
+        let iap = appDelegate.IAPHelper!
+        let p = iap.products[0]
+        if( iapView == nil ) {
+            iapView = SettingsInAppPurchaseView(ctrler: self)
+            iap.addView(view: iapView!)
+        }
+        iap.buy(productIdentifier: p.productIdentifier)
+    }
+    
+    @IBAction func restorePurchase(_ sender: Any) {
+        guard let appDelegate = UIApplication.shared.delegate as? AppDelegate else {
+            return
+        }
+        let iap = appDelegate.IAPHelper!
+        if( iapView == nil ) {
+            iapView = SettingsInAppPurchaseView(ctrler: self)
+            iap.addView(view: iapView!)
+        }
+        iap.restorePurchases()
     }
 }
 

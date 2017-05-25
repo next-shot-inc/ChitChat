@@ -41,6 +41,9 @@ class PollData {
                 nb_total_votes = model.getUsers(group: group!).count
             }
         }
+        if( nb_total_votes == 0 ) {
+            nb_total_votes = pollRecords.count
+        }
         
         // Assign votes to the proper choice.
         nb_votes = pollRecords.count
@@ -106,6 +109,9 @@ class EditChoiceTableViewCell : UITableViewCell, UITextFieldDelegate {
         
         let pollData = cell.data!.pollData!
         choiceTextField.text = pollData.elements[index].label
+        if( cell.pollRecord?.checked_option == index ) {
+            checkButton.isSelected = true
+        }
         
         checkButton.setImage(UIImage(named: "checked"), for: .selected)
         checkButton.setImage(UIImage(named: "unchecked"), for: .normal)

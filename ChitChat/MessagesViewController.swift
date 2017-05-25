@@ -83,6 +83,7 @@ class PictureMessageCell : UICollectionViewCell, MessageBaseCellDelegate  {
     @IBOutlet weak var caption: UILabel!
     @IBOutlet weak var fromLabel: UILabel!
     @IBOutlet weak var editButton: UIButton!
+    @IBOutlet weak var activityIndicator: UIActivityIndicatorView!
     
     func userIcon() -> UIImageView? {
         return icon
@@ -124,6 +125,11 @@ class PictureMessageCell : UICollectionViewCell, MessageBaseCellDelegate  {
         editButton.isHidden = !(message.user_id.id == model.me().id.id &&
             controller?.data?.messages.last === message)
 
+        if( message.registeredForSave() && message.unsaved() ) {
+            activityIndicator.startAnimating()
+        } else {
+            activityIndicator.stopAnimating()
+        }
     }
     
     @IBAction func editAction(_ sender: Any) {
@@ -502,7 +508,7 @@ class MessagesData : NSObject, UICollectionViewDataSource {
     }
 }
 
-// Manage modifications of the data model linked to 
+// Manage modifications of the data model linked to
 // new messages or edited messages
 class MessagesDataView : ModelView {
     weak var controller : MessagesViewController?
@@ -904,6 +910,11 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
                 string: "Type a message...",
                 attributes: [NSForegroundColorAttributeName: UIColor.gray, NSFontAttributeName: self.textView.font!]
             )
+            
+            if( data!.messages.count > 2 ) {
+               messagesView.reloadItems(at: [IndexPath(row: data!.messages.count-2, section: 0)])
+            }
+            messagesView.reloadItems(at: [IndexPath(row: data!.messages.count-1, section: 0)])
         }
         
         audioPlayer.play()
@@ -918,8 +929,9 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
         
         decorationThemesView.isHidden = true
         self.view.layoutIfNeeded()
+        let lastCellIndex = IndexPath(row: data!.messages.count-1, section: 0)
         messagesView.scrollToItem(
-            at: IndexPath(row: data!.messages.count-1, section: 0), at: UICollectionViewScrollPosition.bottom, animated: true
+            at: lastCellIndex, at: UICollectionViewScrollPosition.bottom, animated: true
         )
     }
     
@@ -1033,15 +1045,28 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
         }
         if( selectedImage != nil ) {
             let size = selectedImage!.size
-            let sx = 234/size.width
-            let sy = 166/size.height
+            
+            let defaultPictureSize = CGSize(width: 512, height: 512)
+            var storageSize = defaultPictureSize
+            if( Products.checkForPurchase(productId: Products.Id.X2) ) {
+                storageSize = CGSize(width: defaultPictureSize.width*2, height: defaultPictureSize.height*2)
+            }
+            let sx = storageSize.width/size.width
+            let sy = storageSize.height/size.height
             let scale = min(sx, sy)
             let image = selectedImage!.resize(newSize: CGSize(width: size.width*scale, height: size.height*scale))
+            
+            let thumbImageSize = CGSize(width: 234, height: 166)
+            let tsx = thumbImageSize.width/size.width
+            let tsy = thumbImageSize.height/size.height
+            let tscale = min(tsx, tsy)
+            let timage = selectedImage!.resize(newSize: CGSize(width: size.width*tscale, height: size.height*tscale))
             
             // Create Message
             let m = Message(thread: conversationThread!, user: model.me())
             m.text = self.textView.text
-            m.image = image
+            m.largeImage = image
+            m.image = timage
             
             curMessageOption = MessageOptions(type: "decoratedImage")
             curMessageOption!.decorated = true
