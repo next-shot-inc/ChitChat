@@ -62,6 +62,47 @@ extension UIView {
     }
 }
 
+class ColorPaletteUIView : UIView {
+    var palette : Int?
+    
+    override func draw(_ rect: CGRect) {
+        let size = self.bounds.size
+        let colors = ColorPalette.all_colors[palette ?? ColorPalette.cur]
+        let states : [ColorPalette.States] = [.unread, .mine, .read, .unsent]
+        let dx = size.width/CGFloat(states.count)
+        
+        guard let context = UIGraphicsGetCurrentContext() else {
+            return
+        }
+        for i in 0 ..< states.count {
+            context.setFillColor(colors[states[i]]!.cgColor)
+            context.fill(CGRect(x: dx*CGFloat(i), y: 0, width: dx, height: size.height))
+        }
+    }
+    
+    func generateImage(rect: CGRect) -> UIImage? {
+        let size = rect.size
+        let colors = ColorPalette.all_colors[palette ?? ColorPalette.cur]
+        let states : [ColorPalette.States] = [.unread, .mine, .read, .unsent]
+        let dx = size.width/CGFloat(states.count)
+        
+        UIGraphicsBeginImageContext(rect.size)
+        
+        guard let context = UIGraphicsGetCurrentContext() else {
+            return nil
+        }
+        for i in 0 ..< states.count {
+             context.setFillColor(colors[states[i]]!.cgColor)
+             context.fill(CGRect(x: dx*CGFloat(i), y: 0, width: dx, height: size.height))
+        }
+        
+        let image =  UIGraphicsGetImageFromCurrentImageContext()
+        
+        UIGraphicsEndImageContext()
+        return image
+    }
+}
+
 extension UIImage {
     func resize(newSize: CGSize) -> UIImage {
         UIGraphicsBeginImageContextWithOptions(newSize, false, 0)

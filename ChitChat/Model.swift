@@ -676,8 +676,8 @@ class DataModel {
         })
     }
     
-    func getGroupInvitations(completion: @escaping ([UserInvitation], [Group]) -> ()) {
-        db_model.getUserInvitations(to_user: me().phoneNumber, completion: { (invitations, groups) -> () in
+    func getGroupInvitations(to_user: String, completion: @escaping ([UserInvitation], [Group]) -> ()) {
+        db_model.getUserInvitations(to_user: to_user, completion: { (invitations, groups) -> () in
             self.memory_model.update(groups: groups)
             
             self.sortGroup(groups: groups, completion: { (sorted_groups) -> () in

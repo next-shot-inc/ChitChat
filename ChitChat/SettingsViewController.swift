@@ -86,10 +86,8 @@ class SettingsViewController: UIViewController, UIImagePickerControllerDelegate,
     
     @IBOutlet weak var displayDaysLabel: UILabel!
     @IBOutlet weak var displayDaysStepper: UIStepper!
-    @IBOutlet weak var bluePalette: UIButton!
-    @IBOutlet weak var greenPalette: UIButton!
-    @IBOutlet weak var redPallette: UIButton!
-    @IBOutlet weak var curPalette: UIImageView!
+    @IBOutlet weak var choosePaletteButton: UIButton!
+    
     @IBOutlet weak var keepDaysLabel: UILabel!
     @IBOutlet weak var keepDaysStepper: UIStepper!
     @IBOutlet weak var iconButton: UIButton!
@@ -100,8 +98,6 @@ class SettingsViewController: UIViewController, UIImagePickerControllerDelegate,
     @IBOutlet weak var purchaseButton: UIButton!
     @IBOutlet weak var restorePurchaseButton: UIButton!
     
-    var buttons = [UIButton]()
-    var images = ["palette_red", "palette_green", "palette_blue" ]
     var changedIcon = false
     var iapView : SettingsInAppPurchaseView?
     let defaultMaximumKeepDays = 21
@@ -111,16 +107,6 @@ class SettingsViewController: UIViewController, UIImagePickerControllerDelegate,
         // Do any additional setup after loading the view, typically from a nib.
         
         // Order of the palettes in ColorPalette
-        buttons.append(redPallette)
-        buttons.append(greenPalette)
-        buttons.append(bluePalette)
-        
-        for b in buttons {
-            b.layer.masksToBounds = true
-            b.layer.cornerRadius = 4
-            b.layer.borderColor = UIColor.darkGray.cgColor
-            b.layer.borderWidth = 1.0
-        }
         
         settingsDB.get()
         ColorPalette.cur = settingsDB.settings.palette
@@ -130,7 +116,9 @@ class SettingsViewController: UIViewController, UIImagePickerControllerDelegate,
         keepDaysLabel.text = String(settingsDB.settings.nb_of_days_to_keep)
         keepDaysStepper.maximumValue = Double(defaultMaximumKeepDays)
         
-        curPalette.image = UIImage(named: images[ColorPalette.cur])
+        let colorPaletteView = ColorPaletteUIView()
+        let image = colorPaletteView.generateImage(rect: CGRect(x: 0, y: 0, width: choosePaletteButton.frame.width, height: choosePaletteButton.frame.height))
+        choosePaletteButton.setImage(image, for: .normal)
         
         if( model.me().icon != nil ) {
             iconButton.setImage(model.me().icon, for: .normal)
@@ -199,36 +187,15 @@ class SettingsViewController: UIViewController, UIImagePickerControllerDelegate,
                         keepDaysStepper.maximumValue = Double(defaultMaximumKeepDays+17)
                     }
                 }
+                if( p.expired ) {
+                    purchaseButton.setTitle("Renew subscription", for: .normal)
+                }
             }
             
             restorePurchaseButton.isEnabled = true
         }
     }
     
-    func buttonSelection(button: UIButton) {
-        button.isSelected = true
-        button.isHighlighted = true
-        for (i,b) in buttons.enumerated() {
-            if( b != button ) {
-                button.isHighlighted = false
-                button.isSelected = false
-            } else {
-                settingsDB.settings.palette = i
-                ColorPalette.cur = i
-                curPalette.image = UIImage(named: images[i])
-            }
-        }
-    }
-    
-    @IBAction func blueButtonSelected(_ sender: UIButton) {
-        buttonSelection(button: sender)
-    }
-    @IBAction func greenButtonSelected(_ sender: UIButton) {
-        buttonSelection(button: sender)
-    }
-    @IBAction func redButtonSelected(_ sender: UIButton) {
-        buttonSelection(button: sender)
-    }
     
     @IBAction func displayDaysStepper(_ sender: UIStepper) {
         displayDaysLabel.text = String(Int(sender.value))
@@ -310,5 +277,97 @@ class SettingsViewController: UIViewController, UIImagePickerControllerDelegate,
         }
         iap.restorePurchases()
     }
+    
+    override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
+        if( segue.identifier! == "choosePalette" ) {
+            let ccpc = segue.destination as? ChooseColorPalettePopOver
+            if( ccpc != nil ) {
+                ccpc!.settingsController = self
+                ccpc!.preferredContentSize = CGSize(width: 340, height: 340)
+            }
+        }
+    }
+}
+
+class ChooseColorPalettePopOver : UIViewController {
+    @IBOutlet weak var bluePalette: UIButton!
+    @IBOutlet weak var greenPalette: UIButton!
+    @IBOutlet weak var redPallette: UIButton!
+    @IBOutlet weak var blueStackView: UIStackView!
+    @IBOutlet weak var greenStackView: UIStackView!
+    @IBOutlet weak var redStackView: UIStackView!
+    
+    weak var settingsController : SettingsViewController?
+    var buttons = [UIButton]()
+    var palettes = [UIStackView]()
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        
+        buttons.append(redPallette)
+        buttons.append(greenPalette)
+        buttons.append(bluePalette)
+        palettes.append(redStackView)
+        palettes.append(greenStackView)
+        palettes.append(blueStackView)
+        
+        let states : [ColorPalette.States] = [.unread, .mine, .read, .unsent]
+        for (i,b) in buttons.enumerated() {
+            let colorPaletteView = ColorPaletteUIView()
+            
+            colorPaletteView.palette = i
+            let image = colorPaletteView.generateImage(rect: CGRect(x: 0, y: 0, width: b.frame.width, height: b.frame.height))
+            b.setImage(image, for: .normal)
+            
+            for (j,sbv) in palettes[i].subviews.enumerated() {
+                let bv = sbv as? BubbleView
+                if( bv != nil ) {
+                    bv!.fillColor = ColorPalette.all_colors[i][states[j]]
+                    bv!.strokeColor = ColorPalette.all_colors[i][.borderColor]
+                }
+            }
+        }
+        
+        
+        
+    }
+    
+    @IBAction func blueButtonSelected(_ sender: UIButton) {
+        buttonSelection(button: sender)
+        dismiss(animated: true, completion: nil)
+    }
+    @IBAction func greenButtonSelected(_ sender: UIButton) {
+        buttonSelection(button: sender)
+        dismiss(animated: true, completion: nil)
+    }
+    @IBAction func redButtonSelected(_ sender: UIButton) {
+        buttonSelection(button: sender)
+        dismiss(animated: true, completion: nil)
+    }
+
+    func buttonSelection(button: UIButton) {
+        button.isSelected = true
+        button.isHighlighted = true
+        for (i,b) in buttons.enumerated() {
+            if( b != button ) {
+                button.isHighlighted = false
+                button.isSelected = false
+            } else {
+                settingsDB.settings.palette = i
+                ColorPalette.cur = i
+            }
+        }
+        
+        let mb = settingsController!.choosePaletteButton
+        
+        let colorPaletteView = ColorPaletteUIView()
+        let image = colorPaletteView.generateImage(
+            rect: CGRect(x: 0, y: 0, width: mb!.frame.width, height: mb!.frame.height))
+        mb?.setImage(image, for: .normal)
+        mb?.setNeedsDisplay()
+
+    }
+    
+
 }
 

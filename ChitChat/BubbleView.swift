@@ -63,9 +63,9 @@ class BubbleView : UIView {
         let size = self.bounds.size
         
         context.translateBy(x: size.width, y: size.height/2)
-        context.scaleBy(x: size.width/27, y: size.height/26)
+        context.scaleBy(x: size.width/27.5, y: size.height/26)
         
-        context.move(to: CGPoint(x: -0.25, y: -1))
+        context.move(to: CGPoint(x: -0.5, y: -1))
         var curPoint = context.currentPointOfPath
         for i in 0 ..< points.count/3 {
            context.addCurve(to: curPoint + points[i*3+2], control1: curPoint + points[i*3], control2: curPoint + points[i*3+1])

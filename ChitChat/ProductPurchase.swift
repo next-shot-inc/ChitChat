@@ -24,6 +24,7 @@ class Product {
         return product.productIdentifier
     }
     var purchased = false
+    var expired = false
     init(product: SKProduct) {
         self.product = product
     }
@@ -200,6 +201,8 @@ class InAppPurchaseHelper : NSObject, SKPaymentTransactionObserver, SKProductsRe
                     let validFor = 4*60*60
                     if( Date(timeInterval: TimeInterval(validFor), since: pr.originalPurchaseDate!) >= Date() ) {
                         product?.purchased = true
+                    } else {
+                        product?.expired = true
                     }
                 } else {
                     product?.purchased = true

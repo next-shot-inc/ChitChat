@@ -352,6 +352,18 @@ class LoginViewController : UIViewController, UITextFieldDelegate {
                     }
                 })
             })
+            
+            model.getGroupInvitations(to_user: userInfo.telephoneNumber!, completion: { (invitations, groups) -> () in
+                // implicitely accept all invitations
+                for g in groups {
+                    model.addUserToGroup(group: g, user: user0)
+                }
+                // Mark the invitation has accepted.
+                for invitation in invitations {
+                    invitation.accepted = true
+                    model.saveUserInvitation(userInvitation: invitation)
+                }
+            })
         } else {
             var modified = false
             let augmented_password = user!.id.id + self.passwordField.text!

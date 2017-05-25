@@ -11,12 +11,15 @@ import UIKit
 import Contacts
 import ContactsUI
 import PhoneNumberKit
+import MessageUI
 
 class Contact {
     let label : String
     var phoneNumber = String()
     var errorPhone = String()
+    var email = String()
     var existing = false
+    var existingUser : Bool?
     init(label: String) {
         self.label =  label
     }
@@ -37,6 +40,7 @@ class ContactCell : UITableViewCell {
     @IBOutlet weak var label: UILabel!
     @IBOutlet weak var checkButton: UIButton!
     @IBOutlet weak var phoneNumber: UILabel!
+    @IBOutlet weak var userStatus: UILabel!
 }
 
 class ContactData : NSObject, UITableViewDataSource {
@@ -69,16 +73,27 @@ class ContactData : NSObject, UITableViewDataSource {
         cell.checkButton.setImage(UIImage(named: "checked"), for: .selected)
         cell.checkButton.setImage(UIImage(named: "unchecked"), for: .normal)
         
-        cell.checkButton.isSelected = !contact.phoneNumber.isEmpty
-        
         if( contact.existing ) {
             cell.checkButton.isEnabled = false
         }
+        if( contact.existingUser != nil ) {
+           if( !contact.existingUser! ) {
+               cell.checkButton.setImage(UIImage(named: "checked_hollow"), for: .selected)
+               cell.userStatus.text = "Non existing user - Need invitation"
+           } else {
+               cell.userStatus.text = "Existing user"
+           }
+        } else {
+            cell.userStatus.text = "Checking user status... "
+        }
+        
+        cell.checkButton.isSelected = !contact.phoneNumber.isEmpty
+
         return cell
     }
 }
 
-class NewGroupController : UIViewController, CNContactPickerDelegate, UIImagePickerControllerDelegate, UINavigationControllerDelegate, UITextFieldDelegate {
+class NewGroupController : UIViewController, CNContactPickerDelegate, UIImagePickerControllerDelegate, UINavigationControllerDelegate, UITextFieldDelegate , MFMailComposeViewControllerDelegate {
     var contactsController: ContactsController?
     
     @IBOutlet weak var groupName: UITextField!
@@ -212,6 +227,32 @@ class NewGroupController : UIViewController, CNContactPickerDelegate, UIImagePic
                     lc.setNumber(number: contact.phoneNumbers[0].value.stringValue)
                 }
             }
+            
+            model.getUser(phoneNumber: lc.phoneNumber, completion: {(user) -> () in
+                DispatchQueue.main.async(execute: { () -> Void in
+                    lc.existingUser = user != nil
+                    let index = self.contactsController?.data.contacts.index(where: { (c) -> Bool in
+                        lc === c
+                    })
+                    if( index != nil ) {
+                        self.contactsController?.tableView.reloadRows(at: [IndexPath(row: index!, section: 0)], with: .none)
+                    }
+                })
+            })
+            
+            if( contact.emailAddresses.count == 1 ) {
+                lc.email = String(contact.emailAddresses[0].value)
+            } else {
+                for email in contact.emailAddresses {
+                    if( email.label == CNLabelEmailiCloud ) {
+                        lc.email = String(email.value)
+                    }
+                }
+                if( lc.email.isEmpty && contact.emailAddresses.count > 0 ) {
+                    lc.email = String(contact.emailAddresses[0].value)
+                }
+            }
+                
             contactsController?.data.contacts.append(lc)
         }
         
@@ -357,6 +398,47 @@ class NewGroupController : UIViewController, CNContactPickerDelegate, UIImagePic
         
         // Pop this controller.
         _ = navigationController?.popViewController(animated: true)
+    }
+    
+    @IBAction func inviteContact(_ sender: Any) {
+        if( contactsController == nil ) {
+            return
+        }
+        
+        let mailComposer = MFMailComposeViewController()
+        mailComposer.setSubject("Invitation to join ChitChat conversations")
+        
+        var recipients = [String]()
+        for c in contactsController!.data.contacts {
+            if( !(c.existingUser ?? true) && !c.email.isEmpty ) {
+                recipients.append(c.email)
+            }
+        }
+        mailComposer.setToRecipients(recipients)
+        let image = UIImage(named: "icon60x60")
+        let imageString = returnEmailStringBase64EncodedImage(image: image!)
+        let emailBody = "<html>"
+             + "<body>"
+             + "Check out this messaging App!"
+             + "<img src='data:image/png;base64,\(imageString)' width='60' height='60'>"
+             + "</body>"
+             + "</html>"
+        
+        mailComposer.setMessageBody(emailBody, isHTML: true)
+        mailComposer.mailComposeDelegate = self
+        
+        present(mailComposer, animated: true, completion: nil)
+    }
+
+    func mailComposeController(_ controller: MFMailComposeViewController, didFinishWith result: MFMailComposeResult, error: Error?) {
+        print(result)
+        controller.dismiss(animated: true, completion: nil)
+    }
+
+    func returnEmailStringBase64EncodedImage(image:UIImage) -> String {
+        let imgData:NSData = UIImagePNGRepresentation(image)! as NSData;
+        let dataString = imgData.base64EncodedString(options: NSData.Base64EncodingOptions(rawValue: 0))
+        return dataString
     }
 }
 

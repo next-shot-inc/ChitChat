@@ -263,7 +263,7 @@ class GroupViewController: UITableViewController {
             // But if the invitation process is generalized (in ContactsController) then 
             // the logic here will have to change.
             if( newUser ) {
-                model.getGroupInvitations(completion: { (invitations, groups) -> () in
+                model.getGroupInvitations(to_user: model.me().phoneNumber, completion: { (invitations, groups) -> () in
                     // implicitely accept all invitations (could modify table view for explicit acceptance)
                     for g in groups {
                         model.addUserToGroup(group: g, user: model.me())
