@@ -808,10 +808,12 @@ class CloudDBModel : DBProtocol {
                     let rid = queryNotification.recordFields?["id"] as? NSString
                     if( rid != nil ) {
                         let recordId = RecordId(string: String(rid!))
-                        for view in views {
-                            if( view.notify_delete_conversation != nil ) {
-                                view.notify_delete_conversation!(recordId)
-                            }
+                        DispatchQueue.main.async {
+                           for view in views {
+                               if( view.notify_delete_conversation != nil ) {
+                                  view.notify_delete_conversation!(recordId)
+                               }
+                           }
                         }
                     }
                     return

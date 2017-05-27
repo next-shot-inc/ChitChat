@@ -41,6 +41,8 @@ class ContactCell : UITableViewCell {
     @IBOutlet weak var checkButton: UIButton!
     @IBOutlet weak var phoneNumber: UILabel!
     @IBOutlet weak var userStatus: UILabel!
+    
+    @IBOutlet weak var statusImageView: UIImageView!
 }
 
 class ContactData : NSObject, UITableViewDataSource {
@@ -73,21 +75,28 @@ class ContactData : NSObject, UITableViewDataSource {
         cell.checkButton.setImage(UIImage(named: "checked"), for: .selected)
         cell.checkButton.setImage(UIImage(named: "unchecked"), for: .normal)
         
-        if( contact.existing ) {
-            cell.checkButton.isEnabled = false
-        }
         if( contact.existingUser != nil ) {
            if( !contact.existingUser! ) {
                cell.checkButton.setImage(UIImage(named: "checked_hollow"), for: .selected)
+               cell.statusImageView.image = UIImage(named: "checked_hollow")
                cell.userStatus.text = "Non existing user - Need invitation"
            } else {
                cell.userStatus.text = "Existing user"
+               cell.statusImageView.image = UIImage(named: "checked")
            }
         } else {
             cell.userStatus.text = "Checking user status... "
+            cell.statusImageView.image = UIImage(named: "checked")
         }
         
         cell.checkButton.isSelected = !contact.phoneNumber.isEmpty
+        if( contact.phoneNumber.isEmpty ) {
+            cell.statusImageView.image = UIImage(named: "unchecked")
+        }
+        
+        if( contact.existing ) {
+            cell.checkButton.isEnabled = false
+        }
 
         return cell
     }
@@ -141,6 +150,7 @@ class NewGroupController : UIViewController, CNContactPickerDelegate, UIImagePic
                         let lc = Contact(label: user.label!)
                         lc.phoneNumber = user.phoneNumber
                         lc.existing = true
+                        lc.existingUser = true
                         self.contactsController?.data.contacts.append(lc)
                     }
                     for invite in invitations {

@@ -97,10 +97,12 @@ class SettingsViewController: UIViewController, UIImagePickerControllerDelegate,
     @IBOutlet weak var IAPProductPrice: UILabel!
     @IBOutlet weak var purchaseButton: UIButton!
     @IBOutlet weak var restorePurchaseButton: UIButton!
+    @IBOutlet weak var maximumKeepDaysLabel: UILabel!
     
     var changedIcon = false
     var iapView : SettingsInAppPurchaseView?
-    let defaultMaximumKeepDays = 21
+    let defaultMaximumKeepDays = 20
+    let increaseNbDaysWithX2 = 20
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -115,6 +117,7 @@ class SettingsViewController: UIViewController, UIImagePickerControllerDelegate,
         keepDaysStepper.value = Double(settingsDB.settings.nb_of_days_to_keep)
         keepDaysLabel.text = String(settingsDB.settings.nb_of_days_to_keep)
         keepDaysStepper.maximumValue = Double(defaultMaximumKeepDays)
+        displayDaysStepper.maximumValue = keepDaysStepper.maximumValue-1
         
         let colorPaletteView = ColorPaletteUIView()
         let image = colorPaletteView.generateImage(rect: CGRect(x: 0, y: 0, width: choosePaletteButton.frame.width, height: choosePaletteButton.frame.height))
@@ -129,6 +132,7 @@ class SettingsViewController: UIViewController, UIImagePickerControllerDelegate,
         tapper.cancelsTouchesInView = false
         view.addGestureRecognizer(tapper)
         
+        maximumKeepDaysLabel.text = "maximum: \(defaultMaximumKeepDays) days"
         initPurchaseZone()
     }
     
@@ -184,7 +188,9 @@ class SettingsViewController: UIViewController, UIImagePickerControllerDelegate,
                     purchaseButton.isEnabled = false
                     purchaseButton.setTitle("Already purchased", for: .normal)
                     if( p.productIdentifier == Products.Id.X2.rawValue ) {
-                        keepDaysStepper.maximumValue = Double(defaultMaximumKeepDays+17)
+                        keepDaysStepper.maximumValue = Double(defaultMaximumKeepDays+increaseNbDaysWithX2)
+                        displayDaysStepper.maximumValue = keepDaysStepper.maximumValue - 1
+                        maximumKeepDaysLabel.text = "maximum: \(defaultMaximumKeepDays+increaseNbDaysWithX2) days"
                     }
                 }
                 if( p.expired ) {
@@ -230,7 +236,27 @@ class SettingsViewController: UIViewController, UIImagePickerControllerDelegate,
         let sc = min(sx, sy)
         let imageScaledSize = CGSize(width: imageSize.width*sc, height: imageSize.height*sc)
         
-        iconButton.setImage(chosenImage.resize(newSize: imageScaledSize), for: .normal)
+        let ciImage  = CIImage(cgImage: chosenImage.cgImage!)
+        let ciDetector = CIDetector( ofType: CIDetectorTypeFace,context:CIContext() ,options: [
+                CIDetectorAccuracy:CIDetectorAccuracyHigh
+            ]
+        )
+        let features = ciDetector?.features(in: ciImage)
+        if( features != nil && features!.count > 0 ) {
+            var center = CGPoint.zero
+            for feature in features! {
+               //face
+               let faceRect = (feature as! CIFaceFeature).bounds
+               center.x += (faceRect.maxX + faceRect.minX)/2
+               center.y += (faceRect.maxY + faceRect.minY)/2
+            }
+            center.x /= CGFloat(features!.count)
+            center.y /= CGFloat(features!.count)
+            
+            iconButton.setImage(chosenImage.resize(newSize: imageScaledSize, center: center), for: .normal)
+        } else {
+            iconButton.setImage(chosenImage.resize(newSize: imageScaledSize), for: .normal)
+        }
         changedIcon = true
         
         dismiss(animated: true, completion: nil)
@@ -326,10 +352,11 @@ class ChooseColorPalettePopOver : UIViewController {
                     bv!.strokeColor = ColorPalette.all_colors[i][.borderColor]
                 }
             }
+            
+            if( i == ColorPalette.cur ) {
+                b.isHighlighted = true
+            }
         }
-        
-        
-        
     }
     
     @IBAction func blueButtonSelected(_ sender: UIButton) {

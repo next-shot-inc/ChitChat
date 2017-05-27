@@ -70,18 +70,28 @@ class PictureViewController : UIViewController, UIScrollViewDelegate {
     @IBOutlet weak var scrollView: UIScrollView!
     @IBOutlet weak var imageView: ShareableImageView!
     @IBOutlet weak var imageCaption: UILabel!
+    
+    var activityView: UIActivityIndicatorView?
     var message : Message?
     
     override func viewDidLoad() {
         super.viewDidLoad()
         
         if( message != nil && message!.largeImage == nil ) {
+            
+            activityView = UIActivityIndicatorView(activityIndicatorStyle: .whiteLarge)
+            
             model.getMessageLargeImage(message: message!, completion: {
                 DispatchQueue.main.async(execute: {
                    if( self.message!.largeImage != nil ) {
                         self.imageView.image = self.message!.largeImage
                         self.initializeScale()
                         self.imageView.setNeedsDisplay()
+                    }
+                    if( self.activityView != nil ) {
+                        self.activityView!.stopAnimating()
+                        self.activityView!.removeFromSuperview()
+                        self.activityView = nil
                     }
                 })
             })
@@ -100,6 +110,14 @@ class PictureViewController : UIViewController, UIScrollViewDelegate {
     
     override func viewWillAppear(_ animated: Bool) {
         initializeScale()
+        
+        if( activityView != nil ) {
+            activityView!.color = UIColor.blue
+            activityView!.center = self.view.center
+            activityView!.startAnimating()
+            self.view.addSubview(activityView!)
+        }
+
         super.viewWillAppear(animated)
     }
     

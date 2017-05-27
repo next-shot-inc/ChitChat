@@ -715,7 +715,10 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
     @IBOutlet weak var selectPictureButton: UIButton!
     @IBOutlet weak var takePictureButton: UIButton!
     @IBOutlet weak var sendDecoratedMessage: UIButton!
+    @IBOutlet weak var sendPollButton: UIButton!
     @IBOutlet weak var spellCheckButton: UIButton!
+    @IBOutlet weak var sendThumbUpButton: UIButton!
+    @IBOutlet weak var cancelCurButton: UIButton!
     
     var data : MessagesData?
     var delegate : MessagesViewDelegate?
@@ -801,6 +804,7 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
         textView.delegates = textViewDelegate!
         
         sendButton.isEnabled = false
+        cancelCurButton.isHidden = true
         
         let url = Bundle.main.url(forResource: "sounds/Button_Press", withExtension: "wav")
         do {
@@ -1004,6 +1008,9 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
         selectPictureButton.isEnabled = state
         takePictureButton.isEnabled = state
         sendDecoratedMessage.isEnabled = state
+        sendPollButton.isEnabled = state
+        sendThumbUpButton.isEnabled = state
+        cancelCurButton.isHidden = state
     }
     
     func continueEditing() {
@@ -1033,6 +1040,28 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
         //picker.allowsEditing = true (broken on IPad)
         picker.sourceType = .camera
         present(picker, animated: true, completion: nil)
+    }
+    
+    @IBAction func handleCancelButton(_ sender: Any) {
+        if( curMessage != nil ) {
+            let lastCellIndex = IndexPath(row: data!.messages.count-1, section: 0)
+            data?.messages.removeLast()
+            messagesView.deleteItems(at: [lastCellIndex])
+        }
+        self.textView.text = ""
+        self.view.endEditing(true)
+        self.sendButton.isEnabled = false
+        self.curMessage = nil
+        self.curMessageOption = nil
+        
+        enableCreateMessageButtons(state: true)
+        
+        decorationThemesView.isHidden = true
+        self.view.layoutIfNeeded()
+        let lastCellIndex = IndexPath(row: data!.messages.count-1, section: 0)
+        messagesView.scrollToItem(
+            at: lastCellIndex, at: UICollectionViewScrollPosition.bottom, animated: true
+        )
     }
     
     // Image picker
