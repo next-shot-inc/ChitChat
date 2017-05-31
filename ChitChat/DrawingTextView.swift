@@ -170,7 +170,10 @@ class DrawingTextView: UILabel {
             let verticalPadding : CGFloat = 2
             curYTranslation += maxHeight + verticalPadding
             if( i == 0 ) {
-                minY -= (maxHeight+4)
+                minY -= (maxHeight + 4)
+                if( range.max - range.min < 8 ) {
+                    minY -= stampHeight*2
+                }
             }
         }
         
@@ -371,9 +374,33 @@ class DrawingTextView: UILabel {
     }
     
     func drawStamps(rect: CGRect, topLine: Polyline, botLine: Polyline) {
-        if( topLine.vertices.count == 0 || botLine.vertices.count == 0 ) {
-            return
+        let box = self.bounds
+        let x0 = box.width*0.01
+        let x1 = box.width*0.99
+        
+        if( topLine.vertices.count > 0 ) {
+            if( topLine.vertices.first!.x > x0 ) {
+                topLine.vertices.insert(Point2d(x: x0, y: topLine.vertices.first!.y), at: 0)
+            }
+            if( topLine.vertices.last!.x < x1 ) {
+                topLine.vertices.append(Point2d(x: x1, y: topLine.vertices.last!.y))
+            }
+        } else {
+            topLine.vertices.append(Point2d(x: x0, y: box.height*0.33))
+            topLine.vertices.append(Point2d(x: x1, y: box.height*0.33))
         }
+        if( botLine.vertices.count > 0 ) {
+            if( botLine.vertices.first!.x > x0 ) {
+                botLine.vertices.insert(Point2d(x: x0, y: botLine.vertices.first!.y), at: 0)
+            }
+            if( botLine.vertices.last!.x < x1 ) {
+                botLine.vertices.append(Point2d(x: x1, y: botLine.vertices.last!.y))
+            }
+        } else {
+            botLine.vertices.append(Point2d(x: x0, y: box.height*0.66))
+            botLine.vertices.append(Point2d(x: x1, y: box.height*0.66))
+        }
+
         
         guard let context = UIGraphicsGetCurrentContext() else { return }
         let width : CGFloat = 32
@@ -386,7 +413,7 @@ class DrawingTextView: UILabel {
         func drawStampsAlongLine(
             line: Polyline,offset: CGFloat
         ) {
-            let locs = gen.generate(n: 5, r: Float(width*2), xmin: 0, xmax: Float(line.length()))
+            let locs = gen.generate(n: 5, r: Float(width), xmin: 0, xmax: Float(line.length()))
             
             let pline = ParametricPolyline(polyline: line)
             for loc in locs {
@@ -421,19 +448,6 @@ class DrawingTextView: UILabel {
 
         drawStampsAlongLine(line: topLine, offset: -height)
         drawStampsAlongLine(line: botLine, offset: 0)
-        
-        /*
-        let gen2D = Generate2DLocations(seed: time)
-        let points = gen2D.generate(
-            n: 2, r: 64, xmin: self.bounds.minX + width/2, xmax: bounds.maxX - width/2, ymin: bounds.minY + height/2, ymax: bounds.maxY - height/2,
-            mask: CGRect(origin: CGPoint(x: rect.origin.x - width/2, y: rect.origin.y - height/2), size: CGSize(width: rect.size.width - width, height: rect.size.height - height))
-        )
-        for p in points {
-            let rect = CGRect(x: p.x, y: p.y, width: 32, height: 32)
-        
-            context.draw(cgimage!, in: rect, byTiling: false)
-        }
-        */
     }
     
 }
@@ -526,88 +540,6 @@ class ParametricPolyline {
             }
         }
         return n-1
-    }
-}
-
-class Generate2DLocations {
-    init( seed: Int) {
-        srand48( seed )
-    }
-    
-    func generate(
-        n: Int, r: CGFloat, xmin: CGFloat, xmax: CGFloat, ymin: CGFloat, ymax: CGFloat, mask: CGRect
-    ) -> [Point2d] {
-        var points = [Point2d]()
-        
-        let k = 30
-        var x0 = CGFloat(drand48())*(xmax - xmin) + xmin
-        var y0 = CGFloat(drand48())*(ymax - xmin) + ymin
-        for _ in 1..<k {
-            // Generate a point choosen uniformly
-            if( mask.contains(CGPoint(x: x0, y: y0)) ) {
-                x0 = CGFloat(drand48())*(xmax - xmin) + xmin
-                y0 = CGFloat(drand48())*(ymax - xmin) + ymin
-            } else {
-                break
-            }
-        }
-        points.append(Point2d(x: x0, y: y0))
-        
-        var active = [Int]()
-        active.append(0)
-        
-        while( active.count > 0 && points.count < n ) {
-            // Choose a random index in the list of active points.
-            let i = Int(drand48()*Double((active.count-1)))
-            // Find if we can generate a new point in the vicinity of this point
-            let np = select(
-                p: points[active[i]], points: points, r: r, xmin: xmin, xmax: xmax, ymin: ymin, ymax: ymax,
-                mask: mask
-            )
-            if( np != nil ) {
-                // Append the new point to the list of points
-                points.append(np!)
-                active.append(points.count-1)
-            } else {
-                // Remove the point from the list of active points
-                active.remove(at: i)
-            }
-        }
-        return points
-    }
-    
-    internal func select(
-        p: Point2d, points: [Point2d], r: CGFloat, xmin: CGFloat, xmax: CGFloat, ymin: CGFloat, ymax: CGFloat, mask: CGRect
-    ) -> Point2d? {
-        let r_square = Double(r)*Double(r)
-        
-        // K tries to find a good point
-        let k = 30
-        for _ in 0..<k {
-            // Generate a point choosen uniformly from the spherical annulus between radius r and 2r around p
-            let rr = drand48()*Double(r) + Double(r)
-            let x1 = p.x + CGFloat(rr*cos(drand48()*360/M_2_PI))
-            let y1 = p.y + CGFloat(rr*sin(drand48()*360/M_2_PI))
-            if( x1 < xmin || x1 > xmax || y1 < ymin || y1 > ymax || mask.contains(CGPoint(x: x1, y: y1)) ) {
-                continue
-            }
-            let p1 = Point2d(x: x1, y: y1)
-            
-            // See if it is not too close from the other selected points
-            // Using a brute force approach (should use a grid search)
-            var ok = true
-            for jp in points {
-                let d = p1.dist_square(p: jp)
-                if( d < r_square ) {
-                    ok = false
-                    break
-                }
-            }
-            if( ok ) {
-                return p1
-            }
-        }
-        return nil
     }
 }
 

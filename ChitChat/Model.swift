@@ -226,11 +226,32 @@ class ModelView {
     var notify_new_poll_record : ((_ pollRecord: PollRecord) -> Void)?
 }
 
+struct MessageDateRange {
+    var min: Int
+    var max: Int
+    
+    func getDates() -> DateInterval {
+        let secondsInADay : TimeInterval = 24*60*60
+        let min_date = Date(timeInterval: -TimeInterval(max)*secondsInADay, since: Date())
+        let max_date = Date(timeInterval: -TimeInterval(min)*secondsInADay, since: Date())
+        return DateInterval(start: min_date, end: max_date)
+    }
+    
+    func insideRange(date: Date, interval: DateInterval) -> Bool {
+        return date <= interval.end && date > interval.start
+    }
+    
+    func contains(range: MessageDateRange) -> Bool {
+        return range.min >= min && range.max <= max
+    }
+}
+
 class MemoryModel {
     var users = [User]()
     var groups : [Group]?
     var conversations : [ConversationThread]?
     var messages : [Message]?
+    var messageDateRanges = [RecordId: MessageDateRange]()
     var user_activities = [UserActivity]()
     var group_activities: [GroupActivity]?
     var groupUserFolder = [(group: Group, user: User)]()
@@ -338,6 +359,7 @@ class MemoryModel {
             return messages
         }
         
+        var need_sort = false
         for igr in self.messages! {
             if( igr.conversation_id == threadId ) {
                 let contained = messages.contains(where: { (cgr) -> Bool in
@@ -345,8 +367,14 @@ class MemoryModel {
                 })
                 if( !contained ) {
                     included.append(igr)
+                    need_sort = true
                 }
             }
+        }
+        if( need_sort ) {
+            included = included.sorted(by: { (m1, m2) -> Bool in
+                m1.last_modified < m2.last_modified
+            })
         }
         
         // Update memory model
@@ -363,6 +391,19 @@ class MemoryModel {
         }
         
         return included
+    }
+    
+    func update(threadId: RecordId, messages: [Message], range: MessageDateRange) -> [Message] {
+        let existing_range = messageDateRanges[threadId]
+        if( existing_range != nil ) {
+            let merge_range = MessageDateRange(
+                min: min(existing_range!.min, range.min), max: max(existing_range!.max, range.max)
+            )
+            messageDateRanges[threadId] = merge_range
+        } else {
+            messageDateRanges[threadId] = range
+        }
+        return update(threadId: threadId, messages: messages)
     }
     
     func updateThread(message: Message) {
@@ -770,6 +811,20 @@ class DataModel {
         })
     }
     
+    func getMessagesForThread(
+        thread: ConversationThread, dateLimit: MessageDateRange, completion: @escaping (_ messages: [Message], _ dateLimit: MessageDateRange) -> ()
+    ) {
+        let messages = getMessagesForThread(thread: thread)
+        let cached_range = memory_model.messageDateRanges[thread.id]
+        if( cached_range != nil && messages.count > 0 && cached_range!.contains(range: dateLimit) ) {
+            return completion(messages, cached_range!)
+        }
+        db_model.getMessagesForThread(threadId: thread.id, dateLimit: (min: dateLimit.min, max: dateLimit.max), completion: { (messages) -> Void in
+            let included = self.memory_model.update(threadId: thread.id, messages: messages, range: dateLimit)
+            completion(included, dateLimit)
+        })
+    }
+    
     func getMessageLargeImage(message: Message, completion: @escaping () -> ()) {
         db_model.getMessageLargeImage(message: message, completion: completion)
     }
@@ -777,6 +832,7 @@ class DataModel {
     func enterBackgroundMode() {
         // Empty cache that is relied upon as the application will not be notified of any new changes.
         memory_model.messages = nil
+        memory_model.messageDateRanges.removeAll()
         memory_model.conversations = nil
         memory_model.groups = nil
         memory_model.group_activities = nil

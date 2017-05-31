@@ -300,6 +300,9 @@ class PollMessageCell : UICollectionViewCell, MessageBaseCellDelegate {
 
         model.getPollVotes(poll: message, completion: { (records) in
             DispatchQueue.main.async(execute: {
+                if( controller == nil ) {
+                    return
+                }
                 let pollData = PollData(pollRecords: records, message: message, options: controller!.curMessageOption)
                 var state : PollMessageData.State
                 if( pollData.alreadyVoted ) {

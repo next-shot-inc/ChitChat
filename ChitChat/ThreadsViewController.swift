@@ -31,9 +31,10 @@ class ThreadThumbUpCell : UICollectionViewCell {
     @IBOutlet weak var fromName: UILabel!
 }
 
-class ThreadRowDelegate: NSObject, UICollectionViewDelegate, UICollectionViewDelegateFlowLayout {
+class ThreadRowDelegate: NSObject, UICollectionViewDelegate, UICollectionViewDelegateFlowLayout, UIScrollViewDelegate {
     let threadRowData: ThreadRowData
     weak var controller : ThreadsViewController?
+    var dataRequested = false
     
     init(ctrler: ThreadsViewController, threadRowData: ThreadRowData) {
         self.threadRowData = threadRowData
@@ -59,15 +60,84 @@ class ThreadRowDelegate: NSObject, UICollectionViewDelegate, UICollectionViewDel
             return CGSize(width: 110, height: 121)
         }
     }
-
+    
+    func scrollViewDidScroll(_ scrollView: UIScrollView) {
+        if( scrollView.contentOffset.x <= 0 ) {
+            threadRowData.requestMore(collectionView: scrollView as! UICollectionView)
+        }
+    }
 }
 
-class ThreadRowData : NSObject, UICollectionViewDataSource {
+class MessageCollectionViewHelper : NSObject {
     var messages = [Message]()
+    var dateLimit = MessageDateRange(min: 0, max: 5)
+    var dataRequested = false
     let cthread : ConversationThread
+    var scrollingPosition : UICollectionViewScrollPosition = .right
     
     init(cthread: ConversationThread) {
         self.cthread = cthread
+    }
+
+    func requestMore(collectionView: UICollectionView, scroll: Bool = true) {
+        if( dataRequested == true ) {
+            return
+        }
+        
+        var dateLimit = self.dateLimit
+        if( dateLimit.max == settingsDB.settings.nb_of_days_to_fetch ) {
+            dataRequested = false
+            return
+        }
+        dateLimit.min += 5
+        dateLimit.min = min(dateLimit.min, settingsDB.settings.nb_of_days_to_fetch)
+        dateLimit.max += 5
+        dateLimit.max = min(dateLimit.max, settingsDB.settings.nb_of_days_to_fetch)
+        if( dateLimit.max == dateLimit.min ) {
+            dataRequested = false
+            return
+        }
+        
+        dataRequested = true
+        model.getMessagesForThread(thread: cthread, dateLimit: dateLimit, completion: { (messages, cachedDateLimit) in
+            DispatchQueue.main.async(execute: {
+                self.dateLimit = cachedDateLimit
+                self.dataRequested = false
+                
+                var indexPaths = [IndexPath]()
+                var count = 0
+                for nm in messages {
+                    let contained = self.messages.contains(where: { (m) -> Bool in
+                        nm.id == m.id
+                    })
+                    if( !contained ) {
+                        indexPaths.append(IndexPath(item: count, section: 0))
+                        self.messages.insert(nm, at: count)
+                        count += 1
+                    }
+                }
+                
+                collectionView.insertItems(at: indexPaths)
+                if( scroll ) {
+                    if( count > 0 ) {
+                        collectionView.scrollToItem(at: IndexPath(row: count-1, section: 0), at: self.scrollingPosition, animated: true)
+                    }
+                } else {
+                    if( self.messages.count > 0 ) {
+                        collectionView.scrollToItem(at: IndexPath(row: self.messages.count - 1, section: 0), at: self.scrollingPosition, animated: false)
+                    }
+                }
+            })
+        })
+        
+    }
+
+}
+
+class ThreadRowData : MessageCollectionViewHelper, UICollectionViewDataSource {
+    
+    override init(cthread: ConversationThread) {
+        super.init(cthread: cthread)
     }
     
     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
@@ -188,6 +258,11 @@ class ThreadCell : UITableViewCell {
     @IBOutlet weak var collectionView: UICollectionView!
 }
 
+class EmptyGroupCell : UITableViewCell {
+    
+    @IBOutlet weak var label: UILabel!
+}
+
 class ConversationHeaderView : UITableViewHeaderFooterView  {
     @IBOutlet weak var title: UILabel!
     
@@ -202,11 +277,34 @@ class ThreadsTableViewDelegate : NSObject, UITableViewDelegate {
     
     // Return the height of the row.
     func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
+        if( dataSource.threadsSource.count == 0 ) {
+            return 100
+        }
         // To fit the 110x110 collection view cells.
         return 140
     }
     
     func tableView(_ tableView: UITableView, viewForHeaderInSection section: Int) -> UIView? {
+        if( dataSource.threadsSource.count == 0 ) {
+            let cell = tableView.dequeueReusableHeaderFooterView(withIdentifier: "ConversationHeaderView") as? ConversationHeaderView
+            
+            cell?.title.text = "Last group conversation on "
+
+            let longDateFormatter = DateFormatter()
+            longDateFormatter.locale = Locale.current
+            longDateFormatter.setLocalizedDateFormatFromTemplate("MMM d, HH:mm")
+            longDateFormatter.timeZone = TimeZone.current
+            
+            model.getActivityForGroup(groupId: dataSource.group.id, completion: { (ga) in
+                if( ga != nil ) {
+                    DispatchQueue.main.async(execute: {
+                        let longDate = longDateFormatter.string(from: ga!.last_modified)
+                        cell!.date.text = longDate
+                    })
+                 }
+            })
+            return cell
+        }
         let cell = tableView.dequeueReusableHeaderFooterView(withIdentifier: "ConversationHeaderView") as? ConversationHeaderView
         if( cell != nil ) {
             let cthread = dataSource.threadsSource[section].cthread
@@ -236,6 +334,9 @@ class ThreadsTableViewDelegate : NSObject, UITableViewDelegate {
     }
     
     func tableView(_ tableView: UITableView, editActionsForRowAt indexPath: IndexPath) -> [UITableViewRowAction]? {
+        if( self.dataSource.threadsSource.count == 0 ) {
+            return nil
+        }
         let edit = UITableViewRowAction(style: .destructive, title: "Delete") { action, index in
             let cthread = self.dataSource.threadsSource[indexPath.section].cthread
             
@@ -336,7 +437,7 @@ class ThreadsDataSource : NSObject, UITableViewDataSource {
     }
     
     func numberOfSections(in tableView: UITableView) -> Int {
-         return threadsSource.count
+        return max(threadsSource.count,1)
     }
     
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
@@ -348,18 +449,60 @@ class ThreadsDataSource : NSObject, UITableViewDataSource {
     //}
     
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        if( threadsSource.count == 0 ) {
+            let cell = tableView.dequeueReusableCell(withIdentifier: "EmptyGroupCell") as! EmptyGroupCell
+            
+            model.getActivityForGroup(groupId: group.id, completion: { (ga) in
+                if( ga != nil ) {
+                    let longDateFormatter = DateFormatter()
+                    longDateFormatter.locale = Locale.current
+                    longDateFormatter.setLocalizedDateFormatFromTemplate("MMM d")
+                    longDateFormatter.timeZone = TimeZone.current
+                    
+                    let lastDate = ga!.last_modified
+                    let secondsInADay : TimeInterval = 24*60*60
+                    let last_day_to_fetch = Date(timeInterval: TimeInterval(settingsDB.settings.nb_of_days_to_fetch)*secondsInADay*(-1), since: Date())
+                    let last_day_to_keep = Date(timeInterval: TimeInterval(settingsDB.settings.nb_of_days_to_keep)*secondsInADay*(-1), since: Date())
+                    
+                    DispatchQueue.main.async(execute: {
+                        if( lastDate < last_day_to_keep ) {
+                            let longDate = longDateFormatter.string(from: last_day_to_keep)
+                            cell.label.text = String(
+                                "Messages older than \(longDate) have expired. Please start a new conversation. To keep your messages longer, please go to user settings."
+                            )
+                        } else if( lastDate < last_day_to_fetch ) {
+                            let longDate = longDateFormatter.string(from: last_day_to_fetch)
+                            cell.label.text = String(
+                                "Only messages younger than \(longDate) are shown. Please change user settings to see your messages or start a new conversation."
+                            )
+                        }
+                    })
+                }
+            })
+            return cell
+        }
+        
         let cell = tableView.dequeueReusableCell(withIdentifier: "ThreadCell") as! ThreadCell
         
         let rowData = threadsSource[indexPath.section]
         
-        model.getMessagesForThread(thread: rowData.cthread, completion: { (messages) -> Void in
-            self.threadsSource[indexPath.section].messages = messages
-            DispatchQueue.main.async(execute: { 
-                cell.collectionView.reloadData()
-                if( messages.count > 0 ) {
-                    cell.collectionView.scrollToItem(at: IndexPath(row: messages.count - 1, section: 0), at: .right, animated: true)
-                }
-            })
+        model.getMessagesForThread(thread: rowData.cthread, dateLimit: rowData.dateLimit, completion: { (messages, dateLimit) -> Void in
+            rowData.messages = messages
+            rowData.dateLimit = dateLimit
+            if( messages.count == 0 ) {
+                 rowData.requestMore(collectionView: cell.collectionView)
+            } else {
+                DispatchQueue.main.async(execute: {
+                    cell.collectionView.reloadData()
+                    if( messages.count > 0 ) {
+                        cell.collectionView.scrollToItem(at: IndexPath(row: messages.count - 1, section: 0), at: .right, animated: true)
+                    }
+                    if( messages.count <= 5 ) {
+                        // Otherwise scrolling is not enabled.
+                        rowData.requestMore(collectionView: cell.collectionView, scroll: false)
+                    }
+                })
+            }
         })
         
         cell.collectionView.dataSource = rowData
@@ -368,6 +511,9 @@ class ThreadsDataSource : NSObject, UITableViewDataSource {
     }
     
     func tableView(_ tableView: UITableView, canEditRowAt indexPath: IndexPath) -> Bool {
+        if( threadsSource.count == 0 ) {
+            return false
+        }
         let rowData = threadsSource[indexPath.section]
 
         return model.db_model.isCreatedByUser(record: rowData.cthread.id)
@@ -422,6 +568,13 @@ class ThreadsViewController: UITableViewController {
             if( cc != nil ) {
                 cc!.conversationThread = selectedConversationThread
                 cc!.title = cc?.conversationThread?.title
+                if( data != nil ) {
+                    for cts in data!.threadsSource {
+                        if( cts.cthread === selectedConversationThread ) {
+                            cc?.dateLimit = cts.dateLimit
+                        }
+                    }
+                }
             }
         }
     }

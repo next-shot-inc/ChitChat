@@ -289,8 +289,8 @@ class DecoratedTextMessageCellSizeDelegate : TextMessageCellSizeDelegate {
         let text = message.text
         //let nstext = NSString(string: text)
        
-        let bubblevSpacing: CGFloat = 30
-        let bubblehSpacing: CGFloat = 20
+        let bubblevSpacing: CGFloat = 60
+        let bubblehSpacing: CGFloat = 40
         let heightFromLabel : CGFloat = 16
         let hspacing : CGFloat = 10
         let vspacing : CGFloat = 4
@@ -415,14 +415,16 @@ class MessageCellFactory {
     }
 }
 
-class MessagesData : NSObject, UICollectionViewDataSource {
-    var messages = [Message]()
+class MessagesData : MessageCollectionViewHelper, UICollectionViewDataSource {
     //var sections = [[Message]](repeating: [Message](), count: 4)
     //enum sectionType : Int { case today = 3, yesterday = 2, this_week = 1, prev_weeks = 0 }
     weak var controller : MessagesViewController?
     
-    init(thread: ConversationThread, messages: [Message], ctrler: MessagesViewController) {
+    init(thread: ConversationThread, messages: [Message], dateLimit: MessageDateRange, ctrler: MessagesViewController) {
+        super.init(cthread: thread)
+        self.scrollingPosition = .bottom
         self.messages = messages
+        self.dateLimit = dateLimit
         controller = ctrler
         
         //set(messages:  messages)
@@ -550,7 +552,7 @@ class MessagesDataView : ModelView {
     }
 }
 
-class MessagesViewDelegate : NSObject, UICollectionViewDelegate, UICollectionViewDelegateFlowLayout {
+class MessagesViewDelegate : NSObject, UICollectionViewDelegate, UICollectionViewDelegateFlowLayout, UIScrollViewDelegate {
     let messageData : MessagesData
     weak var controller : MessagesViewController?
     
@@ -583,6 +585,12 @@ class MessagesViewDelegate : NSObject, UICollectionViewDelegate, UICollectionVie
         let m = messageData.messages[indexPath.row]
         controller?.selectedMessage = m
         controller?.performSegue(withIdentifier: "showPicture", sender: self)
+    }
+    
+    func scrollViewDidScroll(_ scrollView: UIScrollView) {
+        if( scrollView.contentOffset.y <= 0 ) {
+            messageData.requestMore(collectionView: scrollView as! UICollectionView)
+        }
     }
 }
 
@@ -721,6 +729,7 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
     @IBOutlet weak var cancelCurButton: UIButton!
     
     var data : MessagesData?
+    var dateLimit = MessageDateRange(min: 0, max: 5)
     var delegate : MessagesViewDelegate?
     var conversationThread : ConversationThread?
     var curMessage: Message?
@@ -768,8 +777,10 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
 
             // Once the theme collection is there we can load the messages.
             // Manage the collection view.
-            model.getMessagesForThread(thread: self.conversationThread!, completion: { (messages) -> Void in
-                self.data = MessagesData(thread: self.conversationThread!, messages: messages, ctrler: self)
+            model.getMessagesForThread(thread: self.conversationThread!, dateLimit: self.dateLimit, completion: { (messages, dateLimit) in
+                self.data = MessagesData(
+                    thread: self.conversationThread!, messages: messages, dateLimit: dateLimit, ctrler: self
+                )
                 self.messagesView.dataSource = self.data
                 self.delegate = MessagesViewDelegate(data: self.data!, ctrler: self)
                 self.messagesView.delegate = self.delegate
@@ -968,7 +979,8 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
                 self.title = newThread.title
                 // Manage the collection view.
                 self.conversationThread = newThread
-                self.data = MessagesData(thread: self.conversationThread!, messages: messages, ctrler: self)
+                self.data = MessagesData(thread: self.conversationThread!, messages: messages,
+                                         dateLimit: MessageDateRange(min: 0, max: 1), ctrler: self)
                 self.messagesView.dataSource = self.data
                 self.delegate = MessagesViewDelegate(data: self.data!, ctrler: self)
                 self.messagesView.delegate = self.delegate
@@ -1075,11 +1087,8 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
         if( selectedImage != nil ) {
             let size = selectedImage!.size
             
-            let defaultPictureSize = CGSize(width: 512, height: 512)
-            var storageSize = defaultPictureSize
-            if( Products.checkForPurchase(productId: Products.Id.X2) ) {
-                storageSize = CGSize(width: defaultPictureSize.width*2, height: defaultPictureSize.height*2)
-            }
+            let defaultPictureSize = CGSize(width: 1024, height: 1024)
+            let storageSize = defaultPictureSize
             let sx = storageSize.width/size.width
             let sy = storageSize.height/size.height
             let scale = min(sx, sy)

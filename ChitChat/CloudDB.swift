@@ -474,6 +474,12 @@ extension PollRecord {
     }
 }
 
+class CloudDBCursor : DBCursor {
+    let impl : CKQueryCursor
+    init(impl: CKQueryCursor) {
+        self.impl = impl
+    }
+}
 
 class CloudAssets {
     var urls = [URL]()
@@ -1415,6 +1421,42 @@ class CloudDBModel : DBProtocol {
                 nqueryOperation.desiredKeys = queryOperation.desiredKeys
                 self.publicDB.add(nqueryOperation)
             }
+        }
+        publicDB.add(queryOperation)
+    }
+    
+    func getMessagesForThread(threadId: RecordId, dateLimit: (min: Int, max: Int), completion: @escaping ([Message]) -> ()) {
+        let numberOfDaysMax = min(self.dateLimit, TimeInterval(dateLimit.max))
+        let secondsInADay : TimeInterval = 24*60*60
+        let min_date = Date(timeInterval: -numberOfDaysMax*secondsInADay, since: Date())
+        let max_date = Date(timeInterval: -TimeInterval(dateLimit.min)*secondsInADay, since: Date())
+        let query = CKQuery(recordType: "Message", predicate: NSCompoundPredicate(andPredicateWithSubpredicates: [
+            NSPredicate(format: String("(thread_id = %@)"), argumentArray: [threadId.id]),
+            NSPredicate(format: String("(last_modified > %@)"), argumentArray: [min_date]),
+            NSPredicate(format: String("(last_modified <= %@)"), argumentArray: [max_date])
+        ]))
+        query.sortDescriptors = [NSSortDescriptor(key: "last_modified", ascending: true)]
+        
+        var messages = [Message]()
+        
+        let queryOperation = CKQueryOperation(query: query)
+        queryOperation.desiredKeys = Message.getDesiredKeys()
+        queryOperation.recordFetchedBlock = { record -> Void in
+            let message = Message(record: record)
+            messages.append(message)
+        }
+        
+        queryOperation.queryCompletionBlock = { cursor, error -> Void in
+            if( cursor == nil ) {
+                completion(messages)
+            } else {
+                let nqueryOperation = CKQueryOperation(cursor: cursor!)
+                nqueryOperation.queryCompletionBlock = queryOperation.queryCompletionBlock
+                nqueryOperation.recordFetchedBlock = queryOperation.recordFetchedBlock
+                nqueryOperation.desiredKeys = queryOperation.desiredKeys
+                self.publicDB.add(nqueryOperation)
+            }
+            
         }
         publicDB.add(queryOperation)
     }

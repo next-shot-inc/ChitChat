@@ -36,6 +36,7 @@ class SettingsDB {
     }
     
     func get() {
+        // Unused.
         let nb_of_days_to_fetch = keyStore?.double(forKey: "nb_of_days_to_fetch")
         if( nb_of_days_to_fetch != nil && nb_of_days_to_fetch! > 0 ) {
             settings.nb_of_days_to_fetch = Int(nb_of_days_to_fetch!)
@@ -44,6 +45,7 @@ class SettingsDB {
         let nb_of_days_to_keep = keyStore?.double(forKey: "nb_of_days_to_keep")
         if( nb_of_days_to_keep != nil && nb_of_days_to_keep! > 0 ) {
             settings.nb_of_days_to_keep = Int(nb_of_days_to_keep!)
+            settings.nb_of_days_to_fetch = settings.nb_of_days_to_keep
         }
         
         let palette = keyStore?.double(forKey: "color_palette_index")
@@ -84,8 +86,6 @@ let settingsDB = SettingsDB()
 
 class SettingsViewController: UIViewController, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
     
-    @IBOutlet weak var displayDaysLabel: UILabel!
-    @IBOutlet weak var displayDaysStepper: UIStepper!
     @IBOutlet weak var choosePaletteButton: UIButton!
     
     @IBOutlet weak var keepDaysLabel: UILabel!
@@ -101,26 +101,23 @@ class SettingsViewController: UIViewController, UIImagePickerControllerDelegate,
     
     var changedIcon = false
     var iapView : SettingsInAppPurchaseView?
-    let defaultMaximumKeepDays = 20
-    let increaseNbDaysWithX2 = 20
+    let defaultMaximumKeepDays = 30
+    let increaseNbDaysWithX2 = 330
     
     override func viewDidLoad() {
         super.viewDidLoad()
         // Do any additional setup after loading the view, typically from a nib.
         
-        // Order of the palettes in ColorPalette
-        
         settingsDB.get()
         ColorPalette.cur = settingsDB.settings.palette
-        displayDaysStepper.value = Double(settingsDB.settings.nb_of_days_to_fetch)
-        displayDaysLabel.text = String(settingsDB.settings.nb_of_days_to_fetch)
         keepDaysStepper.value = Double(settingsDB.settings.nb_of_days_to_keep)
         keepDaysLabel.text = String(settingsDB.settings.nb_of_days_to_keep)
         keepDaysStepper.maximumValue = Double(defaultMaximumKeepDays)
-        displayDaysStepper.maximumValue = keepDaysStepper.maximumValue-1
         
         let colorPaletteView = ColorPaletteUIView()
-        let image = colorPaletteView.generateImage(rect: CGRect(x: 0, y: 0, width: choosePaletteButton.frame.width, height: choosePaletteButton.frame.height))
+        let image = colorPaletteView.generateImage(
+            rect: CGRect(x: 0, y: 0, width: choosePaletteButton.frame.width, height: choosePaletteButton.frame.height)
+        )
         choosePaletteButton.setImage(image, for: .normal)
         
         if( model.me().icon != nil ) {
@@ -189,7 +186,6 @@ class SettingsViewController: UIViewController, UIImagePickerControllerDelegate,
                     purchaseButton.setTitle("Already purchased", for: .normal)
                     if( p.productIdentifier == Products.Id.X2.rawValue ) {
                         keepDaysStepper.maximumValue = Double(defaultMaximumKeepDays+increaseNbDaysWithX2)
-                        displayDaysStepper.maximumValue = keepDaysStepper.maximumValue - 1
                         maximumKeepDaysLabel.text = "maximum: \(defaultMaximumKeepDays+increaseNbDaysWithX2) days"
                     }
                 }
@@ -199,22 +195,6 @@ class SettingsViewController: UIViewController, UIImagePickerControllerDelegate,
             }
             
             restorePurchaseButton.isEnabled = true
-        }
-    }
-    
-    
-    @IBAction func displayDaysStepper(_ sender: UIStepper) {
-        displayDaysLabel.text = String(Int(sender.value))
-        
-        model.setMessageFetchTimeLimit(numberOfDays: sender.value)
-        
-        settingsDB.settings.nb_of_days_to_fetch = Int(sender.value)
-        
-        keepDaysStepper.minimumValue = max(10, sender.value + 1)
-        if( settingsDB.settings.nb_of_days_to_keep  <= Int(sender.value) ) {
-            keepDaysStepper.value = sender.value + 1
-            keepDaysLabel.text = String(Int(sender.value + 1))
-            settingsDB.settings.nb_of_days_to_keep  = Int(sender.value + 1)
         }
     }
     

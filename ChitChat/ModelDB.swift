@@ -16,6 +16,7 @@ protocol DBProtocol {
     func getThreadsForGroup(groupId: RecordId, completion: @escaping ([ConversationThread]) -> ())
     func getThread(threadId: RecordId, completion: @escaping (ConversationThread?) -> ())
     func getMessagesForThread(threadId: RecordId, completion: @escaping ([Message]) -> ())
+    func getMessagesForThread(threadId: RecordId, dateLimit: (min: Int, max: Int), completion: @escaping ([Message]) -> ())
     func getMessageLargeImage(message: Message, completion: @escaping () -> ())
     func getUser(userId: RecordId, completion: @escaping (User) -> ())
     func getUser(phoneNumber: String, completion: @escaping (User?) -> ())
@@ -62,9 +63,14 @@ protocol DBProtocol {
     func deleteOldPollRecords(olderThan: Date, user: User, completion: @escaping () -> ()) 
 }
 
+class DBCursor {
+    
+}
+
 /***************************************************************************************/
 
 class InMemoryDB : DBProtocol {
+    
     internal var users = [User]()
     internal var groups = [Group]()
     internal var conversations = [ConversationThread]()
@@ -127,6 +133,10 @@ class InMemoryDB : DBProtocol {
             message.conversation_id.id == threadId.id
         })
         completion(ms)
+    }
+    
+    func getMessagesForThread(threadId: RecordId, dateLimit: (min: Int, max: Int), completion: @escaping ([Message]) -> ()) {
+        
     }
     
     func getMessageLargeImage(message: Message, completion: @escaping () -> ()) {

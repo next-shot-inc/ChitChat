@@ -79,9 +79,9 @@ class ContactData : NSObject, UITableViewDataSource {
            if( !contact.existingUser! ) {
                cell.checkButton.setImage(UIImage(named: "checked_hollow"), for: .selected)
                cell.statusImageView.image = UIImage(named: "checked_hollow")
-               cell.userStatus.text = "Non existing user - Need invitation"
+               cell.userStatus.text = "Non ChatterGroup's user - Need invitation"
            } else {
-               cell.userStatus.text = "Existing user"
+               cell.userStatus.text = "Existing ChatterGroup's user"
                cell.statusImageView.image = UIImage(named: "checked")
            }
         } else {
