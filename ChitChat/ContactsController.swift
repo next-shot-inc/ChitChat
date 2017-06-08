@@ -38,7 +38,6 @@ class Contact {
 
 class ContactCell : UITableViewCell {
     @IBOutlet weak var label: UILabel!
-    @IBOutlet weak var checkButton: UIButton!
     @IBOutlet weak var phoneNumber: UILabel!
     @IBOutlet weak var userStatus: UILabel!
     
@@ -69,15 +68,10 @@ class ContactData : NSObject, UITableViewDataSource {
         cell.phoneNumber.text = contact.phoneNumber
         if( contact.phoneNumber.isEmpty ) {
             cell.phoneNumber.text = contact.errorPhone
-            cell.checkButton.isEnabled = false
         }
-        
-        cell.checkButton.setImage(UIImage(named: "checked"), for: .selected)
-        cell.checkButton.setImage(UIImage(named: "unchecked"), for: .normal)
         
         if( contact.existingUser != nil ) {
            if( !contact.existingUser! ) {
-               cell.checkButton.setImage(UIImage(named: "checked_hollow"), for: .selected)
                cell.statusImageView.image = UIImage(named: "checked_hollow")
                cell.userStatus.text = "Non ChatterGroup's user - Need invitation"
            } else {
@@ -89,13 +83,8 @@ class ContactData : NSObject, UITableViewDataSource {
             cell.statusImageView.image = UIImage(named: "checked")
         }
         
-        cell.checkButton.isSelected = !contact.phoneNumber.isEmpty
         if( contact.phoneNumber.isEmpty ) {
             cell.statusImageView.image = UIImage(named: "unchecked")
-        }
-        
-        if( contact.existing ) {
-            cell.checkButton.isEnabled = false
         }
 
         return cell
@@ -205,7 +194,7 @@ class NewGroupController : UIViewController, CNContactPickerDelegate, UIImagePic
         }
     }
     
-    // Contacts Picker (done selected)
+    // Contacts Picker delegate (done selected)
     func contactPicker(_ picker: CNContactPickerViewController, didSelect contacts: [CNContact]) {
         let formatter = CNContactFormatter()
         formatter.style = .fullName
@@ -270,13 +259,14 @@ class NewGroupController : UIViewController, CNContactPickerDelegate, UIImagePic
         createButton.isEnabled = !(groupName.text?.isEmpty)! && contacts.count > 0
     }
     
+    // Contact picker delegate
     func contactPickerDidCancel(_ picker: CNContactPickerViewController) {
         contactsController?.data.contacts.removeAll()
         
         contactsController?.tableView.reloadData()
     }
     
-    // Image picker
+    // Image picker delegate
     func imagePickerController(
         _ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [String : Any]
     ) {
@@ -293,6 +283,7 @@ class NewGroupController : UIViewController, CNContactPickerDelegate, UIImagePic
         dismiss(animated: true, completion: nil)
     }
     
+    // Image picker delegate
     func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
         dismiss(animated: true, completion: nil)
     }
@@ -410,13 +401,14 @@ class NewGroupController : UIViewController, CNContactPickerDelegate, UIImagePic
         _ = navigationController?.popViewController(animated: true)
     }
     
+    // Invite by email non existing users to join this app.
     @IBAction func inviteContact(_ sender: Any) {
         if( contactsController == nil ) {
             return
         }
         
         let mailComposer = MFMailComposeViewController()
-        mailComposer.setSubject("Invitation to join ChitChat conversations")
+        mailComposer.setSubject("Invitation to join ChatterGroup conversations")
         
         var recipients = [String]()
         for c in contactsController!.data.contacts {

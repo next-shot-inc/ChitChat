@@ -60,7 +60,9 @@ class BubbleView : UIView {
         }
         
         context.saveGState()
-        let size = self.bounds.size
+        var size = self.bounds.size
+        size.width -= 3
+        size.height -= 3
         
         context.translateBy(x: size.width, y: size.height/2)
         context.scaleBy(x: size.width/27.5, y: size.height/26)
@@ -78,6 +80,10 @@ class BubbleView : UIView {
         if( strokeColor != nil ) {
             context.setStrokeColor(strokeColor!.cgColor)
             context.strokePath()
+            context.setShadow(offset: CGSize(width: 3, height: 3), blur: 5)
+            context.addPath(path)
+            context.setFillColor(UIColor.white.cgColor)
+            context.fillPath()
         }
         
         if( fillColor != nil ) {

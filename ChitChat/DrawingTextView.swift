@@ -583,7 +583,8 @@ class Generate1DLocations {
         for _ in 0..<k {
             // Generate a point choosen uniformly from the spherical annulus between radius r and 2r around p
             let rr = drand48()*Double(r) + Double(r)
-            let x1 = x + Float(rr*cos(drand48()*360/M_2_PI))
+            let angle = drand48()*360/M_2_PI
+            let x1 = x + Float(rr)*Float(cos(angle).sign == .minus ? -1 : 1)
             if( x1 < xmin || x1 > xmax ) {
                 continue
             }

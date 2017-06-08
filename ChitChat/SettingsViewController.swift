@@ -13,6 +13,7 @@ struct Settings {
     var nb_of_days_to_fetch = 5
     var nb_of_days_to_keep = 10
     var palette = 0
+    var round_bubbles = false
     var purchased_something = false
 }
 
@@ -57,6 +58,11 @@ class SettingsDB {
         if( purchased_something != nil ) {
             settings.purchased_something = purchased_something!
         }
+        
+        let round_bubbles = keyStore?.bool(forKey: "round_bubbles")
+        if( round_bubbles != nil ) {
+            settings.round_bubbles = round_bubbles!
+        }
     }
     
     func put() {
@@ -98,6 +104,7 @@ class SettingsViewController: UIViewController, UIImagePickerControllerDelegate,
     @IBOutlet weak var purchaseButton: UIButton!
     @IBOutlet weak var restorePurchaseButton: UIButton!
     @IBOutlet weak var maximumKeepDaysLabel: UILabel!
+    @IBOutlet weak var roundBubblesSwitch: UISwitch!
     
     var changedIcon = false
     var iapView : SettingsInAppPurchaseView?
@@ -130,6 +137,9 @@ class SettingsViewController: UIViewController, UIImagePickerControllerDelegate,
         view.addGestureRecognizer(tapper)
         
         maximumKeepDaysLabel.text = "maximum: \(defaultMaximumKeepDays) days"
+        
+        roundBubblesSwitch.isOn = settingsDB.settings.round_bubbles
+        
         initPurchaseZone()
     }
     
@@ -139,6 +149,7 @@ class SettingsViewController: UIViewController, UIImagePickerControllerDelegate,
     }
     
     override func viewWillDisappear(_ animated: Bool) {
+        settingsDB.settings.round_bubbles = roundBubblesSwitch.isOn
         settingsDB.put()
         
         var modifyUser = false
@@ -208,7 +219,10 @@ class SettingsViewController: UIViewController, UIImagePickerControllerDelegate,
     func imagePickerController(
         _ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [String : Any]
     ) {
-        let chosenImage = info[UIImagePickerControllerOriginalImage] as! UIImage
+        guard let chosenImage = info[UIImagePickerControllerOriginalImage] as? UIImage else {
+            dismiss(animated: true, completion: nil)
+            return
+        }
         
         let imageSize = chosenImage.size
         let sx = 32/imageSize.width

@@ -31,6 +31,8 @@ class LoginViewController : UIViewController, UITextFieldDelegate {
     
     var user: User?
     var usedRecovery = false
+    var activeTextFieldRect : CGRect?
+    var keyboardRect : CGRect?
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -41,6 +43,8 @@ class LoginViewController : UIViewController, UITextFieldDelegate {
         userName.delegate = self
         passwordField.delegate = self
         confirmPassordField.delegate = self
+        recoveryQuestionField.delegate = self
+        recoveryAnswerField.delegate = self
         
         let tapper = UITapGestureRecognizer(target: self, action:#selector(endEditing))
         tapper.cancelsTouchesInView = false
@@ -51,6 +55,11 @@ class LoginViewController : UIViewController, UITextFieldDelegate {
         
         NotificationCenter.default.addObserver(self, selector: #selector(LoginViewController.keyboardWillHide(_:)), name: NSNotification.Name.UIKeyboardWillHide, object: nil)
 
+    }
+    
+    deinit {
+        NotificationCenter.default.removeObserver(self, name: NSNotification.Name.UIKeyboardWillShow, object: nil)
+        NotificationCenter.default.removeObserver(self, name: NSNotification.Name.UIKeyboardWillHide, object: nil)
     }
     
     override func didReceiveMemoryWarning() {
@@ -203,6 +212,10 @@ class LoginViewController : UIViewController, UITextFieldDelegate {
     
     // TextField delegate for all text fields in the view
     func textFieldDidEndEditing(_ textField: UITextField) {
+        // manage keyboard
+        activeTextFieldRect = nil
+        adjustForKeyboard()
+
         // Test textfields.
         loginButton.isEnabled = (!userName.text!.isEmpty) && (!telephone.text!.isEmpty) && (!passwordField.text!.isEmpty) && (confirmPassordField.isHidden == true || (!confirmPassordField.text!.isEmpty) && (confirmPassordField.text! == passwordField.text!) && !recoveryQuestionField.text!.isEmpty && !recoveryAnswerField.text!.isEmpty)
         
@@ -247,7 +260,9 @@ class LoginViewController : UIViewController, UITextFieldDelegate {
                     }
                 })
                 
-                errorLabel.text = "Will use " + telephoneNumber
+                if( telephone.text! != telephoneNumber ) {
+                   errorLabel.text = "Will use " + telephoneNumber
+                }
                 
             } catch let error as PhoneNumberError {
                 errorLabel.text = error.errorDescription
@@ -287,6 +302,7 @@ class LoginViewController : UIViewController, UITextFieldDelegate {
         usedRecovery = true
     }
     
+    // Outside text field tap - End editing.
     func endEditing() {
         telephone.resignFirstResponder()
         userName.resignFirstResponder()
@@ -296,27 +312,43 @@ class LoginViewController : UIViewController, UITextFieldDelegate {
         recoveryAnswerField.resignFirstResponder()
     }
     
-    // Keyboard handling
-    func keyboardWillHide(_ sender: Notification) {
-        if let userInfo = (sender as NSNotification).userInfo {
-            if let _ = (userInfo[UIKeyboardFrameEndUserInfoKey] as? NSValue)?.cgRectValue.size.height {
-                //key point 0,
-                self.bottomConstraint.constant = 10
-                
-                //textViewBottomConstraint.constant = keyboardHeight
-                UIView.animate(withDuration: 0.25, animations: { () -> Void in
-                    self.view.layoutIfNeeded()
-                })
+    func textFieldDidBeginEditing(_ textField: UITextField) {
+        activeTextFieldRect = textField.frame
+        adjustForKeyboard()
+    }
+    
+    func adjustForKeyboard() {
+        if( keyboardRect != nil && activeTextFieldRect != nil ) {
+            if( keyboardRect!.intersects(activeTextFieldRect!) ) {
+               //self.bottomConstraint.constant = keyboardRect!.height
+               UIView.animate(withDuration: 0.25, animations: { () -> Void in
+                  //self.view.layoutIfNeeded()
+                  self.view.frame = self.view.frame.offsetBy(dx: 0, dy: -self.keyboardRect!.height)
+               })
             }
+
+        } else {
+            //key point 0,
+            //self.bottomConstraint.constant = 10
+            
+            UIView.animate(withDuration: 0.25, animations: { () -> Void in
+                //self.view.layoutIfNeeded()
+                self.view.frame = CGRect(x: 0, y: 0, width: self.view.frame.width, height: self.view.frame.height)
+            })
         }
     }
+    
+    // Keyboard handling
+    func keyboardWillHide(_ sender: Notification) {
+        keyboardRect = nil
+        adjustForKeyboard()
+    }
+    
     func keyboardWillShow(_ sender: Notification) {
         if let userInfo = (sender as NSNotification).userInfo {
-            if let keyboardHeight = (userInfo[UIKeyboardFrameEndUserInfoKey] as? NSValue)?.cgRectValue.size.height {
-                self.bottomConstraint.constant = keyboardHeight
-                UIView.animate(withDuration: 0.25, animations: { () -> Void in
-                    self.view.layoutIfNeeded()
-                })
+            if let rect = (userInfo[UIKeyboardFrameEndUserInfoKey] as? NSValue)?.cgRectValue {
+                keyboardRect = rect
+                adjustForKeyboard()
             }
         }
     }
@@ -422,6 +454,9 @@ class LoginFunctions {
     }
     
     class func verify(user: User, password: String) -> Bool {
+        if( user.passKey == nil ) {
+            return true
+        }
         let augmented_password = user.id.id + password
         let passKey = hexKey(value: hash(string: augmented_password))
         return passKey == user.passKey

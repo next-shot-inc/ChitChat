@@ -42,6 +42,10 @@ class MessageCell : UICollectionViewCell, MessageBaseCellDelegate {
     @IBOutlet weak var icon: UIImageView!
     @IBOutlet weak var fromLabel: UILabel!
     @IBOutlet weak var editButton: UIButton!
+    @IBOutlet weak var messageBoxTopSpace: NSLayoutConstraint!
+    @IBOutlet weak var messageBoxLeftSpace: NSLayoutConstraint!
+    @IBOutlet weak var messageBoxBottomSpace: NSLayoutConstraint!
+    @IBOutlet weak var messageBoxRightSpace: NSLayoutConstraint!
     
     var message: Message?
     
@@ -62,6 +66,13 @@ class MessageCell : UICollectionViewCell, MessageBaseCellDelegate {
         
         editButton.isHidden = !(message.user_id.id == model.me().id.id &&
             controller?.data?.messages.last === message)
+        
+        if( settingsDB.settings.round_bubbles == false ) {
+            messageBoxTopSpace.constant = 4
+            messageBoxBottomSpace.constant = 4
+            messageBoxLeftSpace.constant = 4
+            messageBoxRightSpace.constant = 4
+        }
     }
 
     @IBAction func editAction(_ sender: Any) {
@@ -168,6 +179,10 @@ class DecoratedMessageCell : UICollectionViewCell, MessageBaseCellDelegate {
     @IBOutlet weak var labelView: UIView!
     @IBOutlet weak var fromLabel: UILabel!
     @IBOutlet weak var editButton: UIButton!
+    @IBOutlet weak var messageBoxBottomSpace: NSLayoutConstraint!
+    @IBOutlet weak var messageBoxRightSpace: NSLayoutConstraint!
+    @IBOutlet weak var messageBoxTopSpace: NSLayoutConstraint!
+    @IBOutlet weak var messageBoxLeftSpace: NSLayoutConstraint!
     
     var waitingForImages = false
     weak var controller : MessagesViewController?
@@ -217,6 +232,13 @@ class DecoratedMessageCell : UICollectionViewCell, MessageBaseCellDelegate {
         editButton.isHidden = !(message.user_id.id == model.me().id.id &&
                                controller?.data?.messages.last === message)
         
+        if( settingsDB.settings.round_bubbles == false ) {
+            messageBoxTopSpace.constant = 4
+            messageBoxBottomSpace.constant = 4
+            messageBoxLeftSpace.constant = 4
+            messageBoxRightSpace.constant = 4
+        }
+        
     }
     
     @IBAction func editAction(_ sender: Any) {
@@ -262,8 +284,8 @@ class TextMessageCellSizeDelegate : MessageBaseCellSizeDelegate {
         let text = message.text
         //let nstext = NSString(string: text)
         
-        let bubblevSpacing: CGFloat = 30
-        let bubblehSpacing: CGFloat = 20
+        let bubblevSpacing: CGFloat = settingsDB.settings.round_bubbles ? 40 : 0
+        let bubblehSpacing: CGFloat = settingsDB.settings.round_bubbles ? 50 : 0
         let heightFromLabel : CGFloat = 16
         let hspacing : CGFloat = 10
         let vspacing : CGFloat = 4
@@ -279,7 +301,7 @@ class TextMessageCellSizeDelegate : MessageBaseCellSizeDelegate {
         //let rect = nstext.boundingRect(with: CGSize(width: width, height: 1500), options: .usesLineFragmentOrigin, attributes: [NSFontAttributeName: UIFont.systemFont(ofSize: 17)], context: nil)
         return CGSize(
             width: width,
-            height: max(24,size.height) + 5*vspacing + heightFromLabel + bubblevSpacing
+            height: max(24,size.height) + 3*vspacing + heightFromLabel + bubblevSpacing
         )
     }
 }
@@ -289,8 +311,8 @@ class DecoratedTextMessageCellSizeDelegate : TextMessageCellSizeDelegate {
         let text = message.text
         //let nstext = NSString(string: text)
        
-        let bubblevSpacing: CGFloat = 60
-        let bubblehSpacing: CGFloat = 40
+        let bubblevSpacing: CGFloat = settingsDB.settings.round_bubbles ? 60 : 0
+        let bubblehSpacing: CGFloat = settingsDB.settings.round_bubbles ? 40 : 0
         let heightFromLabel : CGFloat = 16
         let hspacing : CGFloat = 10
         let vspacing : CGFloat = 4
@@ -489,17 +511,23 @@ class MessagesData : MessageCollectionViewHelper, UICollectionViewDataSource {
         if( uiView != nil ) {
             let bg = ColorPalette.backgroundColor(message: message)
             let bubbleView = uiView as? BubbleView
-            if( bubbleView != nil ) {
+            if( bubbleView != nil && settingsDB.settings.round_bubbles ) {
                 bubbleView!.fillColor = bg
                 bubbleView!.strokeColor = ColorPalette.colors[.borderColor]
                 bubbleView!.setNeedsDisplay()
             } else {
-               uiView!.backgroundColor = bg
-
-               uiView!.layer.masksToBounds = true
-               uiView!.layer.cornerRadius = 6
-               uiView!.layer.borderColor = ColorPalette.colors[.borderColor]?.cgColor
-               uiView!.layer.borderWidth = 1.0
+                if( bubbleView != nil ) {
+                    bubbleView!.strokeColor = UIColor.clear
+                }
+                uiView!.backgroundColor = bg
+                
+                uiView!.layer.masksToBounds = false
+                uiView!.layer.cornerRadius = 6
+                uiView!.layer.borderColor = ColorPalette.colors[.borderColor]?.cgColor
+                uiView!.layer.borderWidth = 1.0
+                uiView!.layer.shadowOpacity = 0.5
+                uiView!.layer.shadowOffset = CGSize(width: 1.0, height: 1.0)
+                uiView!.layer.shadowRadius = 2
             }
         }
 

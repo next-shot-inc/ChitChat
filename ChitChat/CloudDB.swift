@@ -1005,6 +1005,17 @@ class CloudDBModel : DBProtocol {
         self.publicDB.save(record, completionHandler: self.saveCompletionHandler)
     }
     
+    func addUserToFriends(user: User, friend: User) {
+        let record = CKRecord(recordType: "FriendsUserFolder")
+        record["friend_id"] = NSString(string: friend.id.id)
+        record["user_id"] = NSString(string: user.id.id)
+        let frbid = friend.id as? CloudRecordId
+        if( frbid != nil ) {
+            record["friend_reference"] = CKReference(record: frbid!.record, action: .none)
+        }
+        self.publicDB.save(record, completionHandler: self.saveCompletionHandler)
+    }
+    
     func saveConversationThread(conversationThread: ConversationThread) {
         let dbid = conversationThread.id as? CloudRecordId
         var record : CKRecord
@@ -1278,6 +1289,42 @@ class CloudDBModel : DBProtocol {
             }
         })
     }
+    
+    func getFriendsForUser(userId: RecordId, completion: @escaping ([User]) -> ()) {
+        let query = CKQuery(recordType: "FriendsUserFolder", predicate: NSPredicate(format: String("user_id = %@"), argumentArray: [userId.id]))
+        publicDB.perform(query, inZoneWith: nil, completionHandler: { results, error -> Void in
+            self.getCompletionHandler(error: error)
+            
+            if results != nil && results!.count > 0 {
+                var fr_rids = [CKRecordID]()
+                for r in results! {
+                    let fr_ref = r["friend_reference"] as! CKReference
+                    fr_rids.append(fr_ref.recordID)
+                }
+                
+                let fetchOp = CKFetchRecordsOperation(recordIDs: fr_rids)
+                fetchOp.database = self.publicDB
+                fetchOp.fetchRecordsCompletionBlock = ({ recordsTable , error -> Void in
+                    if( recordsTable == nil ) {
+                        return
+                    }
+                    var users = [User]()
+                    for fr_id in fr_rids {
+                        let record = recordsTable![fr_id]
+                        if( record != nil ) {
+                            let user = User(record: record!)
+                            users.append(user)
+                        }
+                    }
+                    completion(users)
+                })
+                fetchOp.start()
+            } else {
+                completion([])
+            }
+        })
+    }
+
     
     func getActivitiesForGroups(groups: [Group], completion: @escaping (([GroupActivity]) -> Void )) {
         var ac_rids = [CKRecordID]()

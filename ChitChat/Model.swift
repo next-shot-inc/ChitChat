@@ -321,6 +321,17 @@ class MemoryModel {
         }
     }
     
+    func update(users: [User]) {
+        for user in users {
+            let contained = self.users.contains(where: { (usr) -> Bool in
+                user.id == usr.id
+            })
+            if( !contained ) {
+                self.users.append(user)
+            }
+        }
+    }
+    
     func update(group: Group, cthreads: [ConversationThread]) -> [ConversationThread] {
         // See if there are some only-in-memory conversations
         var included = cthreads
@@ -527,6 +538,9 @@ class MemoryModelView : ModelView {
             }
             // Update conversation thread date (as no events is sent)
             memory_model.updateThread(message: message)
+        } else {
+            memory_model.messages = [Message]()
+            memory_model.messages!.append(message)
         }
     }
     
@@ -742,6 +756,14 @@ class DataModel {
             self.sortGroup(groups: self.memory_model.groups!, completion: { (sorted_groups) -> () in
                 return completion(sorted_groups)
             })
+        })
+    }
+    
+    func getFriends(completion: @escaping ([User]) -> ()) {
+        db_model.getFriendsForUser(userId: me().id, completion: { (users) -> () in
+            self.memory_model.update(users: users)
+            
+            return completion(users)
         })
     }
     
@@ -1021,6 +1043,7 @@ class DataModel {
     
     func saveMessage(message: Message, completion: @escaping () -> ()) {
         db_model.saveMessage(message: message, completion: completion)
+        
         for mv in views {
             if( mv.notify_new_message != nil ) {
                 mv.notify_new_message!(message)
@@ -1031,6 +1054,10 @@ class DataModel {
     func addUserToGroup(group: Group, user: User) {
         db_model.addUserToGroup(group: group, user: user, by: me())
         memory_model.groupUserFolder.append((group: group, user: user))
+    }
+    
+    func addUserToFriend(user: User) {
+        db_model.addUserToFriends(user: me(), friend: user)
     }
     
     func saveConversationThread(conversationThread: ConversationThread) {

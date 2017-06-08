@@ -15,7 +15,6 @@ class GroupCell : UITableViewCell {
     
     @IBOutlet weak var iconView: UIView!
     @IBOutlet weak var date: UILabel!
-    @IBOutlet weak var details: UILabel!
     @IBOutlet weak var icon: UIImageView!
     @IBOutlet weak var label: UILabel!
     
@@ -30,10 +29,18 @@ class GroupTableDelegate : NSObject, UITableViewDelegate {
     }
     
     func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
-        return 70
+        return 100
     }
     
     func tableView(_ tableView: UITableView, editActionsForRowAt indexPath: IndexPath) -> [UITableViewRowAction]? {
+        if( indexPath.section == 1 ) {
+            return nil
+        }
+        let group = controller!.data!.groups[indexPath.row]
+        if( group.name == "%%Symetric%%" ) {
+            return nil
+        }
+        
         let canEdit = controller != nil && controller!.data != nil ? model.db_model.isCreatedByUser(record: controller!.data!.groups[indexPath.row].id) : false
         
         let edit = UITableViewRowAction(style: .normal, title: canEdit ? "Edit" : "View") { action, index in
@@ -65,90 +72,85 @@ class GroupModelView : ModelView {
 
 class GroupData : NSObject, UITableViewDataSource {
     var groups = [Group]()
+    var silent_friends = [User]()
+    weak var controller : GroupViewController?
     
-    override init() {
+    init(controller: GroupViewController) {
+        self.controller = controller
     }
     
     func numberOfSections(in tableView: UITableView) -> Int {
-        return 1
+        return 2
     }
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return groups.count
+        if( section == 0 ) {
+            return groups.count
+        } else {
+            return silent_friends.count
+        }
     }
     
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: "GroupCell") as! GroupCell
         
-        let group = groups[indexPath.row]
-        cell.label.text = group.name
-        
-        model.getThreadsForGroup(group: group, completion: { (cthreads) -> Void in
-            let count = model.groupMessageUnread(group: group, cthreads: cthreads)
-            if( count != 0 ) {
-                DispatchQueue.main.async(execute: { () -> Void in
-                    cell.label.text = group.name + " (" + String(count) + ")"
-                })
-            }
-        })
-        
-        cell.group = group
-        cell.icon.image = group.icon
-        if( cell.icon.image == nil ) {
-            cell.icon.image = UIImage(named: "group-32")
-        }
-        cell.details.text = group.details
-        
-        model.getUsersAndInvitedForGroup(group: group, completion: { (users, invitations) -> Void in
-            var details = String()
-            for user in users {
-                if( !details.isEmpty ) {
-                    details += ", "
+        if( indexPath.section == 0 ) {
+            let group = groups[indexPath.row]
+            let groupName = FriendsAndGroup.getName(group: group)
+            cell.label.text = groupName
+            
+            model.getThreadsForGroup(group: group, completion: { (cthreads) -> Void in
+                let count = model.groupMessageUnread(group: group, cthreads: cthreads)
+                if( count != 0 ) {
+                    DispatchQueue.main.async(execute: { () -> Void in
+                        cell.label.text = groupName + " (" + String(count) + ")"
+                    })
                 }
-                if( user.label != nil ) {
-                    details += user.label!
-                }
-            }
-            for invite in invitations {
-                if( !details.isEmpty ) {
-                    details += ", "
-                }
-                details += invite.to_user
-            }
-            DispatchQueue.main.async(execute: { () -> Void in
-                  cell.details.text = details
             })
-        })
-        
-        model.getActivityForGroup(groupId: group.id, completion: { (activity) -> Void in
-            if( activity == nil ) {
-                return
-            }
-            let longDateFormatter = DateFormatter()
-            longDateFormatter.locale = Locale.current
-            longDateFormatter.setLocalizedDateFormatFromTemplate("MMM d, HH:mm")
-            longDateFormatter.timeZone = TimeZone.current
             
-            let longDate = longDateFormatter.string(from: activity!.last_modified)
-            cell.date.text = longDate
-            
-            if( activity!.last_message == "%%Thumb-up%%" ) {
-                cell.last_message.text = "Thumb up"
-            } else {
-                cell.last_message.text = activity!.last_message
+            cell.group = group
+            cell.icon.image = FriendsAndGroup.getIcon(group: group)
+            if( cell.icon.image == nil ) {
+                cell.icon.image = UIImage(named: "group-32")
             }
             
-            cell.last_user.text = " "
-            if( activity!.last_userId != nil ) {
-                if( activity!.last_userId! == model.me().id ) {
-                    cell.last_user.text = "Me: "
+            model.getActivityForGroup(groupId: group.id, completion: { (activity) -> Void in
+                if( activity == nil ) {
+                    return
+                }
+                let longDateFormatter = DateFormatter()
+                longDateFormatter.locale = Locale.current
+                longDateFormatter.setLocalizedDateFormatFromTemplate("MMM d, HH:mm")
+                longDateFormatter.timeZone = TimeZone.current
+                
+                let longDate = longDateFormatter.string(from: activity!.last_modified)
+                cell.date.text = longDate
+                
+                if( activity!.last_message == "%%Thumb-up%%" ) {
+                    cell.last_message.text = "Thumb up"
                 } else {
-                    let user = model.getUser(userId: activity!.last_userId!)
-                    if( user != nil && user!.label != nil ) {
-                        cell.last_user.text = user!.label! + ":"
+                    cell.last_message.text = activity!.last_message
+                }
+                
+                cell.last_user.text = " "
+                if( activity!.last_userId != nil ) {
+                    if( activity!.last_userId! == model.me().id ) {
+                        cell.last_user.text = "Me: "
+                    } else {
+                        let user = model.getUser(userId: activity!.last_userId!)
+                        if( user != nil && user!.label != nil ) {
+                            cell.last_user.text = user!.label! + ":"
+                        }
                     }
                 }
-            }
-        })
+            })
+        } else {
+            let user = silent_friends[indexPath.row]
+            cell.label.text = user.label!
+            cell.icon.image = user.icon
+            cell.date.text = ""
+            cell.last_user.text = ""
+            cell.last_message.text = "Select to start a conversation"
+        }
         
         cell.iconView.layer.masksToBounds = true
         cell.iconView.layer.cornerRadius = 10
@@ -169,6 +171,7 @@ class GroupViewController: UITableViewController {
     var activityView: UIActivityIndicatorView?
     var modelView: GroupModelView?
     var setupFailed = false
+    var friendsAndGroup : FriendsAndGroup?
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -222,7 +225,7 @@ class GroupViewController: UITableViewController {
         model.getUserInfo(completion: { (status, newUser) -> Void in
             
             if( status == false ) {
-                self.data = GroupData()
+                self.data = GroupData(controller: self)
                 self.tableView.dataSource = self.data
                 
                 DispatchQueue.main.async(execute: {
@@ -251,7 +254,7 @@ class GroupViewController: UITableViewController {
                 model.setAppBadgeNumber(number: 0)
             }
             
-            self.data = GroupData()
+            self.data = GroupData(controller: self)
             self.tableView.dataSource = self.data
             
             // Get settings information to initialize UI stuff.
@@ -302,10 +305,15 @@ class GroupViewController: UITableViewController {
                             self.activityView!.stopAnimating()
                             self.activityView!.removeFromSuperview()
                             self.activityView = nil
-                            
-                            model.deleteOldStuff(numberOfDays: settingsDB.settings.nb_of_days_to_keep)
                         }
                     })
+                    
+                    self.friendsAndGroup = FriendsAndGroup(groups: groups, completion: { (users) in
+                        self.data!.silent_friends = users
+                        self.tableView.reloadData()
+                    })
+                    
+                    model.deleteOldStuff(numberOfDays: settingsDB.settings.nb_of_days_to_keep)
                 }))
             }
         })
@@ -338,8 +346,19 @@ class GroupViewController: UITableViewController {
                     self.data!.groups = groups
                     self.tableView.reloadData()
                 })
+                
+                self.friendsAndGroup = FriendsAndGroup(groups: groups, completion: { (users) in
+                    self.data!.silent_friends = users
+                    self.tableView.reloadData()
+                })
             })
         }
+        
+        self.navigationController?.isToolbarHidden = false
+    }
+    
+    override func viewWillDisappear(_ animated: Bool) {
+        self.navigationController?.isToolbarHidden = true
     }
     
     override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
@@ -348,8 +367,16 @@ class GroupViewController: UITableViewController {
             if( cc != nil ) {
                 let si = tableView.indexPathForSelectedRow
                 if( si != nil ) {
-                    cc!.group = data!.groups[si!.row]
-                    cc!.title = data!.groups[si!.row].name
+                    if( si!.section == 0 ) {
+                        cc!.group = data!.groups[si!.row]
+                        cc!.title = data!.groups[si!.row].name
+                        cc!.title = FriendsAndGroup.getName(group: data!.groups[si!.row])
+                    } else {
+                        let user = data!.silent_friends[si!.row]
+                        let group = friendsAndGroup?.createGroup(user: user)
+                        cc!.group = group
+                        cc!.title = user.label
+                    }
                 }
             }
         }

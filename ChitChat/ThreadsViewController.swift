@@ -104,6 +104,11 @@ class MessageCollectionViewHelper : NSObject {
                 self.dateLimit = cachedDateLimit
                 self.dataRequested = false
                 
+                if( messages.count <= 5 && dateLimit.max+5 < settingsDB.settings.nb_of_days_to_fetch) {
+                    self.requestMore(collectionView: collectionView, scroll: scroll)
+                    return
+                }
+                
                 var indexPaths = [IndexPath]()
                 var count = 0
                 for nm in messages {

@@ -13,6 +13,7 @@ import Foundation
 protocol DBProtocol {
     func getUsersForGroup(groupId: RecordId, completion: @escaping ([User]) -> ())
     func getGroupsForUser(userId: RecordId, completion: @escaping ([Group]) -> ())
+    func getFriendsForUser(userId: RecordId, completion: @escaping ([User]) -> ())
     func getThreadsForGroup(groupId: RecordId, completion: @escaping ([ConversationThread]) -> ())
     func getThread(threadId: RecordId, completion: @escaping (ConversationThread?) -> ())
     func getMessagesForThread(threadId: RecordId, completion: @escaping ([Message]) -> ())
@@ -37,6 +38,7 @@ protocol DBProtocol {
     func saveGroup(group: Group)
     func saveActivity(activity: GroupActivity)
     func addUserToGroup(group: Group, user: User, by: User)
+    func addUserToFriends(user: User, friend: User)
     func saveConversationThread(conversationThread: ConversationThread)
     func saveActivity(activity: UserActivity)
     func saveDecorationThemes(themes: [DecorationTheme])
@@ -93,6 +95,10 @@ class InMemoryDB : DBProtocol {
         completion(groups)
     }
     
+    func getFriendsForUser(userId: RecordId, completion: @escaping ([User]) -> ()) {
+        // TODO
+    }
+    
     func getUsersForGroup(groupId: RecordId, completion: @escaping ([User]) -> ()) {
         let uids = groupUserFolder.getUsers(group_id: groupId)
         var users = [User]()
@@ -136,7 +142,7 @@ class InMemoryDB : DBProtocol {
     }
     
     func getMessagesForThread(threadId: RecordId, dateLimit: (min: Int, max: Int), completion: @escaping ([Message]) -> ()) {
-        
+        // TODO
     }
     
     func getMessageLargeImage(message: Message, completion: @escaping () -> ()) {
@@ -198,12 +204,16 @@ class InMemoryDB : DBProtocol {
     }
     
     func getDecorationStamps(theme: DecorationTheme, completion: @escaping ([DecorationStamp]) -> ()) {
+        // TODO
     }
     func getDecorationThemes(completion: @escaping ([DecorationTheme]) -> ()) {
+        // TODO
     }
     func getPollVotes(poll: Message, completion: @escaping ([PollRecord]) -> Void ) {
+        // TODO
     }
     func savePollVote(pollRecord: PollRecord) {
+        // TODO
     }
     
     func saveUser(user: User, completion: @escaping (_ status: Bool) -> ()) {
@@ -216,6 +226,7 @@ class InMemoryDB : DBProtocol {
     }
     
     func saveUserInvitation(userInvitation: UserInvitation) {
+        // TODO
     }
     
     func saveMessage(message: Message, completion : @escaping () -> ()) {
@@ -232,6 +243,11 @@ class InMemoryDB : DBProtocol {
     func addUserToGroup(group: Group, user: User, by: User) {
         groupUserFolder.entries.append((user_id: user.id, group_id: group.id))
     }
+    
+    func addUserToFriends(user: User, friend: User) {
+        // TODO
+    }
+    
     func saveConversationThread(conversationThread: ConversationThread) {
         conversations.append(conversationThread)
     }
@@ -242,9 +258,10 @@ class InMemoryDB : DBProtocol {
         group_activities.append(activity)
     }
     func saveDecorationThemes(themes: [DecorationTheme]) {
-        
+        // TODO
     }
     func saveDecorationStamps(stamps: [DecorationStamp]) {
+        // TODO
     }
     
     func setupNotifications(cthread: ConversationThread) {
