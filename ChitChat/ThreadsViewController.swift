@@ -79,6 +79,9 @@ class MessageCollectionViewHelper : NSObject {
         self.cthread = cthread
     }
 
+    // Request more messages in older intervals.
+    // The request loops stops when there is enough messages 
+    // and/or the limits of days to fetch is reached.
     func requestMore(collectionView: UICollectionView, scroll: Bool = true) {
         if( dataRequested == true ) {
             return
@@ -104,11 +107,6 @@ class MessageCollectionViewHelper : NSObject {
                 self.dateLimit = cachedDateLimit
                 self.dataRequested = false
                 
-                if( messages.count <= 5 && dateLimit.max+5 < settingsDB.settings.nb_of_days_to_fetch) {
-                    self.requestMore(collectionView: collectionView, scroll: scroll)
-                    return
-                }
-                
                 var indexPaths = [IndexPath]()
                 var count = 0
                 for nm in messages {
@@ -132,11 +130,15 @@ class MessageCollectionViewHelper : NSObject {
                         collectionView.scrollToItem(at: IndexPath(row: self.messages.count - 1, section: 0), at: self.scrollingPosition, animated: false)
                     }
                 }
+                
+                // If there is still not enough messages (to enable scrolling), request some more.
+                if( self.messages.count <= 5 && dateLimit.max+5 < settingsDB.settings.nb_of_days_to_fetch) {
+                    self.requestMore(collectionView: collectionView, scroll: scroll)
+                    return
+                }
             })
         })
-        
     }
-
 }
 
 class ThreadRowData : MessageCollectionViewHelper, UICollectionViewDataSource {
@@ -210,6 +212,7 @@ class ThreadRowData : MessageCollectionViewHelper, UICollectionViewDataSource {
         */
         labelView.fillColor = bg
         labelView.strokeColor = ColorPalette.colors[ColorPalette.States.borderColor]
+        labelView.strokeWidth = ColorPalette.lineWidth(message: m)*2
         labelView.setNeedsDisplay()
         
         return cell

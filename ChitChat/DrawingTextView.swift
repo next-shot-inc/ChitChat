@@ -303,18 +303,6 @@ class DrawingTextView: UILabel {
         
         top_polyline.translate(x: size.width / 2, y: size.height / 2)
         bot_polyline.translate(x: size.width / 2, y: size.height / 2)
-        /*
-        context.move (to: CGPoint(x: polyline.vertices[0].x, y: polyline.vertices[0].y))
-        for i in 1 ..< polyline.vertices.count {
-            context.addLine(to: CGPoint(x: polyline.vertices[i].x, y: polyline.vertices[i].y))
-        }
-        context.strokePath()
-        context.move (to: CGPoint(x: bot_polyline.vertices[0].x, y: bot_polyline.vertices[0].y))
-        for i in 1 ..< bot_polyline.vertices.count {
-            context.addLine(to: CGPoint(x: bot_polyline.vertices[i].x, y: bot_polyline.vertices[i].y))
-        }
-        context.strokePath()
-        */
 
         return (CGRect(
             origin: CGPoint(x: (bounds.minX + bounds.maxX)/2 - cgSize.width/2,
@@ -390,19 +378,33 @@ class DrawingTextView: UILabel {
             topLine.vertices.append(Point2d(x: x1, y: box.height*0.33))
         }
         if( botLine.vertices.count > 0 ) {
-            if( botLine.vertices.first!.x > x0 ) {
-                botLine.vertices.insert(Point2d(x: x0, y: botLine.vertices.first!.y), at: 0)
+            // Note: botLine is reversed compared to topLine.
+            if( botLine.vertices.first!.x > x1 ) {
+                botLine.vertices.insert(Point2d(x: x1, y: botLine.vertices.first!.y), at: 0)
             }
-            if( botLine.vertices.last!.x < x1 ) {
-                botLine.vertices.append(Point2d(x: x1, y: botLine.vertices.last!.y))
+            if( botLine.vertices.last!.x < x0 ) {
+                botLine.vertices.append(Point2d(x: x0, y: botLine.vertices.last!.y))
             }
         } else {
             botLine.vertices.append(Point2d(x: x0, y: box.height*0.66))
             botLine.vertices.append(Point2d(x: x1, y: box.height*0.66))
         }
-
         
         guard let context = UIGraphicsGetCurrentContext() else { return }
+        
+        /*
+        context.move (to: CGPoint(x: topLine.vertices[0].x, y: topLine.vertices[0].y))
+        for i in 1 ..< topLine.vertices.count {
+            context.addLine(to: CGPoint(x: topLine.vertices[i].x, y: topLine.vertices[i].y))
+        }
+        context.strokePath()
+        context.move (to: CGPoint(x: botLine.vertices[0].x, y: botLine.vertices[0].y))
+        for i in 1 ..< botLine.vertices.count {
+            context.addLine(to: CGPoint(x: botLine.vertices[i].x, y: botLine.vertices[i].y))
+        }
+        context.strokePath()
+        */
+        
         let width : CGFloat = 32
         let height : CGFloat = 32
         
@@ -413,9 +415,11 @@ class DrawingTextView: UILabel {
         func drawStampsAlongLine(
             line: Polyline,offset: CGFloat
         ) {
-            let locs = gen.generate(n: 5, r: Float(width), xmin: 0, xmax: Float(line.length()))
-            
             let pline = ParametricPolyline(polyline: line)
+            
+            let n = Int((pline.distance.last ?? 0.0)/Double(width)*1.2)
+            let locs = gen.generate(n: n, r: Float(width)*1.2, xmin: 0, xmax: Float((pline.distance.last ?? 0.0)))
+            
             for loc in locs {
                 var p = pline.location(Double(loc))
                 if( p.x + width/2 > bounds.width ) {
@@ -424,7 +428,8 @@ class DrawingTextView: UILabel {
                 if( p.x - width/2 < 0 ) {
                     p.x = width/2
                 }
-                var rect = CGRect(x: p.x - width/2, y: p.y + offset , width: width, height: height)
+                let offsety = CGFloat(drand48()) * height * (offset.sign == .minus ? -1 : 1)
+                var rect = CGRect(x: p.x - width/2, y: p.y + offset + offsety , width: width, height: height)
                 if( images.count == 1 ) {
                     let scale = drand48()*0.5 + 0.5
                     rect.size = rect.size.applying(CGAffineTransform(scaleX: CGFloat(scale), y: CGFloat(scale)))

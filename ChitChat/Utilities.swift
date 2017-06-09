@@ -199,4 +199,14 @@ class ColorPalette {
         }
         return all_colors[cur][.read]!
     }
+    
+    class func lineWidth(message: Message) -> CGFloat {
+        if( message.user_id != model.me().id ) {
+            let activity = model.getMyActivity(threadId: message.conversation_id)
+            if( activity == nil || activity!.last_read < message.last_modified ) {
+                return 2.0
+            }
+        }
+        return 1.0
+    }
 }

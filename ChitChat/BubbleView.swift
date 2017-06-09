@@ -22,6 +22,7 @@ class BubbleView : UIView {
     @IBInspectable var fillColor : UIColor?
     @IBInspectable var strokeColor: UIColor?
     @IBInspectable var forceStretch : Bool = false
+    var strokeWidth : CGFloat = 2.0
     
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -65,7 +66,11 @@ class BubbleView : UIView {
         size.height -= 3
         
         context.translateBy(x: size.width, y: size.height/2)
-        context.scaleBy(x: size.width/27.5, y: size.height/26)
+        
+        let sx = size.width/27.5
+        let sy = size.height/26
+        let sc = min(sx, sy)
+        context.scaleBy(x: sx, y: sy)
         
         context.move(to: CGPoint(x: -0.5, y: -1))
         var curPoint = context.currentPointOfPath
@@ -73,7 +78,7 @@ class BubbleView : UIView {
            context.addCurve(to: curPoint + points[i*3+2], control1: curPoint + points[i*3], control2: curPoint + points[i*3+1])
             curPoint = context.currentPointOfPath
         }
-        context.setLineWidth(2/size.width*26)
+        context.setLineWidth(strokeWidth/sc)
         context.closePath()
         
         let path = context.path!
@@ -201,7 +206,7 @@ class BubbleView : UIView {
         
         let path = context.path!
         if( strokeColor != nil ) {
-            context.setLineWidth(2)
+            context.setLineWidth(strokeWidth)
 
             context.setStrokeColor(strokeColor!.cgColor)
             context.strokePath()

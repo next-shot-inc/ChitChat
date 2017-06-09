@@ -514,17 +514,22 @@ class MessagesData : MessageCollectionViewHelper, UICollectionViewDataSource {
             if( bubbleView != nil && settingsDB.settings.round_bubbles ) {
                 bubbleView!.fillColor = bg
                 bubbleView!.strokeColor = ColorPalette.colors[.borderColor]
+                bubbleView!.strokeWidth = ColorPalette.lineWidth(message: message)*2
                 bubbleView!.setNeedsDisplay()
             } else {
                 if( bubbleView != nil ) {
                     bubbleView!.strokeColor = UIColor.clear
                 }
-                uiView!.backgroundColor = bg
+                // Shadow and rounded corners.
+                uiView!.layer.cornerRadius = 6
+                uiView!.layer.masksToBounds = true
+                uiView!.backgroundColor = UIColor.clear
+                uiView!.layer.backgroundColor = bg.cgColor
+                
+                uiView!.layer.borderColor = ColorPalette.colors[.borderColor]?.cgColor
+                uiView!.layer.borderWidth = ColorPalette.lineWidth(message: message)
                 
                 uiView!.layer.masksToBounds = false
-                uiView!.layer.cornerRadius = 6
-                uiView!.layer.borderColor = ColorPalette.colors[.borderColor]?.cgColor
-                uiView!.layer.borderWidth = 1.0
                 uiView!.layer.shadowOpacity = 0.5
                 uiView!.layer.shadowOffset = CGSize(width: 1.0, height: 1.0)
                 uiView!.layer.shadowRadius = 2
