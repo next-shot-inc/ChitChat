@@ -1416,7 +1416,7 @@ class CloudDBModel : DBProtocol {
         query.sortDescriptors = [NSSortDescriptor(key: "last_modified", ascending: false)]
         publicDB.perform(query, inZoneWith: nil, completionHandler: { results, error -> Void in
             self.getCompletionHandler(error: error)
-            if results != nil && results!.count > 0 {
+            if results != nil  {
                 var conversationThreads = [ConversationThread]()
                 for r in results! {
                     let co = self.isCreatedByUser(record: r)

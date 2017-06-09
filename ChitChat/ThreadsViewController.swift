@@ -397,6 +397,7 @@ class ThreadsDataSource : NSObject, UITableViewDataSource {
     var group: Group
     var modelViews = [ModelView]()
     weak var controller : ThreadsViewController?
+    var fetchComplete = false
     
     init(ctler: ThreadsViewController, group: Group) {
         self.group = group
@@ -424,6 +425,7 @@ class ThreadsDataSource : NSObject, UITableViewDataSource {
     // Update each threads collection view
     func update(tableView: UITableView, completion: @escaping () -> Void) {
         model.getThreadsForGroup(group: group, completion: { (threads) -> Void in
+            self.fetchComplete = true
             model.removeViews(views: self.modelViews)
             self.threadsSource.removeAll()
             self.delegates.removeAll()
@@ -482,6 +484,10 @@ class ThreadsDataSource : NSObject, UITableViewDataSource {
                             let longDate = longDateFormatter.string(from: last_day_to_fetch)
                             cell.label.text = String(
                                 "Only messages younger than \(longDate) are shown. Please change user settings to see your messages or start a new conversation."
+                            )
+                        } else if( self.fetchComplete ) {
+                            cell.label.text = String(
+                                "All messages have expired. Please start a new conversation. To keep your messages longer, please go to user settings."
                             )
                         }
                     })
