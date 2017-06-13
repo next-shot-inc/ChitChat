@@ -10,18 +10,37 @@ import Foundation
 import UIKit
 
 // The voting record itself.
-class PollRecord {
-    var id: RecordId
-    let user_id : RecordId
-    let poll_id : RecordId
+class PollRecord : MessageRecord, MessageRecordDelegate {
     var checked_option: Int
-    var date_created = Date()
-    
+
     init(id: RecordId, user_id: RecordId, poll_id: RecordId, checked_option: Int) {
-        self.id = id
-        self.user_id = user_id
-        self.poll_id = poll_id
         self.checked_option = checked_option
+        super.init(id: id, message_id: poll_id, user_id: user_id, type: "PollRecord")
+        self.delegate = self
+        self.payLoad = self.getPayLoad()
+    }
+    
+    init(message: Message, user: User, checked_option: Int) {
+        self.checked_option = checked_option
+        super.init(message: message, user: user, type: "PollRecord")
+        self.delegate = self
+        self.payLoad = self.getPayLoad()
+    }
+    
+    init(record: MessageRecord) {
+        self.checked_option = -1
+        super.init(record: record, type: record.type)
+        self.delegate = self
+        
+        initFromPayload(string: record.payLoad)
+    }
+    
+    func put(dict: NSMutableDictionary) {
+        dict.setValue(NSNumber(value: checked_option), forKey: "checked_option")
+    }
+    
+    func fetch(dict: NSDictionary) {
+        checked_option = (dict["checked_option"] as! NSNumber) as! Int
     }
 }
 
@@ -30,7 +49,9 @@ class PollData {
     var nb_votes = 0
     var nb_total_votes = 0
     var elements = [(label: String,nb_votes: Int)]()
+    var votes = [[RecordId]]()
     var alreadyVoted = false
+    var open = false
     
     init(pollRecords: [PollRecord], message: Message, options: MessageOptions?) {
         // The total number of votes = number of people in the group.
@@ -47,14 +68,19 @@ class PollData {
         
         // Assign votes to the proper choice.
         nb_votes = pollRecords.count
-        let voteOptions = options?.pollOptions ?? MessageOptions(options: message.options).pollOptions
+        let mo = options ?? MessageOptions(options: message.options)
+        let voteOptions = mo.pollOptions
         for vo in voteOptions {
             elements.append((label: vo, nb_votes: 0))
+            votes.append([])
         }
+        
+        open = mo.decorated
         
         for pr in pollRecords {
             if( pr.checked_option >= 0 && pr.checked_option < voteOptions.count ) {
                 elements[pr.checked_option].nb_votes += 1
+                votes[pr.checked_option].append(pr.user_id)
             }
             if( pr.user_id == model.me().id ) {
                 alreadyVoted = true
@@ -188,6 +214,72 @@ class ResultVoteTableViewCell : UITableViewCell {
     }
 }
 
+class ResultListCollectionViewCell : UICollectionViewCell {
+    
+    @IBOutlet weak var image: UIImageView!
+}
+
+class ResultListCollectionViewData : NSObject, UICollectionViewDataSource, UICollectionViewDelegateFlowLayout {
+    var users = [User]()
+    
+    func numberOfSections(in collectionView: UICollectionView) -> Int {
+        return 1
+    }
+    
+    func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
+        return users.count
+    }
+    
+    func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
+
+        let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "ResultListCollectionViewCell", for: indexPath) as! ResultListCollectionViewCell
+
+        cell.image.image = users[indexPath.row].icon
+        if( cell.image.image == nil ) {
+            cell.image.image = UIImage(named: "user_male3-32")
+        }
+        return cell
+    }
+    
+    func collectionView(
+        _ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath
+        ) -> CGSize {
+        return CGSize(width: 28, height: 28)
+    }
+
+}
+
+class ResultListVoteTableViewCell : UITableViewCell {
+    
+    @IBOutlet weak var choiceCount: UILabel!
+    @IBOutlet weak var choiceLabel: UILabel!
+    @IBOutlet weak var choiceList: UICollectionView!
+    
+    var data : ResultListCollectionViewData?
+    
+    func initialize(cell: PollMessageCell, index: Int) {
+        let pollData = cell.data!.pollData!
+        
+        if( index == 0 ) {
+            choiceLabel.text = "Participation:"
+            choiceCount.text = String(pollData.nb_votes)
+        } else {
+            data = ResultListCollectionViewData()
+            for uid in pollData.votes[index-1] {
+                let user = model.getUser(userId: uid)
+                if( user != nil ) {
+                    data!.users.append(user!)
+                }
+            }
+            choiceLabel.text = pollData.elements[index-1].label
+            choiceCount.text = "(\(pollData.elements[index-1].nb_votes)):"
+            choiceList.dataSource = data
+            choiceList.delegate = data
+            choiceList.reloadData()
+        }
+    }
+}
+
 // The table view data source for a Poll: one row per choice, and a summary row/add choice row.
 class PollMessageData : NSObject, UITableViewDataSource {
     var pollData : PollData!
@@ -229,10 +321,17 @@ class PollMessageData : NSObject, UITableViewDataSource {
             cell.initialize(cell: pollMessageCell!, index: row)
             return cell
         case .voted:
-            let cell = tableView.dequeueReusableCell(withIdentifier: "ResultVoteTableViewCell") as! ResultVoteTableViewCell
-            cell.initialize(cell: pollMessageCell!, index: row)
-            cell.isUserInteractionEnabled = false
-            return cell
+            if( pollData.open ) {
+                let cell = tableView.dequeueReusableCell(withIdentifier: "ResultListVoteTableViewCell") as! ResultListVoteTableViewCell
+                cell.initialize(cell: pollMessageCell!, index: row)
+                cell.isUserInteractionEnabled = false
+                return cell
+            } else {
+                let cell = tableView.dequeueReusableCell(withIdentifier: "ResultVoteTableViewCell") as! ResultVoteTableViewCell
+                cell.initialize(cell: pollMessageCell!, index: row)
+                cell.isUserInteractionEnabled = false
+                return cell
+            }
         }
     }
 }
@@ -245,10 +344,10 @@ class PollModelView : ModelView {
         self.cell = cell
         super.init()
         
-        self.notify_new_poll_record = new_poll_record
+        self.notify_new_message_record = new_poll_record
     }
     
-    func new_poll_record(record: PollRecord) {
+    func new_poll_record(record: MessageRecord) {
         cell?.update()
     }
 }
@@ -311,9 +410,7 @@ class PollMessageCell : UICollectionViewCell, MessageBaseCellDelegate {
                     if( pollData.nb_votes != pollData.nb_total_votes ) {
                         // Attach an observer to the poll
                         self.view = PollModelView(cell: self)
-                        model.setupNotificationsForPoll(pollId: message.id, view: self.view!)
-                    } else {
-                        model.db_model.removePollRecordNotification(pollId: message.id)
+                        model.setupNotificationsForMessageRecord(messageId: message.id, view: self.view!)
                     }
                     self.submitButton.isHidden = true
                 } else {
@@ -325,7 +422,7 @@ class PollMessageCell : UICollectionViewCell, MessageBaseCellDelegate {
                     } else {
                         state = .voting
                         self.pollRecord = PollRecord(
-                            id: RecordId(), user_id: model.me().id, poll_id: message.id, checked_option: -1
+                            message: message, user: model.me(), checked_option: -1
                         )
                         self.submitButton.isHidden = false
                     }

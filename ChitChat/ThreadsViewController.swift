@@ -189,11 +189,14 @@ class ThreadRowData : MessageCollectionViewHelper, UICollectionViewDataSource {
             labelView = mcell.labelView
             cell = mcell
             
-            if( mo.decorated ) {
+            if( mo.type == "decoratedText" ) {
                 mcell.decoratedIndicator.image = UIImage(named: "cool32")
                 mcell.decoratedIndicator.isHidden = false
-            } else if( mo.pollOptions.count > 0 ) {
+            } else if( mo.type == "poll" ) {
                 mcell.decoratedIndicator.image = UIImage(named: "polling")
+                mcell.decoratedIndicator.isHidden = false
+            } else if( mo.type == "expense-tab" ) {
+                mcell.decoratedIndicator.image = UIImage(named: "money-32")
                 mcell.decoratedIndicator.isHidden = false
             } else {
                 mcell.decoratedIndicator.isHidden = true

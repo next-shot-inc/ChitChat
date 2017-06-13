@@ -156,7 +156,7 @@ class GroupData : NSObject, UITableViewDataSource {
         cell.iconView.layer.cornerRadius = 10
         cell.iconView.layer.borderColor = UIColor.darkGray.cgColor
         cell.iconView.layer.borderWidth = 1.0
-    
+        
         return cell
     }
     

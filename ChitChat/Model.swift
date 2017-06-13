@@ -214,6 +214,84 @@ class DecorationStamp {
     }
 }
 
+protocol MessageRecordDelegate {
+    func fetch(dict: NSDictionary)
+    func put(dict: NSMutableDictionary)
+}
+
+class MessageRecord {
+    var id: RecordId
+    let message_id: RecordId
+    var group_id : RecordId?
+    let user_id : RecordId
+    var type : String
+    var date_created = Date()
+    var version : String = "1.0"
+    var delegate : MessageRecordDelegate?
+    var payLoad = String()
+    
+    init(message: Message, user: User, type: String) {
+        self.id = RecordId()
+        self.message_id = message.id
+        self.group_id = message.group_id
+        self.type = type
+        self.user_id = user.id
+    }
+    
+    init(id: RecordId, message_id: RecordId, user_id: RecordId, type: String) {
+        self.id = id
+        self.message_id = message_id
+        self.user_id = user_id
+        self.type = type
+    }
+    
+    init(record: MessageRecord, type: String) {
+        self.id = record.id
+        self.message_id = record.message_id
+        self.user_id = record.user_id
+        self.type = type
+        self.date_created = record.date_created
+        self.version = record.version
+        self.payLoad = record.payLoad
+    }
+    
+    func getPayLoad() -> String {
+        let dict = NSMutableDictionary()
+        dict.setValue(NSString(string: type),  forKey: "type")
+        dict.setValue(NSString(string: version), forKey:  "version")
+        delegate?.put(dict: dict)
+        
+        do {
+            let data = try JSONSerialization.data(withJSONObject: dict, options: [])
+            return String(data: data, encoding: String.Encoding.utf8)!
+        } catch {
+            return String()
+        }
+    }
+    
+    func initFromPayload(string: String) {
+        var jsonResult : Any?
+        do {
+            try jsonResult = JSONSerialization.jsonObject(
+                with: string.data(using: String.Encoding.utf8)!,
+                options: JSONSerialization.ReadingOptions.mutableContainers
+            )
+        } catch {
+            jsonResult = nil
+            print("JSON Error")
+        }
+        
+        if( jsonResult != nil && jsonResult is NSDictionary ) {
+            let jsonMessage = jsonResult! as! NSDictionary
+            version = (jsonMessage["version"] as! NSString) as String
+            type = (jsonMessage["type"] as! NSString) as String
+            
+            delegate?.fetch(dict: jsonMessage)
+        }
+    }
+
+}
+
 /************************************************************************************/
 
 class ModelView {
@@ -223,7 +301,7 @@ class ModelView {
     var notify_new_conversation : ((_ cthread: ConversationThread) -> Void)?
     var notify_edit_group_activity : ((_ activity: GroupActivity) -> Void)?
     var notify_delete_conversation : ((_ id: RecordId) -> Void)?
-    var notify_new_poll_record : ((_ pollRecord: PollRecord) -> Void)?
+    var notify_new_message_record : ((_ messageRecord: MessageRecord) -> Void)?
 }
 
 struct MessageDateRange {
@@ -257,7 +335,7 @@ class MemoryModel {
     var groupUserFolder = [(group: Group, user: User)]()
     var decorationThemes = [DecorationTheme]()
     var decorationStamps = [DecorationStamp]()
-    var pollRecords: [PollRecord]?
+    var messageRecords: [MessageRecord]?
     
     func update(groups: [Group]) {
         let initialGroup = self.groups
@@ -495,17 +573,17 @@ class MemoryModel {
         self.decorationStamps.append(contentsOf: stamps)
     }
     
-    func updatePollRecords(pollRecords: [PollRecord]) {
-        if( self.pollRecords == nil ) {
-            self.pollRecords = [PollRecord]()
-            self.pollRecords!.append(contentsOf: pollRecords)
+    func updateMessageRecords(messageRecords: [MessageRecord]) {
+        if( self.messageRecords == nil ) {
+            self.messageRecords = [MessageRecord]()
+            self.messageRecords!.append(contentsOf: messageRecords)
         } else {
-            for r in pollRecords {
-                let contained = self.pollRecords!.contains(where: { (record) -> Bool in
+            for r in messageRecords {
+                let contained = self.messageRecords!.contains(where: { (record) -> Bool in
                     r.id == record.id
                 })
                 if( !contained ) {
-                    self.pollRecords!.append(r)
+                    self.messageRecords!.append(r)
                 }
             }
         }
@@ -525,7 +603,7 @@ class MemoryModelView : ModelView {
         self.notify_new_group = new_group
         self.notify_edit_group_activity = edited_group_activity
         self.notify_delete_conversation = delete_cthread
-        self.notify_new_poll_record = new_poll_record
+        self.notify_new_message_record = new_message_record
     }
     
     func new_message(message: Message) {
@@ -599,8 +677,8 @@ class MemoryModelView : ModelView {
         memory_model.update(groupActivity: groupActivity)
     }
     
-    func new_poll_record(pr: PollRecord) {
-        memory_model.updatePollRecords(pollRecords: [pr])
+    func new_message_record(pr: MessageRecord) {
+        memory_model.updateMessageRecords(messageRecords: [pr])
     }
 }
 
@@ -759,14 +837,6 @@ class DataModel {
         })
     }
     
-    func getFriends(completion: @escaping ([User]) -> ()) {
-        db_model.getFriendsForUser(userId: me().id, completion: { (users) -> () in
-            self.memory_model.update(users: users)
-            
-            return completion(users)
-        })
-    }
-    
     // Get Users for Group
     func getUsersForGroup(group: Group, completion: @escaping ([User]) -> ()) {
         db_model.getUsersForGroup(groupId: group.id, completion:{ (users) -> () in
@@ -858,7 +928,7 @@ class DataModel {
         memory_model.conversations = nil
         memory_model.groups = nil
         memory_model.group_activities = nil
-        memory_model.pollRecords = nil
+        memory_model.messageRecords = nil
     }
     
     func setMessageFetchTimeLimit(numberOfDays: TimeInterval) {
@@ -1105,10 +1175,9 @@ class DataModel {
         }
     }
     
-    func setupNotificationsForPoll(pollId: RecordId, view: ModelView) {
-        if( view.notify_new_poll_record != nil ) {
+    func setupNotificationsForMessageRecord(messageId: RecordId, view: ModelView) {
+        if( view.notify_new_message_record != nil ) {
             uniquely_append(view)
-            db_model.setupPollRecordNotifications(pollId: pollId)
         }
     }
 
@@ -1235,7 +1304,7 @@ class DataModel {
             self.db_model.deleteOldMessages(olderThan: date, user: self.me(), completion: {
                 self.db_model.deleteOldConversationThread(olderThan: date, user: self.me(), completion: {
                     self.db_model.deleteIrrelevantInvitations(olderThan: date, user: self.me(), completion: {
-                        self.db_model.deleteOldPollRecords(olderThan: date, user: self.me(), completion: {})
+                        self.db_model.deleteOldMessageRecords(olderThan: date, user: self.me(), completion: {})
                     })
                 })
             })
@@ -1245,27 +1314,73 @@ class DataModel {
     
     /*******************************************************************/
     
-    func getPollVotes(poll: Message, completion: @escaping ([PollRecord]) -> Void ) {
-        if( memory_model.pollRecords != nil ) {
-             let pollRecords = memory_model.pollRecords!.filter( { (record) -> Bool in
-                 return record.poll_id == poll.id
-             })
-             if( pollRecords.count != 0 ) {
-                 return completion(pollRecords)
-            }
+    private func getMessageRecordsForMessage(message: Message) -> [MessageRecord] {
+        if( memory_model.messageRecords != nil ) {
+            return memory_model.messageRecords!.filter( { (r) -> Bool in
+                return r.message_id == message.id
+            })
+        } else {
+            return [MessageRecord]()
         }
-        db_model.getPollVotes(poll: poll, completion: { (pollRecords) -> Void in
-            self.memory_model.updatePollRecords(pollRecords: pollRecords)
-            completion(pollRecords)
+    }
+    
+    func getPollVotes(poll: Message, completion: @escaping ([PollRecord]) -> Void ) {
+        func convert(messageRecords: [MessageRecord]) -> [PollRecord] {
+            var pollRecords = [PollRecord]()
+            for mr in messageRecords {
+                if( mr.type == "PollRecord" ) {
+                    let pollRecord = PollRecord(record: mr)
+                    pollRecords.append(pollRecord)
+                }
+            }
+            return pollRecords
+        }
+        let messageRecords = getMessageRecordsForMessage(message: poll)
+        if( messageRecords.count != 0 ) {
+             return completion(convert(messageRecords: messageRecords))
+        }
+        db_model.getMessageRecords(message: poll, completion: { (messageRecords) -> Void in
+            self.memory_model.updateMessageRecords(messageRecords: messageRecords)
+            completion(convert(messageRecords: messageRecords))
         })
     }
     
     func savePollVote(pollRecord: PollRecord) {
-        self.memory_model.updatePollRecords(pollRecords: [pollRecord])
+        pollRecord.payLoad = pollRecord.getPayLoad()
+        self.memory_model.updateMessageRecords(messageRecords: [pollRecord])
         
-        db_model.savePollVote(pollRecord: pollRecord)
+        db_model.saveMessageRecord(messageRecord: pollRecord)
     }
     
+    func getExpenseItems(expense_tab: Message, completion: @escaping ([ExpenseRecord]) -> Void) {
+        func convert(messageRecords: [MessageRecord]) -> [ExpenseRecord] {
+            var expRecords = [ExpenseRecord]()
+            for mr in messageRecords {
+                if( mr.type == "ExpenseRecord" ) {
+                    let expRecord = ExpenseRecord(record: mr)
+                    expRecords.append(expRecord)
+                }
+            }
+            return expRecords
+        }
+
+        let messageRecords = getMessageRecordsForMessage(message: expense_tab)
+        if( messageRecords.count != 0 ) {
+            return completion(convert(messageRecords: messageRecords))
+        }
+        db_model.getMessageRecords(message: expense_tab, completion: { (messageRecords) -> Void in
+            self.memory_model.updateMessageRecords(messageRecords: messageRecords)
+            completion(convert(messageRecords: messageRecords))
+        })
+
+    }
+    
+    func saveExpenseItem(expenseRecord: ExpenseRecord) {
+        expenseRecord.payLoad = expenseRecord.getPayLoad()
+        self.memory_model.updateMessageRecords(messageRecords: [expenseRecord])
+        
+        db_model.saveMessageRecord(messageRecord: expenseRecord)
+    }
 }
 
 var model : DataModel!

@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="12120" systemVersion="16F73" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" launchScreen="YES" useTraitCollections="YES" colorMatched="YES" initialViewController="01J-lp-oVM">
+<document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="12121" systemVersion="16F73" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" launchScreen="YES" useTraitCollections="YES" colorMatched="YES" initialViewController="01J-lp-oVM">
     <device id="retina4_7" orientation="portrait">
         <adaptation id="fullscreen"/>
     </device>
     <dependencies>
         <deployment identifier="iOS"/>
-        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="12088"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="12089"/>
         <capability name="Constraints to layout margins" minToolsVersion="6.0"/>
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
     </dependencies>
@@ -23,81 +23,104 @@
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                         <subviews>
                             <label opaque="NO" clipsSubviews="YES" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="  Copyright (c) 2017 next-shot LLC. All rights reserved." textAlignment="center" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" minimumFontSize="9" translatesAutoresizingMaskIntoConstraints="NO" id="b5O-fC-Aal">
-                                <rect key="frame" x="33.5" y="634" width="308.5" height="15"/>
+                                <rect key="frame" x="33.5" y="634.5" width="308.5" height="14.5"/>
                                 <fontDescription key="fontDescription" type="system" pointSize="12"/>
                                 <color key="textColor" red="0.0" green="0.0" blue="0.0" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
                                 <nil key="highlightedColor"/>
                             </label>
-                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="v0.4" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="xYk-nO-IgT">
-                                <rect key="frame" x="349" y="652" width="25" height="15"/>
+                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="v0.5" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="xYk-nO-IgT">
+                                <rect key="frame" x="349.5" y="652.5" width="24.5" height="14.5"/>
                                 <fontDescription key="fontDescription" type="system" pointSize="12"/>
                                 <color key="textColor" red="0.0" green="0.0" blue="0.0" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
                                 <nil key="highlightedColor"/>
                             </label>
                             <label opaque="NO" clipsSubviews="YES" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="ChatterGroup" textAlignment="center" lineBreakMode="middleTruncation" baselineAdjustment="alignBaselines" minimumFontSize="18" translatesAutoresizingMaskIntoConstraints="NO" id="Fuw-7r-N80">
-                                <rect key="frame" x="70.5" y="130.5" width="235" height="43"/>
+                                <rect key="frame" x="70" y="131" width="235" height="43"/>
                                 <fontDescription key="fontDescription" type="boldSystem" pointSize="36"/>
                                 <color key="textColor" red="0.0" green="0.0" blue="0.0" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
                                 <nil key="highlightedColor"/>
                             </label>
                             <imageView userInteractionEnabled="NO" contentMode="scaleToFill" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="icon180x180" translatesAutoresizingMaskIntoConstraints="NO" id="XDw-1t-ebR">
-                                <rect key="frame" x="97.5" y="223.5" width="180" height="180"/>
+                                <rect key="frame" x="98" y="224" width="180" height="180"/>
                                 <constraints>
                                     <constraint firstAttribute="width" constant="180" id="YLr-fV-vl9"/>
                                     <constraint firstAttribute="height" constant="180" id="ayS-PD-ply"/>
                                 </constraints>
                             </imageView>
-                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Manage multiple conversations" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="Ph1-Ye-6oZ">
-                                <rect key="frame" x="68.5" y="445.5" width="238" height="21"/>
-                                <fontDescription key="fontDescription" type="system" pointSize="17"/>
-                                <color key="textColor" red="0.0" green="0.0" blue="0.0" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
-                                <nil key="highlightedColor"/>
-                            </label>
-                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Check grammar &amp; spelling" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="nTw-n5-Rdb">
-                                <rect key="frame" x="87" y="474.5" width="202" height="21"/>
-                                <fontDescription key="fontDescription" type="system" pointSize="17"/>
-                                <color key="textColor" red="0.0" green="0.0" blue="0.0" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
-                                <nil key="highlightedColor"/>
-                            </label>
-                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Edit last sent message" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="EzP-bw-IW2">
-                                <rect key="frame" x="101.5" y="503.5" width="172" height="21"/>
-                                <fontDescription key="fontDescription" type="system" pointSize="17"/>
-                                <color key="textColor" red="0.0" green="0.0" blue="0.0" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
-                                <nil key="highlightedColor"/>
-                            </label>
-                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Send decorated messages" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="FVe-kO-0ZN">
-                                <rect key="frame" x="85.5" y="532.5" width="204" height="21"/>
-                                <fontDescription key="fontDescription" type="system" pointSize="17"/>
-                                <color key="textColor" red="0.0" green="0.0" blue="0.0" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
-                                <nil key="highlightedColor"/>
-                            </label>
-                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Organize polls" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="edC-dK-IlK">
-                                <rect key="frame" x="132" y="561" width="110" height="21"/>
-                                <fontDescription key="fontDescription" type="system" pointSize="17"/>
-                                <color key="textColor" red="0.0" green="0.0" blue="0.0" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
-                                <nil key="highlightedColor"/>
-                            </label>
+                            <stackView opaque="NO" contentMode="scaleToFill" axis="vertical" alignment="center" spacing="6" translatesAutoresizingMaskIntoConstraints="NO" id="uz6-AF-hAr">
+                                <rect key="frame" x="68.5" y="434" width="237.5" height="155.5"/>
+                                <subviews>
+                                    <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Manage multiple conversations" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="Ph1-Ye-6oZ">
+                                        <rect key="frame" x="0.0" y="0.0" width="237.5" height="21"/>
+                                        <constraints>
+                                            <constraint firstAttribute="height" constant="21" id="erR-WQ-SXA"/>
+                                        </constraints>
+                                        <fontDescription key="fontDescription" type="system" pointSize="17"/>
+                                        <color key="textColor" red="0.0" green="0.0" blue="0.0" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                                        <nil key="highlightedColor"/>
+                                    </label>
+                                    <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Check grammar &amp; spelling" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="nTw-n5-Rdb">
+                                        <rect key="frame" x="18" y="27" width="201.5" height="21"/>
+                                        <constraints>
+                                            <constraint firstAttribute="height" constant="21" id="WtE-lz-2UP"/>
+                                        </constraints>
+                                        <fontDescription key="fontDescription" type="system" pointSize="17"/>
+                                        <color key="textColor" red="0.0" green="0.0" blue="0.0" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                                        <nil key="highlightedColor"/>
+                                    </label>
+                                    <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Edit last sent message" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="EzP-bw-IW2">
+                                        <rect key="frame" x="33" y="54" width="172" height="21"/>
+                                        <constraints>
+                                            <constraint firstAttribute="height" constant="21" id="5XK-rt-lOj"/>
+                                        </constraints>
+                                        <fontDescription key="fontDescription" type="system" pointSize="17"/>
+                                        <color key="textColor" red="0.0" green="0.0" blue="0.0" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                                        <nil key="highlightedColor"/>
+                                    </label>
+                                    <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Send decorated messages" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="FVe-kO-0ZN">
+                                        <rect key="frame" x="17" y="81" width="204" height="21"/>
+                                        <constraints>
+                                            <constraint firstAttribute="height" constant="21" id="xmd-Yq-cp1"/>
+                                        </constraints>
+                                        <fontDescription key="fontDescription" type="system" pointSize="17"/>
+                                        <color key="textColor" red="0.0" green="0.0" blue="0.0" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                                        <nil key="highlightedColor"/>
+                                    </label>
+                                    <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Organize polls" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="edC-dK-IlK">
+                                        <rect key="frame" x="64" y="108" width="109.5" height="21"/>
+                                        <constraints>
+                                            <constraint firstAttribute="height" constant="21" id="HZx-tF-ODw"/>
+                                        </constraints>
+                                        <fontDescription key="fontDescription" type="system" pointSize="17"/>
+                                        <color key="textColor" red="0.0" green="0.0" blue="0.0" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                                        <nil key="highlightedColor"/>
+                                    </label>
+                                    <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Manage shared expenses" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="HVN-hI-mFq">
+                                        <rect key="frame" x="21" y="135" width="195.5" height="20.5"/>
+                                        <fontDescription key="fontDescription" type="system" pointSize="17"/>
+                                        <nil key="textColor"/>
+                                        <nil key="highlightedColor"/>
+                                    </label>
+                                </subviews>
+                                <constraints>
+                                    <constraint firstAttribute="trailing" secondItem="Ph1-Ye-6oZ" secondAttribute="trailing" id="3l0-E8-wn7"/>
+                                    <constraint firstItem="Ph1-Ye-6oZ" firstAttribute="centerX" secondItem="uz6-AF-hAr" secondAttribute="centerX" id="G9L-BD-Nn3"/>
+                                    <constraint firstItem="Ph1-Ye-6oZ" firstAttribute="leading" secondItem="uz6-AF-hAr" secondAttribute="leading" id="OLg-Oh-VbQ"/>
+                                </constraints>
+                            </stackView>
                         </subviews>
                         <color key="backgroundColor" red="1" green="1" blue="1" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
                         <constraints>
                             <constraint firstItem="Fuw-7r-N80" firstAttribute="centerX" secondItem="Ze5-6b-2t3" secondAttribute="centerX" id="5pR-eb-mTJ"/>
                             <constraint firstAttribute="trailingMargin" secondItem="xYk-nO-IgT" secondAttribute="trailing" constant="-15" id="AWM-xf-ad4"/>
-                            <constraint firstItem="FVe-kO-0ZN" firstAttribute="centerX" secondItem="Ze5-6b-2t3" secondAttribute="centerX" id="CU0-in-3rf"/>
-                            <constraint firstItem="nTw-n5-Rdb" firstAttribute="top" secondItem="Ph1-Ye-6oZ" secondAttribute="bottom" constant="8" symbolic="YES" id="Evo-CB-bkq"/>
                             <constraint firstItem="XDw-1t-ebR" firstAttribute="centerX" secondItem="Ze5-6b-2t3" secondAttribute="centerX" id="H3c-5j-Nyo"/>
-                            <constraint firstItem="edC-dK-IlK" firstAttribute="top" secondItem="FVe-kO-0ZN" secondAttribute="bottom" constant="8" symbolic="YES" id="OcW-ji-KZQ"/>
                             <constraint firstItem="xYk-nO-IgT" firstAttribute="bottom" secondItem="xb3-aO-Qok" secondAttribute="top" id="RAd-5R-Qqz"/>
                             <constraint firstItem="XDw-1t-ebR" firstAttribute="top" secondItem="Fuw-7r-N80" secondAttribute="bottom" constant="50" id="Vrf-lo-Evg"/>
-                            <constraint firstItem="Ph1-Ye-6oZ" firstAttribute="centerX" secondItem="Ze5-6b-2t3" secondAttribute="centerX" id="bkS-CQ-dJK"/>
-                            <constraint firstItem="EzP-bw-IW2" firstAttribute="centerX" secondItem="Ze5-6b-2t3" secondAttribute="centerX" id="c9Z-vl-Djr"/>
+                            <constraint firstItem="uz6-AF-hAr" firstAttribute="centerX" secondItem="b5O-fC-Aal" secondAttribute="centerX" id="W5D-4Z-ODS"/>
                             <constraint firstItem="XDw-1t-ebR" firstAttribute="centerY" secondItem="Ze5-6b-2t3" secondAttribute="centerY" priority="900" constant="-20" id="dGO-Cc-xoH"/>
                             <constraint firstItem="b5O-fC-Aal" firstAttribute="centerX" secondItem="Ze5-6b-2t3" secondAttribute="centerX" id="e7g-JE-ogS"/>
-                            <constraint firstItem="edC-dK-IlK" firstAttribute="centerX" secondItem="Ze5-6b-2t3" secondAttribute="centerX" id="fWh-x5-VBG"/>
-                            <constraint firstItem="Ph1-Ye-6oZ" firstAttribute="top" secondItem="XDw-1t-ebR" secondAttribute="bottom" constant="42" id="fl3-B0-yls"/>
-                            <constraint firstItem="Fuw-7r-N80" firstAttribute="centerX" secondItem="nTw-n5-Rdb" secondAttribute="centerX" id="g3D-N9-OHA"/>
-                            <constraint firstItem="FVe-kO-0ZN" firstAttribute="top" secondItem="EzP-bw-IW2" secondAttribute="bottom" constant="8" symbolic="YES" id="mfj-sv-bt1"/>
+                            <constraint firstItem="Ph1-Ye-6oZ" firstAttribute="top" secondItem="XDw-1t-ebR" secondAttribute="bottom" constant="30" id="lrM-L4-oDg"/>
                             <constraint firstItem="xb3-aO-Qok" firstAttribute="top" secondItem="b5O-fC-Aal" secondAttribute="bottom" constant="18" id="v3Z-cL-6pR"/>
-                            <constraint firstItem="EzP-bw-IW2" firstAttribute="top" secondItem="nTw-n5-Rdb" secondAttribute="bottom" constant="8" symbolic="YES" id="yhr-Ao-xts"/>
                         </constraints>
                     </view>
                 </viewController>

@@ -372,7 +372,7 @@ class ThumbUpMessageCellSizeDelegate : MessageBaseCellSizeDelegate {
 }
 
 class MessageCellFactory {
-    enum messageType { case text, image, thumbUp, textDecorated, polling }
+    enum messageType { case text, image, thumbUp, textDecorated, polling, expenseTab }
     
     class func getType(message: Message, collectionView: UICollectionView, indexPath: IndexPath) -> messageType {
         if( message.image != nil ) {
@@ -383,12 +383,14 @@ class MessageCellFactory {
         }
         if( !message.options.isEmpty ) {
             let options = MessageOptions(options: message.options)
-            if( options.decorated ) {
+            if( options.type == "decoratedText" ) {
                 return .textDecorated
             } else if( options.type == "poll" ) {
                 return .polling
             } else if( options.type == "thumb-up" ) {
                 return .thumbUp
+            } else if( options.type == "expense-tab" ) {
+                return .expenseTab
             }
         }
         return .text
@@ -417,6 +419,10 @@ class MessageCellFactory {
             return collectionView.dequeueReusableCell(
                 withReuseIdentifier: "PollMessageCell", for: indexPath
             )
+        case .expenseTab:
+            return collectionView.dequeueReusableCell(
+                withReuseIdentifier:  "ExpenseMessageCell", for: indexPath
+            )
         }
     }
     
@@ -433,6 +439,8 @@ class MessageCellFactory {
             return ThumbUpMessageCellSizeDelegate()
         case .polling:
             return PollMessageCellSizeDelegate()
+        case .expenseTab:
+            return ExpenseMessageCellSizeDelegate()
         }
     }
 }
@@ -617,7 +625,9 @@ class MessagesViewDelegate : NSObject, UICollectionViewDelegate, UICollectionVie
     func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
         let m = messageData.messages[indexPath.row]
         controller?.selectedMessage = m
-        controller?.performSegue(withIdentifier: "showPicture", sender: self)
+        if( m.image != nil ) {
+            controller?.performSegue(withIdentifier: "showPicture", sender: self)
+        }
     }
     
     func scrollViewDidScroll(_ scrollView: UIScrollView) {
@@ -760,6 +770,9 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
     @IBOutlet weak var spellCheckButton: UIButton!
     @IBOutlet weak var sendThumbUpButton: UIButton!
     @IBOutlet weak var cancelCurButton: UIButton!
+    @IBOutlet weak var showMoreButton: UIButton!
+    @IBOutlet weak var moreOptionsView: UIView!
+    
     
     var data : MessagesData?
     var dateLimit = MessageDateRange(min: 0, max: 5)
@@ -849,6 +862,7 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
         
         sendButton.isEnabled = false
         cancelCurButton.isHidden = true
+        moreOptionsView.isHidden = true
         
         let url = Bundle.main.url(forResource: "sounds/Button_Press", withExtension: "wav")
         do {
@@ -1053,7 +1067,7 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
         selectPictureButton.isEnabled = state
         takePictureButton.isEnabled = state
         sendDecoratedMessage.isEnabled = state
-        sendPollButton.isEnabled = state
+        showMoreButton.isEnabled = state
         sendThumbUpButton.isEnabled = state
         cancelCurButton.isHidden = state
     }
@@ -1106,6 +1120,11 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
         let lastCellIndex = IndexPath(row: data!.messages.count-1, section: 0)
         messagesView.scrollToItem(
             at: lastCellIndex, at: UICollectionViewScrollPosition.bottom, animated: true
+        )
+        
+        self.textView.placeholderAttributedText = NSAttributedString(
+            string: "Type a message...",
+            attributes: [NSForegroundColorAttributeName: UIColor.gray, NSFontAttributeName: self.textView.font!]
         )
     }
     
@@ -1188,29 +1207,8 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
         
         curMessageOption = MessageOptions(type: "decoratedText")
         curMessageOption!.decorated = true
-        m.options = curMessageOption!.getString() ?? ""
         
-        // Add it to interface
-        data?.messages.append(m)
-        messagesView.insertItems(at: [IndexPath(row: data!.messages.count-1, section: 0)])
-        
-        decorationThemesView.isHidden = false
-        themesCollectionData!.themes = model.getDecorationThemes(category: "DecoratedText")
-        themesCollectionView.reloadData()
-        themesCollectionView.selectItem(at: nil, animated: false, scrollPosition: .top)
-
-        self.view.layoutIfNeeded()
-        messagesView.scrollToItem(
-            at: data!.lastMessageIndex(), at: UICollectionViewScrollPosition.bottom, animated: true
-        )
-        if( data!.messages.count > 2 ) {
-            messagesView.reloadItems(at: [IndexPath(row: data!.messages.count-2, section: 0)])
-        }
-        
-        curMessage = m
-        
-        // Disable creation of other message until this one is done
-        enableCreateMessageButtons(state: false)
+        handleCreatedMessage(message: m, placeHolder: "message's text")
     }
 
     @IBAction func handleSpellCheck(_ sender: UIButton) {
@@ -1246,14 +1244,46 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
         
         curMessageOption = MessageOptions(type: "poll")
         curMessageOption!.pollOptions = ["choice #1", "choice #2"]
-        curMessageOption!.pollRecord = PollRecord(id: RecordId(), user_id: model.me().id, poll_id: m.id, checked_option: -1)
+        curMessageOption!.pollRecord = PollRecord(message: m, user: model.me(), checked_option: -1)
         
+        handleCreatedMessage(message: m, placeHolder: "Enter the poll reason...")
+    }
+    
+    @IBAction func handleSendExpenseTab(_ sender: Any) {
+        // Create Message
+        let m = Message(thread: conversationThread!, user: model.me())
+        m.text = self.textView.text
+        
+        curMessageOption = MessageOptions(type: "expense-tab")
         m.options = curMessageOption!.getString() ?? ""
         
-        // Add it to interface
-        data?.messages.append(m)
-        messagesView.insertItems(at: [IndexPath(row: data!.messages.count-1, section: 0)])
+        handleCreatedMessage(message: m, placeHolder: "Enter the expense tab name...")
+    }
     
+    @IBAction func handleSendRSVP(_ sender: Any) {
+        // Create Message
+        let m = Message(thread: conversationThread!, user: model.me())
+        m.text = self.textView.text
+        
+        curMessageOption = MessageOptions(type: "poll")
+        curMessageOption!.pollOptions = ["Yes", "No", "Maybe"]
+        curMessageOption!.pollRecord = PollRecord(message: m, user: model.me(), checked_option: 0)
+        curMessageOption!.decorated = true
+        
+        handleCreatedMessage(message: m, placeHolder: "Enter the RSVP message...")
+    }
+    
+    @IBAction func showMoreOptionsAction(_ sender: Any) {
+         self.moreOptionsView.isHidden = !self.moreOptionsView.isHidden
+    }
+    
+    func handleCreatedMessage(message: Message, placeHolder: String) {
+        message.options = curMessageOption!.getString() ?? ""
+        
+        // Add it to interface
+        data?.messages.append(message)
+        messagesView.insertItems(at: [IndexPath(row: data!.messages.count-1, section: 0)])
+        
         messagesView.scrollToItem(
             at: IndexPath(row: data!.messages.count-1, section: 0), at: UICollectionViewScrollPosition.bottom, animated: true
         )
@@ -1261,16 +1291,18 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
             messagesView.reloadItems(at: [IndexPath(row: data!.messages.count-2, section: 0)])
         }
         
-        curMessage = m
+        curMessage = message
         
         // Disable creation of other message until this one is done
         enableCreateMessageButtons(state: false)
         self.sendButton.isEnabled = false
         
         self.textView.placeholderAttributedText = NSAttributedString(
-            string: "Enter the poll reason...",
+            string: placeHolder,
             attributes: [NSForegroundColorAttributeName: UIColor.gray, NSFontAttributeName: self.textView.font!]
         )
+
+        self.moreOptionsView.isHidden = true
     }
     
     // Keyboard handling
@@ -1301,6 +1333,7 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
 
     func endEditingWithTouch() {
         _ = textView.resignFirstResponder()
+        moreOptionsView.isHidden = true
     }
     
     // Segue to show Picture
@@ -1309,6 +1342,15 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
             let pc = segue.destination as? PictureViewController
             if( pc != nil ) {
                 pc!.message = selectedMessage
+            }
+        }
+        if( segue.identifier == "showExpenseDetails" ) {
+            let edc = segue.destination as? ExpenseDetailsTableViewController
+            if( edc != nil ) {
+                if( selectedMessage != nil ) {
+                    edc!.title = "Details of " + selectedMessage!.text
+                }
+                edc!.message = selectedMessage
             }
         }
     }

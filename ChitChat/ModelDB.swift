@@ -13,7 +13,6 @@ import Foundation
 protocol DBProtocol {
     func getUsersForGroup(groupId: RecordId, completion: @escaping ([User]) -> ())
     func getGroupsForUser(userId: RecordId, completion: @escaping ([Group]) -> ())
-    func getFriendsForUser(userId: RecordId, completion: @escaping ([User]) -> ())
     func getThreadsForGroup(groupId: RecordId, completion: @escaping ([ConversationThread]) -> ())
     func getThread(threadId: RecordId, completion: @escaping (ConversationThread?) -> ())
     func getMessagesForThread(threadId: RecordId, completion: @escaping ([Message]) -> ())
@@ -29,7 +28,7 @@ protocol DBProtocol {
     func getActivitiesForGroups(groups: [Group], completion: @escaping ([GroupActivity]) -> ())
     func getDecorationThemes(completion: @escaping ([DecorationTheme]) -> ())
     func getDecorationStamps(theme: DecorationTheme, completion: @escaping ([DecorationStamp]) -> ())
-    func getPollVotes(poll: Message, completion: @escaping ([PollRecord]) -> Void )
+    func getMessageRecords(message: Message, completion: @escaping ([MessageRecord]) -> Void )
     func setMessageFetchTimeLimit(numberOfDays: TimeInterval)
     
     func saveUser(user: User, completion: @escaping (_ status: Bool) -> ())
@@ -43,14 +42,12 @@ protocol DBProtocol {
     func saveActivity(activity: UserActivity)
     func saveDecorationThemes(themes: [DecorationTheme])
     func saveDecorationStamps(stamps: [DecorationStamp])
-    func savePollVote(pollRecord: PollRecord)
+    func saveMessageRecord(messageRecord: MessageRecord)
     
     func setupNotifications(cthread: ConversationThread)
     func removeConversationThreadNotification(cthreadId: RecordId)
     func setupNotifications(groupId: RecordId)
     func setupNotifications(userId: RecordId)
-    func setupPollRecordNotifications(pollId: RecordId)
-    func removePollRecordNotification(pollId: RecordId)
     func didReceiveNotification(userInfo: [AnyHashable : Any], views: [ModelView])
     func setAppBadgeNumber(number: Int)
     
@@ -62,7 +59,8 @@ protocol DBProtocol {
     func deleteOldConversationThread(olderThan: Date, user: User, completion: @escaping () -> ())
     func deleteOldMessages(olderThan: Date, user: User, completion: @escaping () -> ())
     func deleteIrrelevantInvitations(olderThan: Date, user: User, completion: @escaping () -> ())
-    func deleteOldPollRecords(olderThan: Date, user: User, completion: @escaping () -> ()) 
+    func deleteOldMessageRecords(olderThan: Date, user: User, completion: @escaping () -> ())
+    
 }
 
 class DBCursor {
@@ -93,10 +91,6 @@ class InMemoryDB : DBProtocol {
             }
         }
         completion(groups)
-    }
-    
-    func getFriendsForUser(userId: RecordId, completion: @escaping ([User]) -> ()) {
-        // TODO
     }
     
     func getUsersForGroup(groupId: RecordId, completion: @escaping ([User]) -> ()) {
@@ -209,10 +203,10 @@ class InMemoryDB : DBProtocol {
     func getDecorationThemes(completion: @escaping ([DecorationTheme]) -> ()) {
         // TODO
     }
-    func getPollVotes(poll: Message, completion: @escaping ([PollRecord]) -> Void ) {
+    func getMessageRecords(message: Message, completion: @escaping ([MessageRecord]) -> Void ) {
         // TODO
     }
-    func savePollVote(pollRecord: PollRecord) {
+    func saveMessageRecord(messageRecord: MessageRecord) {
         // TODO
     }
     
@@ -273,10 +267,7 @@ class InMemoryDB : DBProtocol {
     }
     func setupNotifications(userId: RecordId)  {
     }
-    func setupPollRecordNotifications(pollId: RecordId) {
-    }
-    func removePollRecordNotification(pollId: RecordId) {
-    }
+    
     func didReceiveNotification(userInfo: [AnyHashable : Any], views: [ModelView]) {
     }
     func setAppBadgeNumber(number: Int) {
@@ -302,11 +293,12 @@ class InMemoryDB : DBProtocol {
     func deleteIrrelevantInvitations(olderThan: Date, user: User, completion: @escaping () -> ()) {
     }
     
-    func deleteOldPollRecords(olderThan: Date, user: User, completion: @escaping () -> ()) {
+    func deleteOldMessageRecords(olderThan: Date, user: User, completion: @escaping () -> ()) {
     }
     
     func setMessageFetchTimeLimit(numberOfDays: TimeInterval) {
         
     }
+    
 }
 
