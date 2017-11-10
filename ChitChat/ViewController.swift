@@ -104,7 +104,7 @@ class FancyTextViewController: UIViewController, UITextViewDelegate {
         textView.setNeedsDisplay()
     }
     
-    func endEditing() {
+    @objc func endEditing() {
         textEditableView.resignFirstResponder()
     }
 }

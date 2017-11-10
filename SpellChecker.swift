@@ -103,9 +103,9 @@ class SpellChecker {
         var lang = self.lang() ?? "auto"
         if( !supportedLanguages.contains(lang) ) {
             // Try without the extansion
-            let firstDash = lang.characters.index(of: "-")
+            let firstDash = lang.index(of: "-")
             if( firstDash != nil ) {
-                lang = lang.substring(to: firstDash!)
+                lang = String(lang[..<firstDash!])
                 if( !supportedLanguages.contains(lang) ) {
                     lang = "auto"
                 }
@@ -139,18 +139,18 @@ class SpellChecker {
                         let string = self.text()
                         let astring = NSMutableAttributedString(
                             string: string,
-                            attributes: [NSFontAttributeName: self.font()]
+                            attributes: [NSAttributedStringKey.font: self.font()]
                         )
                         
                         let misspellAttributes = [
-                            NSUnderlineStyleAttributeName: NSNumber(value: NSUnderlineStyle.styleSingle.rawValue),
-                            NSUnderlineColorAttributeName: UIColor.blue
-                        ] as [String : Any]
+                            NSAttributedStringKey.underlineStyle: NSNumber(value: NSUnderlineStyle.styleSingle.rawValue),
+                            NSAttributedStringKey.underlineColor: UIColor.blue
+                        ]
                         
                         let badgrammarAttributes = [
-                            NSUnderlineStyleAttributeName: NSNumber(value: NSUnderlineStyle.styleThick.rawValue),
-                            NSUnderlineColorAttributeName: UIColor.red
-                        ] as [String : Any]
+                            NSAttributedStringKey.underlineStyle: NSNumber(value: NSUnderlineStyle.styleThick.rawValue),
+                            NSAttributedStringKey.underlineColor: UIColor.red
+                        ] 
                     
                         let jsonMessage = jsonResult! as! NSDictionary
                         let jsonMatchArray = jsonMessage["matches"] as! NSArray
@@ -267,7 +267,7 @@ class InputTextViewAccessoryViewController {
         
         textView.text = text
         
-        changeOffset += (issue.replacements[index].characters.count - issue.length)
+        changeOffset += (issue.replacements[index].count - issue.length)
         
         // Move to next issue after replacement (otherwise changeOffset is wrong)
         if( curIssue < issues.count-1 ) {

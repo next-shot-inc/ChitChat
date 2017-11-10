@@ -255,7 +255,6 @@ class GroupViewController: UITableViewController {
             }
             
             self.data = GroupData(controller: self)
-            self.tableView.dataSource = self.data
             
             // Get settings information to initialize UI stuff.
             settingsDB.get()
@@ -280,6 +279,7 @@ class GroupViewController: UITableViewController {
                     // Show groups in table View
                     DispatchQueue.main.async(execute: { () -> Void in
                         self.manageModelView(newGroups: groups, oldGroups: self.data!.groups)
+                        self.tableView.dataSource = self.data
                         self.data!.groups = groups
                         self.tableView.reloadData()
                         
@@ -298,6 +298,7 @@ class GroupViewController: UITableViewController {
                     DispatchQueue.main.async(execute: { () -> Void in
                         
                         self.manageModelView(newGroups: groups, oldGroups: self.data!.groups)
+                        self.tableView.dataSource = self.data
                         self.data!.groups = groups
                         self.tableView.reloadData()
                         

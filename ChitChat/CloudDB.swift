@@ -467,7 +467,7 @@ extension MessageRecord {
             id: CloudRecordId(record: record),
             message_id: RecordId(record: record, forKey: "poll_id"),
             user_id: RecordId(record: record, forKey: "user_id"),
-            type: recordType!
+            type: recordType
         )
         let payLoadRecord = record["payLoad"]
         if( payLoadRecord != nil ) {
@@ -932,7 +932,9 @@ class CloudDBModel : DBProtocol {
                 print("Error resetting badge: \(String(describing: error!))")
             }
             else {
-                UIApplication.shared.applicationIconBadgeNumber = number
+                DispatchQueue.main.async(execute: {
+                   UIApplication.shared.applicationIconBadgeNumber = number
+                })
             }
         }
         CKContainer.default().add(badgeResetOperation)

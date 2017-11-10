@@ -10,6 +10,7 @@ import Foundation
 import UIKit
 
 // The expense record itself.
+// Extract from the MessageRecord payLoad the amount and reason for the expense.
 class ExpenseRecord : MessageRecord, MessageRecordDelegate {
     var amount: Float
     var reason: String
@@ -68,7 +69,7 @@ class ExpenseData {
             total += er.amount
         }
         
-        // Add people that have not paid.
+        // Add people that have not paid (starting by the current user)
         let me = model.me()
         if( expenses[me.id] == nil ) {
             expenses[me.id] = 0
@@ -84,6 +85,7 @@ class ExpenseData {
             }
         }
         
+        // Each users should have spend this amount
         let splitExpense = total/Float(expenses.count)
         
         // Compute the total amount dues by summing all the overpaid expenses.
@@ -98,6 +100,7 @@ class ExpenseData {
                 let name = user!.id == me.id ? "Me" : (user!.label ?? " ")
                 if( ex.value != 0 || ex.key == me.id ) {
                     // Do not add people that have no paid anything, except for me
+                    // (as this list is used to control the "paid expenses" portion of the table).
                     expenseUsers.append(name)
                 }
                 usersToId[name] = ex.key
@@ -105,6 +108,8 @@ class ExpenseData {
         }
         let myExpense = expenses[me.id] ?? 0
         
+        // Compute the amount due to each users that have overpaid. 
+        // and the amount each user owe me if I have overpaid.
         let due = splitExpense - myExpense
         for ex in expenses {
             if( ex.key == me.id ) {
@@ -216,6 +221,10 @@ class ExpenseMessageData : NSObject, UITableViewDataSource, UITableViewDelegate 
     }
 }
 
+// Displays a table with the expenses for each users of the group (if any) and for the current user
+// Displays the dues due to the other users of the group.
+// Allow the current user to add an expense to the shared expense tab.
+
 class ExpenseMessageCell : UICollectionViewCell, MessageBaseCellDelegate, UITextFieldDelegate {
     @IBOutlet weak var labelView: UIView!
     @IBOutlet weak var iconView: UIImageView!
@@ -268,6 +277,12 @@ class ExpenseMessageCell : UICollectionViewCell, MessageBaseCellDelegate, UIText
         })
     }
     
+    // Callback linked to the addExpense action.
+    // At first an expense Record is created, the icon is changed to "send",
+    // and the textField to enter the reason and amount are shown (embedded inside the spentStackView).
+    //
+    // Once the information is filled-in for the expenseRecord, save the record
+    // and flip back the UI to the "add" option.
     @IBAction func addExpenseAction(_ sender: Any) {
         if( expenseRecord == nil ) {
             expenseRecord = ExpenseRecord(
@@ -317,15 +332,14 @@ class ExpenseMessageCell : UICollectionViewCell, MessageBaseCellDelegate, UIText
         }
     }
     
-    func endEditingWithTouch() {
+    @objc func endEditingWithTouch() {
         amountTextField.resignFirstResponder()
         reasonTextField.resignFirstResponder()
     }
 
 }
 
-// Compute the height of the message in function of the number of pollOptions.
-
+// Compute the height of the expense message (shows 4 rows by default)
 class ExpenseMessageCellSizeDelegate : MessageBaseCellSizeDelegate {
     func size(message: Message, collectionView: UICollectionView) -> CGSize {
         let hspacing : CGFloat = 10
@@ -333,9 +347,9 @@ class ExpenseMessageCellSizeDelegate : MessageBaseCellSizeDelegate {
         
         let count = 4
         
-        let attributes: [String : Any] = [NSFontAttributeName: UIFont.systemFont(ofSize: 17)]
+        let attributes: [NSAttributedStringKey : Any] = [NSAttributedStringKey.font: UIFont.systemFont(ofSize: 17)]
         
-        let height = max(message.text.size(attributes: attributes).height, 28)
+        let height = max(message.text.size(withAttributes: attributes).height, 28)
         
         let heightFromLabels : CGFloat = 16 + height
         let vspacing : CGFloat = 5
@@ -345,7 +359,9 @@ class ExpenseMessageCellSizeDelegate : MessageBaseCellSizeDelegate {
 }
 
 /****************************************************************/
+// Classes used to display the details of expenses.
 
+// Display the details of a particular expense (reason, date, amount)
 class ExpenseDetailsTableViewCell : UITableViewCell {
     
     @IBOutlet weak var reason: UILabel!
@@ -353,6 +369,7 @@ class ExpenseDetailsTableViewCell : UITableViewCell {
     @IBOutlet weak var amount: UILabel!
 }
 
+// Display the name of the category of expenses.
 class ExpenseDetailsHeaderTableViewCell : UITableViewCell {
     
     @IBOutlet weak var header: UILabel!
@@ -370,6 +387,7 @@ class ExpenseDetailsDataSource : NSObject, UITableViewDataSource {
         self.records = records
         self.ctrler = controller
         
+        // Sort the expenses per users.
         total = 0
         lastDate = controller.message!.last_modified
         for r in records {
@@ -406,6 +424,7 @@ class ExpenseDetailsDataSource : NSObject, UITableViewDataSource {
     }
     
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+        // Flatten view of the records + 2 rows for the Total section.
         return records.count + headers.count + 2
     }
     
@@ -413,6 +432,7 @@ class ExpenseDetailsDataSource : NSObject, UITableViewDataSource {
         var row = indexPath.row
         var section = 0
         
+        // Total section
         if( row == records.count + headers.count ) {
             let cell = tableView.dequeueReusableCell(withIdentifier: "ExpenseDetailsHeaderTableViewCell") as! ExpenseDetailsHeaderTableViewCell
             cell.header.text = "Total"
@@ -435,6 +455,7 @@ class ExpenseDetailsDataSource : NSObject, UITableViewDataSource {
             return cell
         }
         
+        // Flatten two level tree
         while( row >= 0 ) {
             if( row == 0 ) {
                 // Section header

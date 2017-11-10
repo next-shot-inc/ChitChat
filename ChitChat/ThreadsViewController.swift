@@ -445,6 +445,12 @@ class ThreadsDataSource : NSObject, UITableViewDataSource {
                 model.setupNotifications(cthread: thread, view: view)
                 self.modelViews.append(view)
             }
+            
+            if( threads.count == 0 ) {
+                // If there are no messages left in any of the threads, reset the app badge number
+                // TODO: need to find a way to know how many unread messages were deleted.
+                model.setAppBadgeNumber(number: 0)
+            }
             completion()
         })
     }
@@ -502,6 +508,8 @@ class ThreadsDataSource : NSObject, UITableViewDataSource {
         let cell = tableView.dequeueReusableCell(withIdentifier: "ThreadCell") as! ThreadCell
         
         let rowData = threadsSource[indexPath.section]
+        cell.collectionView.dataSource = rowData
+        cell.collectionView.delegate = delegates[indexPath.section]
         
         model.getMessagesForThread(thread: rowData.cthread, dateLimit: rowData.dateLimit, completion: { (messages, dateLimit) -> Void in
             rowData.messages = messages
@@ -521,9 +529,7 @@ class ThreadsDataSource : NSObject, UITableViewDataSource {
                 })
             }
         })
-        
-        cell.collectionView.dataSource = rowData
-        cell.collectionView.delegate = delegates[indexPath.section]
+    
         return cell
     }
     

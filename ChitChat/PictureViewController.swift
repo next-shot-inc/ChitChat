@@ -23,7 +23,7 @@ class ShareableImageView : UIImageView {
         super.init(coder: aDecoder)
     }
     
-    func handleTapGesture(sender: UILongPressGestureRecognizer) {
+    @objc func handleTapGesture(sender: UILongPressGestureRecognizer) {
         if( sender.state == .ended && self.becomeFirstResponder() ) {
             let sharedMenu = UIMenuController.shared
             let loc = sender.location(in: self)
@@ -53,11 +53,11 @@ class ShareableImageView : UIImageView {
         UIPasteboard.general.image = self.image
     }
     
-    func saveImage(_sender: Any?) {
+    @objc func saveImage(_sender: Any?) {
         UIImageWriteToSavedPhotosAlbum(self.image!, self, #selector(ShareableImageView.handleSaveToPhotoAlbumError), nil)
     }
     
-    func handleSaveToPhotoAlbumError(_ image: UIImage, didFinishSavingWithError error: Error?, contextInfo: UnsafeRawPointer) {
+    @objc func handleSaveToPhotoAlbumError(_ image: UIImage, didFinishSavingWithError error: Error?, contextInfo: UnsafeRawPointer) {
         if( error != nil ) {
             let ac = UIAlertController(title: "Save error", message: error?.localizedDescription, preferredStyle: .alert)
             ac.addAction(UIAlertAction(title: "OK", style: .default, handler: nil))

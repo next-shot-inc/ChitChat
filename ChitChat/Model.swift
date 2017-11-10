@@ -1325,6 +1325,7 @@ class DataModel {
     }
     
     func getPollVotes(poll: Message, completion: @escaping ([PollRecord]) -> Void ) {
+        // Convert generic MessageRecords into PollRecords.
         func convert(messageRecords: [MessageRecord]) -> [PollRecord] {
             var pollRecords = [PollRecord]()
             for mr in messageRecords {
@@ -1353,6 +1354,7 @@ class DataModel {
     }
     
     func getExpenseItems(expense_tab: Message, completion: @escaping ([ExpenseRecord]) -> Void) {
+        // Convert generic MessageRecords into ExpenseRecords.
         func convert(messageRecords: [MessageRecord]) -> [ExpenseRecord] {
             var expRecords = [ExpenseRecord]()
             for mr in messageRecords {

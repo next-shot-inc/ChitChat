@@ -827,11 +827,13 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
                 self.data = MessagesData(
                     thread: self.conversationThread!, messages: messages, dateLimit: dateLimit, ctrler: self
                 )
-                self.messagesView.dataSource = self.data
-                self.delegate = MessagesViewDelegate(data: self.data!, ctrler: self)
-                self.messagesView.delegate = self.delegate
+                
                 
                 DispatchQueue.main.async(execute: {
+                    self.messagesView.dataSource = self.data
+                    self.delegate = MessagesViewDelegate(data: self.data!, ctrler: self)
+                    self.messagesView.delegate = self.delegate
+                    
                     self.messagesView.reloadData()
                     self.messagesView.scrollToItem(
                         at: IndexPath(row: messages.count-1, section: 0), at: UICollectionViewScrollPosition.bottom, animated: true
@@ -851,7 +853,7 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
         self.textView.textContainerInset = UIEdgeInsets(top: 16, left: 0, bottom: 4, right: 0)
         self.textView.placeholderAttributedText = NSAttributedString(
             string: "Type a message...",
-            attributes: [NSForegroundColorAttributeName: UIColor.gray, NSFontAttributeName: self.textView.font!]
+            attributes: [NSAttributedStringKey.foregroundColor: UIColor.gray, NSAttributedStringKey.font: self.textView.font!]
         )
         
         modelView = MessagesDataView(ctrler: self)
@@ -970,7 +972,7 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
             // Reset placeholder
             self.textView.placeholderAttributedText = NSAttributedString(
                 string: "Type a message...",
-                attributes: [NSForegroundColorAttributeName: UIColor.gray, NSFontAttributeName: self.textView.font!]
+                attributes: [NSAttributedStringKey.foregroundColor: UIColor.gray, NSAttributedStringKey.font: self.textView.font!]
             )
             
             if( data!.messages.count > 2 ) {
@@ -1085,20 +1087,24 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
     }
     
     @IBAction func handleSendPicture(_ sender: Any) {
-        let picker = UIImagePickerController()
-        picker.delegate = self
-        //picker.allowsEditing = true (broken on IPad)
-        picker.sourceType = .photoLibrary
+        if( UIImagePickerController.isSourceTypeAvailable(.photoLibrary)) {
+            let picker = UIImagePickerController()
+            picker.delegate = self
+            //picker.allowsEditing = true (broken on IPad)
+            picker.sourceType = .photoLibrary
         
-        present(picker, animated: true, completion: nil)
+            present(picker, animated: true, completion: nil)
+        }
     }
     
     @IBAction func handleSendCameraPicture(_ sender: Any) {
-        let picker = UIImagePickerController()
-        picker.delegate = self
-        //picker.allowsEditing = true (broken on IPad)
-        picker.sourceType = .camera
-        present(picker, animated: true, completion: nil)
+        if( UIImagePickerController.isSourceTypeAvailable(.camera) ) {
+            let picker = UIImagePickerController()
+            picker.delegate = self
+            //picker.allowsEditing = true (broken on IPad)
+            picker.sourceType = .camera
+            present(picker, animated: true, completion: nil)
+        }
     }
     
     @IBAction func handleCancelButton(_ sender: Any) {
@@ -1124,7 +1130,7 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
         
         self.textView.placeholderAttributedText = NSAttributedString(
             string: "Type a message...",
-            attributes: [NSForegroundColorAttributeName: UIColor.gray, NSFontAttributeName: self.textView.font!]
+            attributes: [NSAttributedStringKey.foregroundColor: UIColor.gray, NSAttributedStringKey.font: self.textView.font!]
         )
     }
     
@@ -1189,7 +1195,7 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
             
             self.textView.placeholderAttributedText = NSAttributedString(
                 string: "Enter a caption...",
-                attributes: [NSForegroundColorAttributeName: UIColor.gray, NSFontAttributeName: self.textView.font!]
+                attributes: [NSAttributedStringKey.foregroundColor: UIColor.gray, NSAttributedStringKey.font: self.textView.font!]
             )
         }
         
@@ -1207,6 +1213,15 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
         
         curMessageOption = MessageOptions(type: "decoratedText")
         curMessageOption!.decorated = true
+        
+        // Handle decoration management
+        decorationThemesView.isHidden = false
+        themesCollectionData!.themes = model.getDecorationThemes(category: "DecoratedText")
+        themesCollectionView.reloadData()
+        themesCollectionView.selectItem(at: nil, animated: false, scrollPosition: .top)
+        
+        // Re-layout stuff
+        self.view.layoutIfNeeded()
         
         handleCreatedMessage(message: m, placeHolder: "message's text")
     }
@@ -1299,14 +1314,14 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
         
         self.textView.placeholderAttributedText = NSAttributedString(
             string: placeHolder,
-            attributes: [NSForegroundColorAttributeName: UIColor.gray, NSFontAttributeName: self.textView.font!]
+            attributes: [NSAttributedStringKey.foregroundColor: UIColor.gray, NSAttributedStringKey.font: self.textView.font!]
         )
 
         self.moreOptionsView.isHidden = true
     }
     
     // Keyboard handling
-    func keyboardWillHide(_ sender: Notification) {
+    @objc func keyboardWillHide(_ sender: Notification) {
         if let userInfo = (sender as NSNotification).userInfo {
             if let _ = (userInfo[UIKeyboardFrameEndUserInfoKey] as? NSValue)?.cgRectValue.size.height {
                 //key point 0,
@@ -1317,7 +1332,7 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
             }
         }
     }
-    func keyboardWillShow(_ sender: Notification) {
+    @objc func keyboardWillShow(_ sender: Notification) {
         if let userInfo = (sender as NSNotification).userInfo {
             if let keyboardHeight = (userInfo[UIKeyboardFrameEndUserInfoKey] as? NSValue)?.cgRectValue.size.height {
                 self.bottomConstraint.constant = keyboardHeight
@@ -1331,7 +1346,7 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
         }
     }
 
-    func endEditingWithTouch() {
+    @objc func endEditingWithTouch() {
         _ = textView.resignFirstResponder()
         moreOptionsView.isHidden = true
     }

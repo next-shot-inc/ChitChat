@@ -269,7 +269,7 @@ class SettingsViewController: UIViewController, UIImagePickerControllerDelegate,
         present(picker, animated: true, completion: nil)
     }
 
-    func endEditing() {
+    @objc func endEditing() {
         userNameTextField.resignFirstResponder()
     }
     

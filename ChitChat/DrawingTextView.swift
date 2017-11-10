@@ -49,13 +49,13 @@ class DrawingTextView: UILabel {
         drawStamps(rect: r.rect, topLine: r.topLine, botLine: r.botLine)
     }
     
-    func computeLineRanges(characters: [String], attributes: [String: Any], size: CGSize) -> [(min: Int, max: Int)] {
+    func computeLineRanges(characters: [String], attributes: [NSAttributedStringKey: Any], size: CGSize) -> [(min: Int, max: Int)] {
         var textWidth : CGFloat = 0
         var maxHeight : CGFloat = 0
         var has_newLine = false
         let l = characters.count
         for i in 0 ..< l {
-            let attr = characters[i].size(attributes: attributes)
+            let attr = characters[i].size(withAttributes: attributes)
             let cw = attr.width
             textWidth += cw
             maxHeight = max(maxHeight, attr.height)
@@ -73,7 +73,7 @@ class DrawingTextView: UILabel {
             var textWidth : CGFloat = 0
             var textWidthSinceLastSpace : CGFloat = 0
             for i in 0 ..< l {
-                let cw = characters[i].size(attributes: attributes).width
+                let cw = characters[i].size(withAttributes: attributes).width
                 if( characters[i] == " " ) {
                     lastSpace = i
                     textWidthSinceLastSpace = 0
@@ -104,7 +104,10 @@ class DrawingTextView: UILabel {
     
     func computeSize(_ size: CGSize) -> CGSize {
         let str = self.text ?? ""
-        let characters: [String] = str.characters.map { String($0) } // An array of single character strings, each character in str
+        var characters = [String]()  // An array of single character strings, each character in str
+        for c in str {
+            characters.append(String(c))
+        }
         let stampHeight : CGFloat = 32+4
         
         if( characters.count == 0 ) {
@@ -113,7 +116,7 @@ class DrawingTextView: UILabel {
         
         let radius = getRadiusForLabel()
         
-        let attributes: [String : Any] = [NSFontAttributeName: self.font]
+        let attributes: [NSAttributedStringKey : Any] = [NSAttributedStringKey.font: self.font]
         
         let ranges = computeLineRanges(characters: characters, attributes: attributes, size: size)
         var csize = CGSize()
@@ -137,7 +140,7 @@ class DrawingTextView: UILabel {
             // Calculate the arc subtended by each letter and their total
             var maxHeight : CGFloat = 0
             for j in range.min ... range.max {
-                let attr = characters[j].size(attributes: attributes)
+                let attr = characters[j].size(withAttributes: attributes)
                 let cw = attr.width
                 let arc = chordToArc(cw, radius: radius)
                 arcs += [arc]
@@ -208,7 +211,7 @@ class DrawingTextView: UILabel {
         var cgSize = CGSize()
         
         let radius = getRadiusForLabel()
-        let attributes: [String : Any] = [NSFontAttributeName: self.font]
+        let attributes: [NSAttributedStringKey : Any] = [NSAttributedStringKey.font: self.font]
         
         let characters: [String] = str.characters.map { String($0) } // An array of single character strings, each character in str
         
@@ -229,7 +232,7 @@ class DrawingTextView: UILabel {
             // Calculate the arc subtended by each letter and their total
             var maxHeight : CGFloat = 0
             for i in range.min ... range.max {
-                let attr = characters[i].size(attributes: attributes)
+                let attr = characters[i].size(withAttributes: attributes)
                 let cw = attr.width
                 let arc = chordToArc(cw, radius: radius)
                 arcs += [arc]
@@ -326,8 +329,9 @@ class DrawingTextView: UILabel {
      */
     func centre(text str: String, context: CGContext, radius r:CGFloat, angle theta: CGFloat, slantAngle: CGFloat) {
         // Set the text attributes
-        let attributes = [NSForegroundColorAttributeName: self.textColor,
-                          NSFontAttributeName: self.font] as [String : Any]
+        let attributes : [NSAttributedStringKey: Any] =
+                         [NSAttributedStringKey.foregroundColor: self.textColor,
+                          NSAttributedStringKey.font: self.font] 
         // Save the context
         context.saveGState()
         // Move the origin to the centre of the text (negating the y-axis manually)
@@ -335,7 +339,7 @@ class DrawingTextView: UILabel {
         // Rotate the coordinate system
         context.rotate(by: -slantAngle)
         // Calculate the width of the text
-        let offset = str.size(attributes: attributes)
+        let offset = str.size(withAttributes: attributes)
         // Move the origin by half the size of the text
         context.translateBy(x: -offset.width / 2, y: -offset.height / 2) // Move the origin to the centre of the text (negating the y-axis manually)
         // Draw the text

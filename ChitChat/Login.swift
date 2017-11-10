@@ -303,7 +303,7 @@ class LoginViewController : UIViewController, UITextFieldDelegate {
     }
     
     // Outside text field tap - End editing.
-    func endEditing() {
+    @objc func endEditing() {
         telephone.resignFirstResponder()
         userName.resignFirstResponder()
         passwordField.resignFirstResponder()
@@ -339,12 +339,12 @@ class LoginViewController : UIViewController, UITextFieldDelegate {
     }
     
     // Keyboard handling
-    func keyboardWillHide(_ sender: Notification) {
+    @objc func keyboardWillHide(_ sender: Notification) {
         keyboardRect = nil
         adjustForKeyboard()
     }
     
-    func keyboardWillShow(_ sender: Notification) {
+    @objc func keyboardWillShow(_ sender: Notification) {
         if let userInfo = (sender as NSNotification).userInfo {
             if let rect = (userInfo[UIKeyboardFrameEndUserInfoKey] as? NSValue)?.cgRectValue {
                 keyboardRect = rect

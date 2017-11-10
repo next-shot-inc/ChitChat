@@ -46,12 +46,12 @@ class PollRecord : MessageRecord, MessageRecordDelegate {
 
 // Comptabilize current votes
 class PollData {
-    var nb_votes = 0
-    var nb_total_votes = 0
-    var elements = [(label: String,nb_votes: Int)]()
-    var votes = [[RecordId]]()
-    var alreadyVoted = false
-    var open = false
+    var nb_votes = 0   // number of actual votes.
+    var nb_total_votes = 0 // total number of votes expected
+    var elements = [(label: String,nb_votes: Int)]() // A label and number of votes for each choice.
+    var votes = [[RecordId]]() // An array of all the users (RecordId) for each choice.
+    var alreadyVoted = false  // Indicate if the current user has already voted.
+    var open = false // Indicate if the poll is private (votes are anonymous) or open (votes are public)
     
     init(pollRecords: [PollRecord], message: Message, options: MessageOptions?) {
         // The total number of votes = number of people in the group.
@@ -165,7 +165,7 @@ class EditChoiceTableViewCell : UITableViewCell, UITextFieldDelegate {
         pollMessageCell?.changeChoice(text: textView.text!, index: index)
     }
     
-    func endEditingWithTouch() {
+    @objc func endEditingWithTouch() {
         choiceTextField.resignFirstResponder()
     }
 }
@@ -187,7 +187,7 @@ class AddNewChoiceTableViewCell : UITableViewCell {
     }
 }
 
-// Table cell which display the result of the vote.
+// Table cell which display the result of the vote as a percent.
 // It shows either the participation to the current vote
 // or the current vote tally for a given option.
 class ResultVoteTableViewCell : UITableViewCell {
@@ -214,11 +214,16 @@ class ResultVoteTableViewCell : UITableViewCell {
     }
 }
 
+// Cell of the collection view showing the list of users that have voted for a particular choice.
+// Only the user's icon is displayed inside the cell.
 class ResultListCollectionViewCell : UICollectionViewCell {
     
     @IBOutlet weak var image: UIImageView!
 }
 
+// DataSource and delegate for the UICollectionView linked to a ResultListVoteTableViewCell
+// that shows the pixmap for each user that voted for a particular choice.
+// The cells of this collection view are ResultListCollectionViewCell
 class ResultListCollectionViewData : NSObject, UICollectionViewDataSource, UICollectionViewDelegateFlowLayout {
     var users = [User]()
     
@@ -249,6 +254,8 @@ class ResultListCollectionViewData : NSObject, UICollectionViewDataSource, UICol
 
 }
 
+// Table Cell which shows who has voted for a particular choice.
+// The display of done with a UICollectionView of user's icons.
 class ResultListVoteTableViewCell : UITableViewCell {
     
     @IBOutlet weak var choiceCount: UILabel!
@@ -522,9 +529,9 @@ class PollMessageCellSizeDelegate : MessageBaseCellSizeDelegate {
         let options = MessageOptions(options: message.options)
         let count = max(3, options.pollOptions.count+1)
         
-        let attributes: [String : Any] = [NSFontAttributeName: UIFont.systemFont(ofSize: 17)]
+        let attributes: [NSAttributedStringKey : Any] = [NSAttributedStringKey.font: UIFont.systemFont(ofSize: 17)]
         
-        let height = max(message.text.size(attributes: attributes).height, 28)
+        let height = max(message.text.size(withAttributes: attributes).height, 28)
         
         let heightFromLabels : CGFloat = 16 + height
         let vspacing : CGFloat = 5

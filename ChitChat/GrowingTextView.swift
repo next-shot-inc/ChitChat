@@ -30,9 +30,9 @@ open class GrowingTextView: UIScrollView {
     
     // MARK: - Public
     open class Delegates {
-        open var shouldChangeTextInRange: (_ range: NSRange, _ replacementText: String) -> Bool = { _ in true }
-        open var shouldInteractWithURL: (_ URL: URL, _ inRange: NSRange) -> Bool = { _ in true }
-        open var shouldInteractWithTextAttachment: (_ textAttachment: NSTextAttachment, _ inRange: NSRange) -> Bool = { _ in true }
+        open var shouldChangeTextInRange: (_ range: NSRange, _ replacementText: String) -> Bool = { _,_  in true }
+        open var shouldInteractWithURL: (_ URL: URL, _ inRange: NSRange) -> Bool = { _,_  in true }
+        open var shouldInteractWithTextAttachment: (_ textAttachment: NSTextAttachment, _ inRange: NSRange) -> Bool = { _,_  in true }
         open var textViewDidBeginEditing: (GrowingTextView) -> Void = { _ in }
         open var textViewDidChangeSelection: (GrowingTextView) -> Void = { _ in }
         open var textViewDidEndEditing: (GrowingTextView) -> Void = { _ in }

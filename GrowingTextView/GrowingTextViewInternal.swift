@@ -91,12 +91,12 @@ internal class GrowingInternalTextView: UITextView {
         }
     }
     
-    fileprivate dynamic func textDidChangeNotification(_ notification: Notification) {
+    @objc fileprivate dynamic func textDidChangeNotification(_ notification: Notification) {
         
         self.updatePlaceholder()
     }
     
     fileprivate func updatePlaceholder() {
-        self.displayPlaceholder = self.text.characters.count == 0
+        self.displayPlaceholder = self.text.count == 0
     }
 }

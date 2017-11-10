@@ -57,7 +57,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         notificationCenter.requestAuthorization(options: [.alert, .badge, .sound], completionHandler: { (granted, error) in
             // Handle Error
             if( granted ) {
-                application.registerForRemoteNotifications()
+                DispatchQueue.main.async(execute: {
+                    UIApplication.shared.registerForRemoteNotifications()
+                }) 
             }
         })
         
