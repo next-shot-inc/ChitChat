@@ -37,8 +37,11 @@
 		2F4EF7D51E7C81DC006A2D06 /* DrawingTextView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F4EF7D41E7C81DC006A2D06 /* DrawingTextView.swift */; };
 		2F4EF7D71E7E3A73006A2D06 /* MessageOptions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F4EF7D61E7E3A73006A2D06 /* MessageOptions.swift */; };
 		2F4EF7E61E817BAB006A2D06 /* ResourceDB.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F4EF7E51E817BAB006A2D06 /* ResourceDB.swift */; };
+		2F6C52FF1FB6536A00CD316E /* LocationMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F6C52FE1FB6536A00CD316E /* LocationMessage.swift */; };
 		2F708C0C1E8567B600120122 /* DecoratedImageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F708C0B1E8567B600120122 /* DecoratedImageView.swift */; };
 		2F7840591E74C1BD0069AB75 /* sounds in Resources */ = {isa = PBXBuildFile; fileRef = 2F7840581E74C1BD0069AB75 /* sounds */; };
+		2FB5FFA3201A7AA000C2A048 /* DecoratedMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FB5FFA2201A7AA000C2A048 /* DecoratedMessage.swift */; };
+		2FB5FFA5201BC0DF00C2A048 /* NewConversationsCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FB5FFA4201BC0DF00C2A048 /* NewConversationsCell.swift */; };
 		2FD12B941EEB3F7900AC558C /* ExpenseMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FD12B931EEB3F7900AC558C /* ExpenseMessage.swift */; };
 		2FEBCBA91E84627F008A0690 /* SettingsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FEBCBA81E84627F008A0690 /* SettingsViewController.swift */; };
 		2FF9BE291E7061F5000DF9A8 /* ContactsController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FF9BE281E7061F5000DF9A8 /* ContactsController.swift */; };
@@ -106,8 +109,11 @@
 		2F4EF7D41E7C81DC006A2D06 /* DrawingTextView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = DrawingTextView.swift; sourceTree = "<group>"; };
 		2F4EF7D61E7E3A73006A2D06 /* MessageOptions.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MessageOptions.swift; sourceTree = "<group>"; };
 		2F4EF7E51E817BAB006A2D06 /* ResourceDB.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ResourceDB.swift; sourceTree = "<group>"; };
+		2F6C52FE1FB6536A00CD316E /* LocationMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationMessage.swift; sourceTree = "<group>"; };
 		2F708C0B1E8567B600120122 /* DecoratedImageView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = DecoratedImageView.swift; sourceTree = "<group>"; };
 		2F7840581E74C1BD0069AB75 /* sounds */ = {isa = PBXFileReference; lastKnownFileType = folder; path = sounds; sourceTree = "<group>"; };
+		2FB5FFA2201A7AA000C2A048 /* DecoratedMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DecoratedMessage.swift; sourceTree = "<group>"; };
+		2FB5FFA4201BC0DF00C2A048 /* NewConversationsCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewConversationsCell.swift; sourceTree = "<group>"; };
 		2FD12B931EEB3F7900AC558C /* ExpenseMessage.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ExpenseMessage.swift; sourceTree = "<group>"; };
 		2FEBCBA81E84627F008A0690 /* SettingsViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = SettingsViewController.swift; sourceTree = "<group>"; };
 		2FF9BE281E7061F5000DF9A8 /* ContactsController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ContactsController.swift; sourceTree = "<group>"; };
@@ -187,7 +193,9 @@
 				2F32DFD01E6E5B0700EF34E8 /* ViewController.swift */,
 				2F0D81B71E91DE7D00A24723 /* PollMessage.swift */,
 				2F32DFD21E6E5B0700EF34E8 /* Main.storyboard */,
+				2F6C52FE1FB6536A00CD316E /* LocationMessage.swift */,
 				2FD12B931EEB3F7900AC558C /* ExpenseMessage.swift */,
+				2FB5FFA2201A7AA000C2A048 /* DecoratedMessage.swift */,
 				2F0C2FAA1EC11ECA008A5449 /* PictureViewController.swift */,
 				2F708C0B1E8567B600120122 /* DecoratedImageView.swift */,
 				2FEBCBA81E84627F008A0690 /* SettingsViewController.swift */,
@@ -204,6 +212,7 @@
 				2F4EF7D61E7E3A73006A2D06 /* MessageOptions.swift */,
 				2F32DFFF1E6E5D0400EF34E8 /* GroupViewController.swift */,
 				2F32E0011E6E5D4E00EF34E8 /* ThreadsViewController.swift */,
+				2FB5FFA4201BC0DF00C2A048 /* NewConversationsCell.swift */,
 				2F32DFD81E6E5B0700EF34E8 /* Assets.xcassets */,
 				2F32DFDA1E6E5B0700EF34E8 /* LaunchScreen.storyboard */,
 				2F32DFDD1E6E5B0700EF34E8 /* Info.plist */,
@@ -476,8 +485,10 @@
 				2FD12B941EEB3F7900AC558C /* ExpenseMessage.swift in Sources */,
 				2F708C0C1E8567B600120122 /* DecoratedImageView.swift in Sources */,
 				2F0C2FAB1EC11ECA008A5449 /* PictureViewController.swift in Sources */,
+				2FB5FFA3201A7AA000C2A048 /* DecoratedMessage.swift in Sources */,
 				2FF9BE3D1E749396000DF9A8 /* SpellChecker.swift in Sources */,
 				2F4EF7E61E817BAB006A2D06 /* ResourceDB.swift in Sources */,
+				2F6C52FF1FB6536A00CD316E /* LocationMessage.swift in Sources */,
 				2F4EF7D51E7C81DC006A2D06 /* DrawingTextView.swift in Sources */,
 				2F32E00B1E6F5AE300EF34E8 /* Model.swift in Sources */,
 				2F32E0041E6E892400EF34E8 /* MessagesViewController.swift in Sources */,
@@ -499,6 +510,7 @@
 				2F32DFD11E6E5B0700EF34E8 /* ViewController.swift in Sources */,
 				2FF9BE2B1E70B6D9000DF9A8 /* Login.swift in Sources */,
 				2F32DFCF1E6E5B0700EF34E8 /* AppDelegate.swift in Sources */,
+				2FB5FFA5201BC0DF00C2A048 /* NewConversationsCell.swift in Sources */,
 				2FF9BE341E720511000DF9A8 /* CloudDB.swift in Sources */,
 				2F3B047F1EE89C9D00C27C04 /* FriendsAndGroup.swift in Sources */,
 			);
@@ -670,7 +682,7 @@
 				DEVELOPMENT_TEAM = A8SRM3ENGN;
 				"HEADER_SEARCH_PATHS[arch=*]" = "/Users/next-shot/Desktop/ChitChat/ChitChat/external/openssl/include";
 				INFOPLIST_FILE = ChitChat/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 10.2;
+				IPHONEOS_DEPLOYMENT_TARGET = 11.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
 				LIBRARY_SEARCH_PATHS = (
 					"$(inherited)",
@@ -694,7 +706,7 @@
 				DEVELOPMENT_TEAM = A8SRM3ENGN;
 				"HEADER_SEARCH_PATHS[arch=*]" = "/Users/next-shot/Desktop/ChitChat/ChitChat/external/openssl/include";
 				INFOPLIST_FILE = ChitChat/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 10.2;
+				IPHONEOS_DEPLOYMENT_TARGET = 11.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
 				LIBRARY_SEARCH_PATHS = (
 					"$(inherited)",

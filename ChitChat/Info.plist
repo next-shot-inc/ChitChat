@@ -17,15 +17,17 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>0.5</string>
+	<string>0.6</string>
 	<key>CFBundleVersion</key>
-	<string>06130</string>
+	<string>021218</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
 	<string>Take a snapshot to send</string>
 	<key>NSContactsUsageDescription</key>
 	<string>To create groups based on contacts</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Add location to location sharing message</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Add pictures to messages</string>
 	<key>UIBackgroundModes</key>

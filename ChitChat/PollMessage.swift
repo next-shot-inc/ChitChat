@@ -374,12 +374,12 @@ class PollMessageCell : UICollectionViewCell, MessageBaseCellDelegate {
     
     var data: PollMessageData?
     var message: Message?
-    var view : PollModelView?
+    var modelView : PollModelView?
     var pollRecord : PollRecord?
     
     deinit {
-        if( view != nil ) {
-            model.removeViews(views: [view!])
+        if( modelView != nil ) {
+            model.removeViews(views: [modelView!])
         }
     }
     
@@ -416,8 +416,8 @@ class PollMessageCell : UICollectionViewCell, MessageBaseCellDelegate {
                     state = .voted
                     if( pollData.nb_votes != pollData.nb_total_votes ) {
                         // Attach an observer to the poll
-                        self.view = PollModelView(cell: self)
-                        model.setupNotificationsForMessageRecord(messageId: message.id, view: self.view!)
+                        self.modelView = PollModelView(cell: self)
+                        model.setupNotificationsForMessageRecord(messageId: message.id, view: self.modelView!)
                     }
                     self.submitButton.isHidden = true
                 } else {

@@ -10,7 +10,7 @@ import Foundation
 
 // 
 // {
-//    type : "decoratedImage" or "decoratedText" or "poll" or "thumb-up" or "expense-tab"
+//    type : "decoratedImage" or "decoratedText" or "poll" or "thumb-up" or "expense-tab" or "location-sharing"
 //    version : "1.0"
 //
 // }

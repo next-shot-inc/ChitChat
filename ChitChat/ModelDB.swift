@@ -17,6 +17,7 @@ protocol DBProtocol {
     func getThread(threadId: RecordId, completion: @escaping (ConversationThread?) -> ())
     func getMessagesForThread(threadId: RecordId, completion: @escaping ([Message]) -> ())
     func getMessagesForThread(threadId: RecordId, dateLimit: (min: Int, max: Int), completion: @escaping ([Message]) -> ())
+    func getMessageStartingThread(conversationThread: ConversationThread, completion: @escaping (Message) -> ())
     func getMessageLargeImage(message: Message, completion: @escaping () -> ())
     func getUser(userId: RecordId, completion: @escaping (User) -> ())
     func getUser(phoneNumber: String, completion: @escaping (User?) -> ())
@@ -137,6 +138,9 @@ class InMemoryDB : DBProtocol {
     
     func getMessagesForThread(threadId: RecordId, dateLimit: (min: Int, max: Int), completion: @escaping ([Message]) -> ()) {
         // TODO
+    }
+    
+    func getMessageStartingThread(conversationThread: ConversationThread, completion: @escaping (Message) -> ()) {
     }
     
     func getMessageLargeImage(message: Message, completion: @escaping () -> ()) {

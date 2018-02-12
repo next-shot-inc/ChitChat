@@ -253,6 +253,16 @@ class ExpenseMessageCell : UICollectionViewCell, MessageBaseCellDelegate, UIText
         spentStackView.isHidden = true
         
         updateExpenses()
+        
+        let editMode =  (message.user_id.id == model.me().id.id &&
+            !(message.id is CloudRecordId))
+        if( editMode == true ) {
+            // Not to confuse people with two "Send buttons"
+            addExpenseButton.isHidden = true
+        } else {
+            // As cells are reused, make sure to set things back like constructed
+            addExpenseButton.isHidden = false
+        }
     }
     
     func userIcon() -> UIImageView? {

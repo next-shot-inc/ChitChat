@@ -121,6 +121,7 @@ class ConversationThread {
     var user_id : RecordId?
     var last_modified = Date()
     var title = String()
+    var createdFromMessage_id: RecordId?
     
     init(id: RecordId, group_id: RecordId, user_id: RecordId?) {
         self.id = id
@@ -249,6 +250,7 @@ class MessageRecord {
         self.id = record.id
         self.message_id = record.message_id
         self.user_id = record.user_id
+        self.group_id = record.group_id
         self.type = type
         self.date_created = record.date_created
         self.version = record.version
@@ -302,6 +304,7 @@ class ModelView {
     var notify_edit_group_activity : ((_ activity: GroupActivity) -> Void)?
     var notify_delete_conversation : ((_ id: RecordId) -> Void)?
     var notify_new_message_record : ((_ messageRecord: MessageRecord) -> Void)?
+    var notify_edit_message_record: ((_ messageRecord: MessageRecord) -> Void)?
 }
 
 struct MessageDateRange {
@@ -579,13 +582,31 @@ class MemoryModel {
             self.messageRecords!.append(contentsOf: messageRecords)
         } else {
             for r in messageRecords {
-                let contained = self.messageRecords!.contains(where: { (record) -> Bool in
-                    r.id == record.id
+                let index = self.messageRecords!.index(where: { (record)-> Bool in
+                    return r.id == record.id
                 })
-                if( !contained ) {
+                if( index != nil ) {
+                    self.messageRecords!.remove(at: index!)
+                    self.messageRecords!.insert(r, at: index!)
+                } else {
                     self.messageRecords!.append(r)
                 }
             }
+        }
+    }
+    
+    func getConversationThreadCreatedFrom(message: Message) -> ConversationThread? {
+        if( conversations == nil ) {
+            return nil
+        }
+        let index = conversations!.index( where: { (conv) -> Bool in
+            return conv.createdFromMessage_id == message.id
+        })
+        if( index != nil ) {
+            let cthread = conversations![index!]
+            return cthread
+        } else {
+            return nil
         }
     }
 }
@@ -604,6 +625,7 @@ class MemoryModelView : ModelView {
         self.notify_edit_group_activity = edited_group_activity
         self.notify_delete_conversation = delete_cthread
         self.notify_new_message_record = new_message_record
+        self.notify_edit_message_record = edited_message_record
     }
     
     func new_message(message: Message) {
@@ -679,6 +701,18 @@ class MemoryModelView : ModelView {
     
     func new_message_record(pr: MessageRecord) {
         memory_model.updateMessageRecords(messageRecords: [pr])
+    }
+    
+    func edited_message_record(pr: MessageRecord) {
+        if( memory_model.messageRecords != nil ) {
+            let index = memory_model.messageRecords!.index(where: { (r)-> Bool in
+                return r.id == pr.id
+            })
+            if( index != nil ) {
+                memory_model.messageRecords!.remove(at: index!)
+                memory_model.messageRecords!.insert(pr, at: index!)
+            }
+        }
     }
 }
 
@@ -915,6 +949,20 @@ class DataModel {
             let included = self.memory_model.update(threadId: thread.id, messages: messages, range: dateLimit)
             completion(included, dateLimit)
         })
+    }
+    
+    func getMessageStartingThread(conversationThread: ConversationThread, completion: @escaping (Message) -> ()) {
+        if( conversationThread.createdFromMessage_id == nil ) {
+            return
+        }
+        if( memory_model.messages != nil ) {
+            let index = memory_model.messages!.index(where: { (m) -> Bool in m.id == conversationThread.createdFromMessage_id! })
+            if( index != nil ) {
+                completion( memory_model.messages![index!] )
+                return
+            }
+        }
+        db_model.getMessageStartingThread(conversationThread: conversationThread, completion: completion)
     }
     
     func getMessageLargeImage(message: Message, completion: @escaping () -> ()) {
@@ -1176,7 +1224,7 @@ class DataModel {
     }
     
     func setupNotificationsForMessageRecord(messageId: RecordId, view: ModelView) {
-        if( view.notify_new_message_record != nil ) {
+        if( view.notify_new_message_record != nil || view.notify_edit_message_record != nil ) {
             uniquely_append(view)
         }
     }
@@ -1367,14 +1415,15 @@ class DataModel {
         }
 
         let messageRecords = getMessageRecordsForMessage(message: expense_tab)
-        if( messageRecords.count != 0 ) {
-            return completion(convert(messageRecords: messageRecords))
+        if( messageRecords.count > 1 ) {
+            let expRecords = convert(messageRecords: messageRecords)
+            completion(expRecords)
+        } else {
+           db_model.getMessageRecords(message: expense_tab, completion: { (messageRecords) -> Void in
+               self.memory_model.updateMessageRecords(messageRecords: messageRecords)
+               completion(convert(messageRecords: messageRecords))
+           })
         }
-        db_model.getMessageRecords(message: expense_tab, completion: { (messageRecords) -> Void in
-            self.memory_model.updateMessageRecords(messageRecords: messageRecords)
-            completion(convert(messageRecords: messageRecords))
-        })
-
     }
     
     func saveExpenseItem(expenseRecord: ExpenseRecord) {
@@ -1382,6 +1431,42 @@ class DataModel {
         self.memory_model.updateMessageRecords(messageRecords: [expenseRecord])
         
         db_model.saveMessageRecord(messageRecord: expenseRecord)
+    }
+    
+    func getLocationItems(
+        share_location_message: Message, completion: @escaping ([LocationRecord]) -> Void
+    ) {
+        // Convert generic MessageRecords into ExpenseRecords.
+        func convert(messageRecords: [MessageRecord]) -> [LocationRecord] {
+            var expRecords = [LocationRecord]()
+            for mr in messageRecords {
+                if( mr.type == "LocationRecord" ) {
+                    let expRecord = LocationRecord(record: mr)
+                    expRecords.append(expRecord)
+                }
+            }
+            return expRecords
+        }
+        
+        let messageRecords = getMessageRecordsForMessage(message: share_location_message)
+        if( messageRecords.count > 1 ) {
+            let locRecords = convert(messageRecords: messageRecords)
+            completion(locRecords)
+        } else {
+            db_model.getMessageRecords(message: share_location_message, completion: { (messageRecords) -> Void in
+                self.memory_model.updateMessageRecords(messageRecords: messageRecords)
+                var locRecords = convert(messageRecords: messageRecords)
+                completion(locRecords)
+                locRecords.removeAll()
+            })
+        }
+    }
+    
+    func saveLocationItem(locationRecord: LocationRecord) {
+        locationRecord.payLoad = locationRecord.getPayLoad()
+        self.memory_model.updateMessageRecords(messageRecords: [locationRecord])
+        
+        db_model.saveMessageRecord(messageRecord: locationRecord)
     }
 }
 

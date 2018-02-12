@@ -198,6 +198,13 @@ class ThreadRowData : MessageCollectionViewHelper, UICollectionViewDataSource {
             } else if( mo.type == "expense-tab" ) {
                 mcell.decoratedIndicator.image = UIImage(named: "money-32")
                 mcell.decoratedIndicator.isHidden = false
+            } else if( mo.type == "location-sharing" ) {
+                if( mo.decorated ) {
+                    mcell.decoratedIndicator.image = UIImage(named: "hideandseek32")
+                } else {
+                    mcell.decoratedIndicator.image = UIImage(named: "location-32")
+                }
+                mcell.decoratedIndicator.isHidden = false
             } else {
                 mcell.decoratedIndicator.isHidden = true
             }
@@ -274,6 +281,8 @@ class EmptyGroupCell : UITableViewCell {
     @IBOutlet weak var label: UILabel!
 }
 
+
+
 class ConversationHeaderView : UITableViewHeaderFooterView  {
     @IBOutlet weak var title: UILabel!
     
@@ -289,7 +298,13 @@ class ThreadsTableViewDelegate : NSObject, UITableViewDelegate {
     // Return the height of the row.
     func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
         if( dataSource.threadsSource.count == 0 ) {
+            if( indexPath.section == 1 ) {
+                return 180 // special cell
+            }
             return 100
+        }
+        if( indexPath.section == dataSource.threadsSource.count ) {
+            return 180 // special cell
         }
         // To fit the 110x110 collection view cells.
         return 140
@@ -297,6 +312,10 @@ class ThreadsTableViewDelegate : NSObject, UITableViewDelegate {
     
     func tableView(_ tableView: UITableView, viewForHeaderInSection section: Int) -> UIView? {
         if( dataSource.threadsSource.count == 0 ) {
+            if( section == 1 ) {
+                return nil // No header for special row
+            }
+            
             let cell = tableView.dequeueReusableHeaderFooterView(withIdentifier: "ConversationHeaderView") as? ConversationHeaderView
             
             cell?.title.text = "Last group conversation on "
@@ -315,6 +334,9 @@ class ThreadsTableViewDelegate : NSObject, UITableViewDelegate {
                  }
             })
             return cell
+        }
+        if( section == dataSource.threadsSource.count ) {
+            return nil // No header for special row
         }
         let cell = tableView.dequeueReusableHeaderFooterView(withIdentifier: "ConversationHeaderView") as? ConversationHeaderView
         if( cell != nil ) {
@@ -347,6 +369,9 @@ class ThreadsTableViewDelegate : NSObject, UITableViewDelegate {
     func tableView(_ tableView: UITableView, editActionsForRowAt indexPath: IndexPath) -> [UITableViewRowAction]? {
         if( self.dataSource.threadsSource.count == 0 ) {
             return nil
+        }
+        if( indexPath.section == dataSource.threadsSource.count ) {
+            return nil // No edit action for special row
         }
         let edit = UITableViewRowAction(style: .destructive, title: "Delete") { action, index in
             let cthread = self.dataSource.threadsSource[indexPath.section].cthread
@@ -456,7 +481,7 @@ class ThreadsDataSource : NSObject, UITableViewDataSource {
     }
     
     func numberOfSections(in tableView: UITableView) -> Int {
-        return max(threadsSource.count,1)
+        return max(threadsSource.count+1,2)
     }
     
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
@@ -469,6 +494,11 @@ class ThreadsDataSource : NSObject, UITableViewDataSource {
     
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         if( threadsSource.count == 0 ) {
+            if( indexPath.section == 1 ) {
+                let cell = tableView.dequeueReusableCell(withIdentifier: "NewSpecialConversationCell") as! NewConversationsCell
+                cell.initialize(ctrler: controller)
+                return cell
+            }
             let cell = tableView.dequeueReusableCell(withIdentifier: "EmptyGroupCell") as! EmptyGroupCell
             
             model.getActivityForGroup(groupId: group.id, completion: { (ga) in
@@ -505,6 +535,12 @@ class ThreadsDataSource : NSObject, UITableViewDataSource {
             return cell
         }
         
+        if( indexPath.section == threadsSource.count ) {
+            let cell = tableView.dequeueReusableCell(withIdentifier: "NewSpecialConversationCell") as! NewConversationsCell
+            cell.initialize(ctrler: controller)
+            return cell
+        }
+        
         let cell = tableView.dequeueReusableCell(withIdentifier: "ThreadCell") as! ThreadCell
         
         let rowData = threadsSource[indexPath.section]
@@ -514,19 +550,30 @@ class ThreadsDataSource : NSObject, UITableViewDataSource {
         model.getMessagesForThread(thread: rowData.cthread, dateLimit: rowData.dateLimit, completion: { (messages, dateLimit) -> Void in
             rowData.messages = messages
             rowData.dateLimit = dateLimit
-            if( messages.count == 0 ) {
-                 rowData.requestMore(collectionView: cell.collectionView)
-            } else {
-                DispatchQueue.main.async(execute: {
-                    cell.collectionView.reloadData()
-                    if( messages.count > 0 ) {
-                        cell.collectionView.scrollToItem(at: IndexPath(row: messages.count - 1, section: 0), at: .right, animated: true)
-                    }
-                    if( messages.count <= 5 ) {
-                        // Otherwise scrolling is not enabled.
-                        rowData.requestMore(collectionView: cell.collectionView, scroll: false)
-                    }
+            
+            if( rowData.cthread.createdFromMessage_id != nil ) {
+                model.getMessageStartingThread(conversationThread: rowData.cthread, completion: { (m) in
+                    DispatchQueue.main.async(execute: {
+                        rowData.messages.insert(m, at: 0)
+                        //self.messagesView.reloadItems(at: [IndexPath(row: 0, section: 0)])
+                        cell.collectionView.reloadData()
+                    })
                 })
+            } else {
+                if( messages.count == 0 ) {
+                    rowData.requestMore(collectionView: cell.collectionView)
+                } else {
+                    DispatchQueue.main.async(execute: {
+                        cell.collectionView.reloadData()
+                        if( messages.count > 0 ) {
+                            cell.collectionView.scrollToItem(at: IndexPath(row: messages.count - 1, section: 0), at: .right, animated: true)
+                        }
+                        if( messages.count <= 5 ) {
+                            // Otherwise scrolling is not enabled.
+                            rowData.requestMore(collectionView: cell.collectionView, scroll: false)
+                        }
+                    })
+                }
             }
         })
     
@@ -535,6 +582,9 @@ class ThreadsDataSource : NSObject, UITableViewDataSource {
     
     func tableView(_ tableView: UITableView, canEditRowAt indexPath: IndexPath) -> Bool {
         if( threadsSource.count == 0 ) {
+            return false
+        }
+        if( indexPath.section == threadsSource.count ) {
             return false
         }
         let rowData = threadsSource[indexPath.section]
@@ -548,6 +598,9 @@ class ThreadsViewController: UITableViewController {
     var dele : ThreadsTableViewDelegate?
     var group : Group?
     var selectedConversationThread : ConversationThread?
+    var selectedCurMessage : Message?
+    var selectedCurMessageOptions : MessageOptions?
+    var selectedCurMessagePlaceHolder : String?
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -598,11 +651,20 @@ class ThreadsViewController: UITableViewController {
                         }
                     }
                 }
+                cc!.curMessage = selectedCurMessage
+                cc!.curMessageOption = selectedCurMessageOptions
+                cc!.curPlaceHolder = selectedCurMessagePlaceHolder
+                
+                selectedCurMessage = nil
+                selectedCurMessageOptions = nil
+                selectedCurMessagePlaceHolder = nil
             }
         }
     }
     
     @IBAction func createNewThread(_ sender: Any) {
+        self.tableView.scrollToRow(at: IndexPath(indexes: [data!.threadsSource.count, 0]), at: .bottom, animated: true)
+        /*
         let alertCtrler = UIAlertController(
             title: "Create new conversation thread",
             message: "Please provide a new conversation title",
@@ -634,6 +696,7 @@ class ThreadsViewController: UITableViewController {
         
         alertCtrler.addAction(UIAlertAction(title: "Cancel", style: .cancel, handler: nil))
         self.present(alertCtrler, animated: true, completion: nil)
+ */
 
     }
 }

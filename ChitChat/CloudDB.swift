@@ -239,6 +239,17 @@ extension ConversationThread {
         )
         self.title = String(record["title"] as! NSString)
         self.last_modified = Date(timeIntervalSince1970: (record["last_modified"] as! NSDate).timeIntervalSince1970)
+        
+        let createdFromMessage_ref = record["createdFromMessage_reference"] as? CKReference
+        if( createdFromMessage_ref != nil ) {
+            let id = String(record["createdFromMessage_id"] as! NSString)
+            createdFromMessage_id = ReferenceCloudRecordId(recordId: createdFromMessage_ref!.recordID, id: id)
+        } else {
+            let createdFromMessage_id = record["createdFromMessage_id"] as? NSString
+            if( createdFromMessage_id != nil ) {
+               self.createdFromMessage_id = RecordId(string: String(createdFromMessage_id!))
+            }
+        }
     }
     
     func fillRecord(record: CKRecord) {
@@ -253,6 +264,14 @@ extension ConversationThread {
         record["last_modified"] = NSDate(timeIntervalSince1970: self.last_modified.timeIntervalSince1970)
         if( self.user_id != nil ) {
             record["user_id"] = NSString(string: self.user_id!.id)
+        }
+        if( self.createdFromMessage_id != nil ) {
+            record["createdFromMessage_id"] = NSString(string: self.createdFromMessage_id!.id)
+            if( self.createdFromMessage_id! is CloudRecordId ) {
+                record["createdFromMessage_reference"] = CKReference(record: (self.createdFromMessage_id! as! CloudRecordId).record, action: .none)
+            } else if( self.createdFromMessage_id! is ReferenceCloudRecordId ) {
+                record["createdFromMessage_reference"] = CKReference(recordID: (self.createdFromMessage_id! as! ReferenceCloudRecordId).recordId, action: .none)
+            }
         }
     }
 }
@@ -473,6 +492,7 @@ extension MessageRecord {
         if( payLoadRecord != nil ) {
             self.payLoad = (payLoadRecord as! NSString) as String
         } else {
+            // Backward compatibility
             let checkedOptionRecord = record["checked_option"]
             if( checkedOptionRecord != nil ) {
                 let checkedOption = (checkedOptionRecord as! NSNumber) as! Int
@@ -498,6 +518,9 @@ extension MessageRecord {
         record["payLoad"] = NSString(string: self.payLoad)
         record["date_created"] = NSDate(timeIntervalSince1970: self.date_created.timeIntervalSince1970)
         record["type"] = NSString(string: self.type)
+        if( group_id != nil ) {
+            record["group_id"] = NSString(string: self.group_id!.id)
+        }
     }
 }
 
@@ -627,7 +650,7 @@ class CloudDBModel : DBProtocol {
             // If you don’t set any of the alertBody, soundName, or shouldBadge properties,
             // the push notification is sent at a lower priority that doesn’t cause the system to alert the user.
             let edit_notificationInfo = CKNotificationInfo()
-            edit_notificationInfo.soundName = "default"
+            //edit_notificationInfo.soundName = "default"
             edit_notificationInfo.shouldSendContentAvailable = true // To make sure it is sent
             edit_message_subscription.notificationInfo = edit_notificationInfo
             
@@ -637,11 +660,12 @@ class CloudDBModel : DBProtocol {
                 }
             })
         })
+        
     }
     
     func removeConversationThreadNotification(cthreadId: RecordId) {
-        let new_key = "new_type_Message_thread_id_\(cthreadId.id)_user_id\(model.me().id.id)"
-        unsubscribe(key: new_key, completionHandler: {})
+        //let new_key = "new_type_Message_thread_id_\(cthreadId.id)_user_id\(model.me().id.id)"
+        //unsubscribe(key: new_key, completionHandler: {})
         
         let edit_key = "edit_type_Message_thread_id_\(cthreadId.id)_user_id\(model.me().id.id)"
         unsubscribe(key: edit_key, completionHandler: {})
@@ -678,11 +702,12 @@ class CloudDBModel : DBProtocol {
     }
     
     // Notify when a new conversation thread is created
-    // Notify when a conversation thread is deleted.
-    // Notify when the group activity record is modified 
+    // Notify when a conversation thread is deleted
+    // Notify when the group activity record is modified
+    // Notify when a new message is sent.
     func setupNotifications(groupId: RecordId) {
-        let predicateFormat = "group_id == %@"
         
+        let predicateFormat = "group_id == %@"
         let new_key = "new_type_ConversationThread_group_id_\(groupId.id)"
         
         subscribe(subscriptionId: new_key, predicateFormat: predicateFormat, createSubscription: { () -> Void in
@@ -692,7 +717,7 @@ class CloudDBModel : DBProtocol {
                 subscriptionID: new_key, options: [CKQuerySubscriptionOptions.firesOnRecordCreation]
             )
             let notificationInfo = CKNotificationInfo()
-            notificationInfo.soundName = "default"
+            //notificationInfo.soundName = "default"
             notificationInfo.shouldSendContentAvailable = true // To make sure it is sent
             
             new_cthread_subscription.notificationInfo = notificationInfo
@@ -713,7 +738,7 @@ class CloudDBModel : DBProtocol {
                 subscriptionID: delete_key, options: [CKQuerySubscriptionOptions.firesOnRecordDeletion]
             )
             let notificationInfo = CKNotificationInfo()
-            notificationInfo.soundName = "default"
+            //notificationInfo.soundName = "default"
             notificationInfo.desiredKeys = ["id"]
             notificationInfo.shouldSendContentAvailable = true // To make sure it is sent
             
@@ -726,7 +751,6 @@ class CloudDBModel : DBProtocol {
             })
         })
 
-        
         let edit_key = "edit_type_GroupActivity_group_id_\(groupId.id)"
         
         subscribe(subscriptionId: edit_key, predicateFormat: predicateFormat, createSubscription: { () -> Void in
@@ -736,7 +760,7 @@ class CloudDBModel : DBProtocol {
                 subscriptionID: edit_key, options: [CKQuerySubscriptionOptions.firesOnRecordUpdate]
             )
             let notificationInfo = CKNotificationInfo()
-            notificationInfo.soundName = "default"
+            //notificationInfo.soundName = "default"
             notificationInfo.shouldSendContentAvailable = true // To make sure it is sent
             
             edit_group_activity_subscription.notificationInfo = notificationInfo
@@ -747,6 +771,7 @@ class CloudDBModel : DBProtocol {
                 }
             })
         })
+ 
 
         // New Message
         let new_message_predicateFormat = "(group_id == %@) AND (user_id != %@)"
@@ -775,6 +800,7 @@ class CloudDBModel : DBProtocol {
             })
         })
 
+         
         // New Message Record
         let new_message_record_predicateFormat = "(group_id == %@) AND (user_id != %@)"
         
@@ -789,11 +815,34 @@ class CloudDBModel : DBProtocol {
             )
             let notificationInfo = CKNotificationInfo()
             notificationInfo.shouldSendContentAvailable = true // To make sure it is sent
-            notificationInfo.soundName = "default"
+            //notificationInfo.soundName = "default"
             
             new_message_record_subscription.notificationInfo = notificationInfo
             
             self.publicDB.save(new_message_record_subscription, completionHandler: { (sub, error) -> Void in
+                if( error != nil ) {
+                    print(error!)
+                }
+            })
+        })
+        
+        let mrecord_predicateFormat = "(group_id == %@) AND (user_id != %@) AND (type == 'LocationRecord')"
+        let edit_mrecord_key = "edit_type_PollRecord_thread_id_\(groupId.id)_user_id\(model.me().id.id)_LR"
+        
+        subscribe(subscriptionId: edit_mrecord_key, predicateFormat: predicateFormat, createSubscription: { () -> Void in
+            let edit_mrecord_subscription = CKQuerySubscription(
+                recordType: "PollRecord", predicate: NSPredicate(format: mrecord_predicateFormat, argumentArray: [groupId.id, model.me().id.id]),
+                subscriptionID: edit_mrecord_key, options: [CKQuerySubscriptionOptions.firesOnRecordUpdate]
+            )
+            
+            // If you don’t set any of the alertBody, soundName, or shouldBadge properties,
+            // the push notification is sent at a lower priority that doesn’t cause the system to alert the user.
+            let edit_notificationInfo = CKNotificationInfo()
+            //edit_notificationInfo.soundName = "default"
+            edit_notificationInfo.shouldSendContentAvailable = true // To make sure it is sent
+            edit_mrecord_subscription.notificationInfo = edit_notificationInfo
+            
+            self.publicDB.save(edit_mrecord_subscription, completionHandler: { (sub, error) -> Void in
                 if( error != nil ) {
                     print(error!)
                 }
@@ -916,7 +965,13 @@ class CloudDBModel : DBProtocol {
                                             view.notify_new_message_record!(messageRecord)
                                         }
                                     }
-                                }
+                                } else {
+                                    for view in views {
+                                        if( view.notify_edit_message_record != nil ) {
+                                            view.notify_edit_message_record!(messageRecord)
+                                        }
+                                    }
+                            }
                             }
                         }
                     }
@@ -1159,12 +1214,21 @@ class CloudDBModel : DBProtocol {
         if( dbid == nil ) {
             record = CKRecord(recordType: "PollRecord")
             messageRecord.id = CloudRecordId(record: record, id: messageRecord.id.id)
+            messageRecord.fillRecord(record: record)
+            
+            self.publicDB.save(record, completionHandler: self.saveCompletionHandler)
         } else {
             record = dbid!.record
+            messageRecord.fillRecord(record: record)
+            
+            // Has we should be up-to-date we can safely overwrite
+            let ops: CKModifyRecordsOperation = CKModifyRecordsOperation(recordsToSave: [record], recordIDsToDelete: nil)
+            ops.perRecordCompletionBlock = self.saveCompletionHandler
+            ops.savePolicy = CKRecordSavePolicy.changedKeys
+            
+            self.publicDB.add(ops)
         }
-        messageRecord.fillRecord(record: record)
         
-        self.publicDB.save(record, completionHandler: self.saveCompletionHandler)
     }
     
     func saveCompletionHandler(record: CKRecord?, error: Error?) {
@@ -1177,7 +1241,7 @@ class CloudDBModel : DBProtocol {
             // Or if there is a retry delay specified in the error, then use that.
             if let userInfo = error?._userInfo as? NSDictionary {
                 if let retry = userInfo[CKErrorRetryAfterKey] as? NSNumber {
-                    let seconds = Double(retry)
+                    let seconds = Double(truncating: retry)
                     print("Debug: Should retry in \(seconds) seconds. \(String(describing: error!))")
                 }
             }
@@ -1498,6 +1562,22 @@ class CloudDBModel : DBProtocol {
         publicDB.add(queryOperation)
     }
     
+    func getMessageStartingThread(conversationThread: ConversationThread, completion: @escaping (Message) -> ()) {
+        if( conversationThread.createdFromMessage_id is ReferenceCloudRecordId ) {
+             let mRecordId = (conversationThread.createdFromMessage_id as! ReferenceCloudRecordId).recordId
+            
+             let fetchOp = CKFetchRecordsOperation(recordIDs: [mRecordId])
+             fetchOp.desiredKeys = Message.getDesiredKeys()
+             fetchOp.perRecordCompletionBlock = { record, recordId, error -> Void in
+                if( record != nil ) {
+                    let message = Message(record: record!)
+                    completion(message)
+                }
+            }
+            publicDB.add(fetchOp)
+        }
+    }
+    
     func getMessageLargeImage(message: Message, completion: @escaping () -> ()) {
         let query = CKQuery(recordType: "Message", predicate: NSPredicate(format: String("id = %@"), argumentArray: [message.id.id]))
         let queryOperation = CKQueryOperation(query: query)
@@ -1609,7 +1689,7 @@ class CloudDBModel : DBProtocol {
             // Or if there is a retry delay specified in the error, then use that.
             if let userInfo = error?._userInfo as? NSDictionary {
                 if let retry = userInfo[CKErrorRetryAfterKey] as? NSNumber {
-                    let seconds = Double(retry)
+                    let seconds = Double(truncating: retry)
                     print("Debug: Should retry in \(seconds) seconds. \(error!)")
                 }
             }
