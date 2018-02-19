@@ -298,6 +298,7 @@ class MessageRecord {
 
 class ModelView {
     var notify_new_group : ((_ group: Group) -> Void)?
+    var notify_edit_group : ((_ group: Group, _ user: User) -> Void)?
     var notify_new_message : ((_ message: Message) -> Void)?
     var notify_edit_message : ((_ message: Message) -> Void)?
     var notify_new_conversation : ((_ cthread: ConversationThread) -> Void)?
@@ -388,6 +389,25 @@ class MemoryModel {
             }
         }
         return included
+    }
+    
+    // Update called when a user is added to a group by another user
+    func update(group: Group, user: User) {
+        // Update memory table
+        let contained = self.groupUserFolder.contains(where: { (grp, usr) -> Bool in
+            grp.id == group.id && usr.id == user.id
+        })
+        if( !contained ) {
+            self.groupUserFolder.append((group: group, user: user))
+        }
+        if( self.groups != nil ) {
+            let gr_contained = self.groups!.contains(where: { (gr) -> Bool in
+                gr.id == group.id
+            })
+            if( !gr_contained ) {
+                self.groups!.append(group)
+            }
+        }
     }
     
     func update(user: User?) {
@@ -856,7 +876,12 @@ class DataModel {
     // Get groups sorted by activities
     func getGroups(completion: @escaping ([Group]) -> ()) {
         if( memory_model.groups != nil ) {
-            let groups = memory_model.groups!
+            let groups = memory_model.groups!.filter({ (gr) -> Bool in
+                let users = model.getUsers(group: gr)
+                return users.contains(where: { (user) -> Bool in
+                    user.id == me().id
+                })
+            })
             
             return sortGroup( groups: groups, completion: { (sorted_groups) -> Void in
                 completion(sorted_groups)
@@ -873,6 +898,10 @@ class DataModel {
     
     // Get Users for Group
     func getUsersForGroup(group: Group, completion: @escaping ([User]) -> ()) {
+        let users = getUsers(group: group)
+        if( users.count != 0 ) {
+            return completion(users)
+        }
         db_model.getUsersForGroup(groupId: group.id, completion:{ (users) -> () in
             let included = self.memory_model.update(group: group, users: users)
             completion(included)
@@ -1169,9 +1198,26 @@ class DataModel {
         }
     }
     
+    // Function called when another user added me to a new group.
+    func addMeToGroup(group: Group) {
+        memory_model.update(group: group, user: model.me())
+        
+        for view in views {
+            if( view.notify_new_group != nil ) {
+                view.notify_new_group!(group)
+            }
+        }
+    }
+    
     func addUserToGroup(group: Group, user: User) {
         db_model.addUserToGroup(group: group, user: user, by: me())
         memory_model.groupUserFolder.append((group: group, user: user))
+        
+        for mv in views {
+            if( mv.notify_edit_group != nil ) {
+                mv.notify_edit_group!(group, user)
+            }
+        }
     }
     
     func addUserToFriend(user: User) {
@@ -1203,7 +1249,7 @@ class DataModel {
     func setupNotifications(cthread: ConversationThread, view: ModelView) {
         if( view.notify_new_message != nil || view.notify_edit_message != nil ) {
             uniquely_append(view)
-            db_model.setupNotifications(cthread: cthread)
+            db_model.setupNotifications(cthread: cthread, groupId: cthread.group_id)
         }
     }
     
@@ -1330,6 +1376,17 @@ class DataModel {
     }
     
     /******************************************************************/
+    func deleteGroup(group: Group) {
+        if( memory_model.groups != nil ) {
+            let index = memory_model.groups!.index(where: { (gr) -> Bool in
+                gr.id == group.id
+            })
+            if( index != nil ) {
+                memory_model.groups!.remove(at: index!)
+            }
+        }
+        db_model.deleteGroup(group: group, completion: {})
+    }
     
     func deleteConversationThread(conversationThread: ConversationThread) {
         if( memory_model.conversations != nil ) {
@@ -1372,6 +1429,12 @@ class DataModel {
         }
     }
     
+    func saveReadMessageRecord(messageRecord: MessageRecord) {
+        self.memory_model.updateMessageRecords(messageRecords: [messageRecord])
+        
+        db_model.saveMessageRecord(messageRecord: messageRecord)
+    }
+    
     func getPollVotes(poll: Message, completion: @escaping ([PollRecord]) -> Void ) {
         // Convert generic MessageRecords into PollRecords.
         func convert(messageRecords: [MessageRecord]) -> [PollRecord] {
@@ -1384,11 +1447,7 @@ class DataModel {
             }
             return pollRecords
         }
-        let messageRecords = getMessageRecordsForMessage(message: poll)
-        if( messageRecords.count != 0 ) {
-             return completion(convert(messageRecords: messageRecords))
-        }
-        db_model.getMessageRecords(message: poll, completion: { (messageRecords) -> Void in
+        db_model.getMessageRecords(message: poll, type: "PollRecord", completion: { (messageRecords) -> Void in
             self.memory_model.updateMessageRecords(messageRecords: messageRecords)
             completion(convert(messageRecords: messageRecords))
         })
@@ -1414,16 +1473,10 @@ class DataModel {
             return expRecords
         }
 
-        let messageRecords = getMessageRecordsForMessage(message: expense_tab)
-        if( messageRecords.count > 1 ) {
-            let expRecords = convert(messageRecords: messageRecords)
-            completion(expRecords)
-        } else {
-           db_model.getMessageRecords(message: expense_tab, completion: { (messageRecords) -> Void in
-               self.memory_model.updateMessageRecords(messageRecords: messageRecords)
-               completion(convert(messageRecords: messageRecords))
-           })
-        }
+        db_model.getMessageRecords(message: expense_tab, type : "ExpenseRecord", completion: { (messageRecords) -> Void in
+            self.memory_model.updateMessageRecords(messageRecords: messageRecords)
+            completion(convert(messageRecords: messageRecords))
+        })
     }
     
     func saveExpenseItem(expenseRecord: ExpenseRecord) {
@@ -1448,18 +1501,12 @@ class DataModel {
             return expRecords
         }
         
-        let messageRecords = getMessageRecordsForMessage(message: share_location_message)
-        if( messageRecords.count > 1 ) {
-            let locRecords = convert(messageRecords: messageRecords)
+        db_model.getMessageRecords(message: share_location_message, type: "LocationRecord", completion: { (messageRecords) -> Void in
+            self.memory_model.updateMessageRecords(messageRecords: messageRecords)
+            var locRecords = convert(messageRecords: messageRecords)
             completion(locRecords)
-        } else {
-            db_model.getMessageRecords(message: share_location_message, completion: { (messageRecords) -> Void in
-                self.memory_model.updateMessageRecords(messageRecords: messageRecords)
-                var locRecords = convert(messageRecords: messageRecords)
-                completion(locRecords)
-                locRecords.removeAll()
-            })
-        }
+            locRecords.removeAll()
+        })
     }
     
     func saveLocationItem(locationRecord: LocationRecord) {

@@ -61,13 +61,16 @@ class LocationMessageTableCell : UITableViewCell {
     @IBOutlet weak var user_name: UILabel!
     
     @IBOutlet weak var user_status: UILabel!
+    @IBOutlet weak var elapseTime: UILabel!
 }
 
 class LocationMessageTableViewDataSource : NSObject, UITableViewDataSource {
     let locationRecords : [LocationRecord]
+    let controller: GameController
     
-    init(locationRecords: [LocationRecord]) {
+    init(locationRecords: [LocationRecord], controller: GameController) {
         self.locationRecords = locationRecords
+        self.controller = controller
     }
     
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
@@ -78,13 +81,7 @@ class LocationMessageTableViewDataSource : NSObject, UITableViewDataSource {
         let cell = tableView.dequeueReusableCell(withIdentifier: "LocationMessageTableCell") as! LocationMessageTableCell
         let row = indexPath.row
         let locr = locationRecords[row]
-        if( locr.user_id == model.me().id ) {
-            cell.user_name.text = "Me"
-            cell.user_status.text = locr.status
-        } else {
-            cell.user_name.text = model.getUser(userId: locr.user_id)?.label
-            cell.user_status.text = locr.status
-        }
+        controller.setup(cell: cell, locr: locr)
         
         return cell
     }
@@ -315,6 +312,13 @@ class RadarCircles {
         }()
         return nice*pow(10, expt)
     }
+    
+    func needScaleUpdate(maxDistance: CLLocationDistance) -> Bool {
+        if( circles.first == nil ) {
+            return true
+        }
+        return circles.first!.radius/2 < maxDistance
+    }
 }
 
 /***********************************/
@@ -357,7 +361,9 @@ class LocationMessageCell : UICollectionViewCell, MessageBaseCellDelegate, CLLoc
     var radarCircles : RadarCircles?
     var locationHidden = false
     var modelView: LocationCellModelView?
-    var userTableStatusDataSource : LocationMessageTableViewDataSource?
+    var initializedLocationManagers = false
+    var recordsLoaded = false
+    var gameController: GameController!
     
     deinit {
         if( modelView != nil ) {
@@ -369,10 +375,12 @@ class LocationMessageCell : UICollectionViewCell, MessageBaseCellDelegate, CLLoc
         self.message = message
         self.controller = controller
         self.mapView.delegate = mapViewDelegate
+        self.gameController = GameController(messageCell: self)
         
         let mo = controller?.curMessageOption ?? MessageOptions(options: message.options)
         locationHidden = mo.decorated
-        if( locationHidden ) {
+        
+        if( gameController.gameEnabled() ) {
             // Hide the button to take location. It is done automatically by the mapView
             sharingLocationButton.isHidden = true
             mapViewDelegate.cell = self
@@ -388,71 +396,46 @@ class LocationMessageCell : UICollectionViewCell, MessageBaseCellDelegate, CLLoc
             model.setupNotificationsForMessageRecord(messageId: message.id, view: self.modelView!)
         }
         
+        initLocationManager(start: false, checkLocationAuthorizationOnly: true)
+        
         updateLocations()
     }
     
-    func initLocationManager(locationRecords: [LocationRecord]) {
-        if( locationHidden ) {
-            mapView.showsUserLocation = true // Force the map to find user location
-            mapView.setUserTrackingMode(.follow, animated: true)
+    func initLocationManager(start: Bool, checkLocationAuthorizationOnly : Bool) {
+        if CLLocationManager.authorizationStatus() == CLAuthorizationStatus.notDetermined {
+             // Ask for sharing location (valid for MapView case as well)
+            locationManager = CLLocationManager()
+            locationManager!.delegate = self
+            locationManager!.requestWhenInUseAuthorization()
+            return
+        }
+        if( checkLocationAuthorizationOnly ) {
+            return
+        }
+        
+        if( initializedLocationManagers || recordsLoaded == false ) {
+            // Wait for the records to be loaded to finalize initialization
+            return
+        }
+        initializedLocationManagers = true
             
+        if( gameController.gameEnabled() ) {
+            if( start && gameController.gameStatus != .finished ) {
+                mapView.showsUserLocation = true // Force the map to find user location
+                mapView.setUserTrackingMode(.follow, animated: true)
+            }
         } else {
             if( locationManager == nil ) {
                 locationManager = CLLocationManager()
                 locationManager!.delegate = self
-                // IMPORTANT!!! kCLLocationAccuracyBest should not be used for comparison with location coordinate or attidute
-                // accuracy because it is a negative value. Instead, compare against some predetermined "real" measure of
-                // acceptable accuracy, or depend on the timeout to stop updating.
-                locationManager!.desiredAccuracy = kCLLocationAccuracyNearestTenMeters
-                locationManager!.headingFilter = 5
-                if CLLocationManager.authorizationStatus() == CLAuthorizationStatus.notDetermined {
-                    locationManager!.requestWhenInUseAuthorization()
-                }
             }
-        }
-        
-        if( locationHidden ) {
-            // Initialize location table status
-            userTableStatusDataSource = LocationMessageTableViewDataSource(locationRecords : locationRecords)
-            userTableStatus.dataSource = self.userTableStatusDataSource!
-            userTableStatus.reloadData()
-            
-            // Initialize game buttons
-            let myRecordIndex = locationRecords.index(where: { (loc) -> Bool in
-                loc.user_id == model.me().id
-            })
-            let masterRecordIndex = locationRecords.index(where: { (loc) -> Bool in
-                loc.user_id == message!.user_id
-            })
-            if( locationRecords.count > 1 && myRecordIndex != nil && masterRecordIndex != nil ) {
-                let masterRecord = locationRecords[masterRecordIndex!]
-                if( masterRecord.status.isEmpty ) {
-                    if( message!.user_id == model.me().id ) {
-                        // The one that starts the message, gets to start the game
-                        sharingLocationButton.isHidden = false
-                        sharingLocationButton.setImage(UIImage(named: "start32"), for: .normal)
-                    }
-                } else {
-                    // The game has started
-                    if( message!.user_id != model.me().id ) {
-                        if( locationRecord!.status.isEmpty ) {
-                            // The ones that join the message, gets to stop their participation to the game
-                            sharingLocationButton.isHidden = false
-                            sharingLocationButton.setImage(UIImage(named: "end32"), for: .normal)
-                        }
-                    } else {
-                        // For the game master,see if the all people have been found.
-                        let unfoundRecords = locationRecords.filter({ (loc) -> Bool in
-                            loc.status.isEmpty
-                        })
-                        if( unfoundRecords.count == 0 && locationRecord != nil && locationRecord!.status != "Done" ) {
-                            // Mark the game has finished.
-                            locationRecord!.status = "Done"
-                            model.saveLocationItem(locationRecord: locationRecord!)
-                            updateLocations()
-                        }
-                    }
-                }
+            // IMPORTANT!!! kCLLocationAccuracyBest should not be used for comparison with location coordinate or attidute
+            // accuracy because it is a negative value. Instead, compare against some predetermined "real" measure of
+            // acceptable accuracy, or depend on the timeout to stop updating.
+            locationManager!.desiredAccuracy = kCLLocationAccuracyNearestTenMeters
+            locationManager!.headingFilter = 5
+            if( start ) {
+                locationManager!.startUpdatingLocation()
             }
         }
     }
@@ -464,6 +447,44 @@ class LocationMessageCell : UICollectionViewCell, MessageBaseCellDelegate, CLLoc
         return labelView
     }
     
+    // Work around an old bug where too many location records where created.
+    // Take latest position
+    func cleanRecords(locationRecords: [LocationRecord]) -> [LocationRecord] {
+        // Sort records by users
+        var sortedbyUserRecords = [RecordId:[LocationRecord]]()
+        for i in 0..<locationRecords.count {
+            let ilocRecord = locationRecords[i]
+            var userRecords = sortedbyUserRecords[ilocRecord.user_id]
+            if( userRecords == nil ) {
+                userRecords = [LocationRecord]()
+            }
+            userRecords!.append(ilocRecord)
+            sortedbyUserRecords[ilocRecord.user_id] = userRecords!
+        }
+        
+        var filteredLocationRecords = [LocationRecord]()
+        for sortedRecords in sortedbyUserRecords.values {
+            var locRecord = sortedRecords.first!
+            if( sortedRecords.count > 1 ) {
+                // Find the latest record with an non-empty status
+                for j in 1..<sortedRecords.count {
+                    let jlocRecord = sortedRecords[j]
+                    if( locRecord.date_created < jlocRecord.date_created ) {
+                        if( locRecord.status.isEmpty && jlocRecord.status.isEmpty ) {
+                            locRecord = jlocRecord
+                        }
+                    } else {
+                        if( locRecord.status.isEmpty && !jlocRecord.status.isEmpty) {
+                            locRecord = jlocRecord
+                        }
+                    }
+                }
+            }
+            filteredLocationRecords.append(locRecord)
+        }
+        return filteredLocationRecords
+    }
+    
     // Retrieve the locations from the DB and setup map overlays and annotations display
     func updateLocations() {
         mapView.removeAnnotations(messageAnnotations)
@@ -473,36 +494,39 @@ class LocationMessageCell : UICollectionViewCell, MessageBaseCellDelegate, CLLoc
             if( self.controller == nil || self.message == nil ) {
                 return
             }
+            let cleanRecords = self.cleanRecords(locationRecords: records)
+            
             DispatchQueue.main.async(execute: {
-                for locationRecord in records {
+                for locationRecord in cleanRecords {
                     if( locationRecord.user_id == model.me().id ) {
-                        if( self.locationRecord != nil ) {
-                            // Work around an old bug where too many location records where created.
-                            // Take latest position
-                            if( self.locationRecord!.date_created < locationRecord.date_created ) {
-                                self.locationRecord = locationRecord
-                            }
-                        } else {
-                            self.locationRecord = locationRecord
-                        }
+                        self.locationRecord = locationRecord
                     } else {
-                        if( !self.locationHidden ) {
+                        if( !self.gameController.hideLocation() ) {
                             self.messageAnnotations.append(LocationMessageAnnotation(loc: locationRecord))
                         }
                     }
                 }
-                if( self.locationRecord != nil && !self.locationHidden ) {
+                if( self.locationRecord != nil && !self.gameController.hideLocation() ) {
                     self.messageAnnotations.append(LocationMessageAnnotation(loc: self.locationRecord!))
                 }
                 
                 self.mapView.addAnnotations(self.messageAnnotations)
                 
-                self.centerMapOnLocation(locRecords: records)
+                self.recordsLoaded = true
                 
-                // Once we have retrieved the records we can start listening to the location manager
-                self.initLocationManager(locationRecords: records)
+                self.updateLocations(locationRecords: cleanRecords)
             })
         })
+    }
+    
+    func updateLocations(locationRecords: [LocationRecord]) {
+        if( gameController.gameEnabled()  ) {
+            gameController.update(locationRecords: locationRecords)
+        }
+        // One the game status is known, we can really initialize
+        initLocationManager(start: true, checkLocationAuthorizationOnly: false)
+        
+        centerMapOnLocation(locRecords: locationRecords)
     }
     
     // Compute map display boundaries
@@ -536,9 +560,27 @@ class LocationMessageCell : UICollectionViewCell, MessageBaseCellDelegate, CLLoc
                 }
             }
         }
+        
+        if( distanceMax != 0 && radarCircles != nil ) {
+            if( !radarCircles!.needScaleUpdate(maxDistance: distanceMax) ) {
+                radarCircles!.update(
+                    loc: locationRecord!.loc, mapView: mapView, maxDistance: distanceMax, otherLocations: otherLocations
+                )
+                return
+            }
+        }
+        
         let size = MKMapSize(width: maxX-minX, height: maxY-minY)
-        let rect = MKMapRect(origin: MKMapPoint(x: minX-size.width*0.1, y: minY-size.height*0.1), size: MKMapSize(width: size.width*1.2, height: size.height*1.2))
-        let loc_rect = MKCoordinateRegionForMapRect(rect)
+        let rect = MKMapRect(
+            origin: MKMapPoint(x: minX-size.width*0.1, y: minY-size.height*0.1),
+            size: MKMapSize(width: size.width*1.2, height: size.height*1.2)
+        )
+        var loc_rect = MKCoordinateRegionForMapRect(rect)
+        
+        let MINIMUM_ZOOM_ARC = 0.0014 //approximately 0.1 miles (1 degree of arc ~= 69 miles)
+        //don't zoom in stupid-close on small samples
+        if( loc_rect.span.latitudeDelta  < MINIMUM_ZOOM_ARC ) { loc_rect.span.latitudeDelta  = MINIMUM_ZOOM_ARC; }
+        if( loc_rect.span.longitudeDelta < MINIMUM_ZOOM_ARC ) { loc_rect.span.longitudeDelta = MINIMUM_ZOOM_ARC; }
         
         mapView.setRegion(loc_rect, animated: true)
         
@@ -559,16 +601,9 @@ class LocationMessageCell : UICollectionViewCell, MessageBaseCellDelegate, CLLoc
     // This button has many roles:
     // Either take the location, start the game or end each participant role
     @IBAction func takeLocation(_ sender: Any) {
-        if( locationHidden ) {
-            if( locationRecord != nil ) {
-                if( message!.user_id == model.me().id ) {
-                    locationRecord!.status = "Searching"
-                } else {
-                    locationRecord!.status = "Found"
-                }
-                model.saveLocationItem(locationRecord: locationRecord!)
-                updateLocations()
-            }
+        if( gameController.gameEnabled() ) {
+            gameController.pushActionButton()
+            
         } else {
             if (CLLocationManager.locationServicesEnabled()) {
                 bestEffortAtLocation = nil
@@ -595,7 +630,7 @@ class LocationMessageCell : UICollectionViewCell, MessageBaseCellDelegate, CLLoc
     // this is called when authorization status changes and when locationManager is initialiazed
     func locationManager(_ manager: CLLocationManager, didChangeAuthorization status: CLAuthorizationStatus) {
         if status == CLAuthorizationStatus.authorizedAlways || status == CLAuthorizationStatus.authorizedWhenInUse {
-            manager.startUpdatingLocation()
+            initLocationManager(start: true, checkLocationAuthorizationOnly: false)
         }
     }
     
@@ -649,6 +684,10 @@ class LocationMessageCell : UICollectionViewCell, MessageBaseCellDelegate, CLLoc
             locationRecord = LocationRecord(message: message!, user: model.me(), location: newLocation)
         } else {
             locationRecord!.loc = newLocation
+            if( !locationRecord!.status.isEmpty) {
+                // the player is "done" - Do not update the DB location anymore
+                return
+            }
         }
         model.saveLocationItem(locationRecord: locationRecord!)
         updateLocations()
@@ -672,5 +711,174 @@ class LocationMessageCellSizeDelegate : MessageBaseCellSizeDelegate {
         }
         
         return CGSize(width: width, height: heightFromLabels + 4*vspacing + mapHeight + tableHeight)
+    }
+}
+
+// Class to help managed LocationMessageCell widgets in function of the
+// state of the game and role of the current user.
+class GameController {
+    weak var messageCell : LocationMessageCell?
+    enum GameStatus { case waiting, started, finished }
+    enum PlayerStatus { case waiting, playing, finished }
+    
+    var gameStatus: GameStatus = .waiting
+    var playerStatus : PlayerStatus = .waiting
+    var userTableStatusDataSource : LocationMessageTableViewDataSource?
+    var seeker : Bool = false
+    
+    init(messageCell: LocationMessageCell) {
+        self.messageCell = messageCell
+        gameStatus = .waiting
+        playerStatus = .waiting
+    }
+    
+    func gameEnabled() -> Bool {
+        return messageCell?.locationHidden ?? false
+    }
+    
+    func hideLocation() -> Bool {
+        return messageCell?.locationHidden ?? false
+    }
+    
+    // Main function that updates the state of the interface
+    // when location records are read from the DB.
+    // The location records contains a status field for each player
+    // that helps define the overall game status.
+    func update(locationRecords: [LocationRecord]) {
+        if( gameEnabled() == false ) {
+            return
+        }
+        guard let messageCell = messageCell else { return }
+        guard let message = messageCell.message else { return }
+            
+        // Initialize game buttons
+        gameStatus = .waiting
+        playerStatus = .waiting
+        
+        seeker = message.user_id == model.me().id
+        var masterRecord : LocationRecord?
+        if( seeker ) {
+            masterRecord = messageCell.locationRecord
+        } else {
+            let masterRecordIndex = locationRecords.index(where: { (loc) -> Bool in
+                loc.user_id == messageCell.message!.user_id
+            })
+            if( masterRecordIndex != nil ) {
+                masterRecord = locationRecords[masterRecordIndex!]
+            }
+        }
+        
+        if( locationRecords.count > 1 && messageCell.locationRecord != nil && masterRecord != nil ) {
+            let locationRecord = messageCell.locationRecord!
+            if( masterRecord!.status.isEmpty ) {
+                // The game has not started.
+                if( seeker ) {
+                    // The one that starts the message, gets to start the game
+                    messageCell.sharingLocationButton.isHidden = false
+                    messageCell.sharingLocationButton.setImage(UIImage(named: "start32"), for: .normal)
+                }
+            } else if( masterRecord!.status == "Done" ) {
+                gameStatus = .finished
+                playerStatus = .finished
+            } else {
+                // The game is either started or finished.
+                gameStatus = .started
+                
+                if( !seeker ) {
+                    if( locationRecord.status.isEmpty ) {
+                        // The ones that join the message, gets to stop their participation to the game
+                        messageCell.sharingLocationButton.isHidden = false
+                        messageCell.sharingLocationButton.setImage(UIImage(named: "end32"), for: .normal)
+                        
+                        playerStatus = .playing
+                    } else {
+                        playerStatus = .finished
+                    }
+                } else {
+                    // For the game master, see if the all people have been found.
+                    let unfoundRecords = locationRecords.filter({ (loc) -> Bool in
+                        loc.status.isEmpty
+                    })
+                    if( unfoundRecords.count == 0 ) {
+                        // Mark the game has finished.
+                        gameStatus = .finished
+                        playerStatus = .finished
+                        
+                        locationRecord.status = "Done"
+                        model.saveLocationItem(locationRecord: locationRecord)
+                    } else {
+                        playerStatus = .playing
+                    }
+                }
+            }
+        }
+        
+        // Initialize location table status
+        userTableStatusDataSource = LocationMessageTableViewDataSource(locationRecords : locationRecords, controller: self)
+        messageCell.userTableStatus.dataSource = self.userTableStatusDataSource!
+        messageCell.userTableStatus.reloadData()
+    }
+    
+    // Initialize the cells of a Game Player status table.
+    func setup(cell: LocationMessageTableCell, locr: LocationRecord) {
+        if( locr.user_id == model.me().id ) {
+            cell.user_name.text = "Me"
+            if( playerStatus == .waiting ) {
+                cell.user_status.text = "Waiting..."
+            } else {
+                cell.user_status.text = locr.status
+            }
+        } else {
+            cell.user_name.text = model.getUser(userId: locr.user_id)?.label
+            if( playerStatus == .waiting ) {
+                cell.user_status.text = "Waiting..."
+            } else {
+                cell.user_status.text = locr.status
+            }
+        }
+        
+        if( playerStatus != .waiting ) {
+            // Show the elapsed time since the game started
+            var elapseTime : TimeInterval = 0
+            if( !locr.status.isEmpty ) {
+                let lastModificationTime = (locr.id as? CloudRecordId)?.record.modificationDate
+                if( lastModificationTime != nil ) {
+                    elapseTime = lastModificationTime!.timeIntervalSince(locr.date_created)
+                }
+            } else {
+               elapseTime = -locr.date_created.timeIntervalSinceNow
+            }
+            let hours = Int(elapseTime) / 3600
+            let minutes = Int(elapseTime) / 60 % 60
+            let seconds = Int(elapseTime) % 60
+            let time = String(format:"%02i:%02i:%02i", hours, minutes, seconds)
+            cell.elapseTime.text = time
+        } else {
+            cell.elapseTime.text = ""
+        }
+    }
+    
+    // Function called when the action button on the LocationMessageCell is pushed.
+    // The button serves two purposes, depending on the role of the current user:
+    // It is either the start game button for the seeker/game initiator or
+    // the did find me button for the party to find.
+    func pushActionButton() {
+        guard let messageCell = messageCell else { return }
+        guard let message = messageCell.message else { return }
+        guard let locationRecord = messageCell.locationRecord else { return }
+        
+        if( message.user_id == model.me().id ) {
+            // Master of the game = hunter
+            locationRecord.status = "Searching"
+            if( gameStatus == .waiting ) {
+                gameStatus = .started
+            }
+            playerStatus = .playing
+        } else {
+            locationRecord.status = "Found"
+            playerStatus = .finished
+        }
+        model.saveLocationItem(locationRecord: locationRecord)
+        messageCell.userTableStatus.reloadData()
     }
 }

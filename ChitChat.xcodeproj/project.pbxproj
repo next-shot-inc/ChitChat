@@ -44,6 +44,7 @@
 		2FB5FFA5201BC0DF00C2A048 /* NewConversationsCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FB5FFA4201BC0DF00C2A048 /* NewConversationsCell.swift */; };
 		2FD12B941EEB3F7900AC558C /* ExpenseMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FD12B931EEB3F7900AC558C /* ExpenseMessage.swift */; };
 		2FEBCBA91E84627F008A0690 /* SettingsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FEBCBA81E84627F008A0690 /* SettingsViewController.swift */; };
+		2FF68D322033689A006071F5 /* UserActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FF68D312033689A006071F5 /* UserActivity.swift */; };
 		2FF9BE291E7061F5000DF9A8 /* ContactsController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FF9BE281E7061F5000DF9A8 /* ContactsController.swift */; };
 		2FF9BE2B1E70B6D9000DF9A8 /* Login.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FF9BE2A1E70B6D9000DF9A8 /* Login.swift */; };
 		2FF9BE311E710D69000DF9A8 /* Utilities.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FF9BE301E710D69000DF9A8 /* Utilities.swift */; };
@@ -116,6 +117,7 @@
 		2FB5FFA4201BC0DF00C2A048 /* NewConversationsCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewConversationsCell.swift; sourceTree = "<group>"; };
 		2FD12B931EEB3F7900AC558C /* ExpenseMessage.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ExpenseMessage.swift; sourceTree = "<group>"; };
 		2FEBCBA81E84627F008A0690 /* SettingsViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = SettingsViewController.swift; sourceTree = "<group>"; };
+		2FF68D312033689A006071F5 /* UserActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserActivity.swift; sourceTree = "<group>"; };
 		2FF9BE281E7061F5000DF9A8 /* ContactsController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ContactsController.swift; sourceTree = "<group>"; };
 		2FF9BE2A1E70B6D9000DF9A8 /* Login.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Login.swift; sourceTree = "<group>"; };
 		2FF9BE301E710D69000DF9A8 /* Utilities.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Utilities.swift; sourceTree = "<group>"; };
@@ -208,6 +210,7 @@
 				2F4EF7E51E817BAB006A2D06 /* ResourceDB.swift */,
 				2FF9BE381E735CA8000DF9A8 /* ModelDB.swift */,
 				2FF9BE331E720511000DF9A8 /* CloudDB.swift */,
+				2FF68D312033689A006071F5 /* UserActivity.swift */,
 				2F32E0031E6E892400EF34E8 /* MessagesViewController.swift */,
 				2F4EF7D61E7E3A73006A2D06 /* MessageOptions.swift */,
 				2F32DFFF1E6E5D0400EF34E8 /* GroupViewController.swift */,
@@ -507,6 +510,7 @@
 				2FF9BE291E7061F5000DF9A8 /* ContactsController.swift in Sources */,
 				2F32E0091E6F1D6F00EF34E8 /* GrowingTextView.swift in Sources */,
 				2F0C2FBB1EC4E315008A5449 /* BubbleView.swift in Sources */,
+				2FF68D322033689A006071F5 /* UserActivity.swift in Sources */,
 				2F32DFD11E6E5B0700EF34E8 /* ViewController.swift in Sources */,
 				2FF9BE2B1E70B6D9000DF9A8 /* Login.swift in Sources */,
 				2F32DFCF1E6E5B0700EF34E8 /* AppDelegate.swift in Sources */,

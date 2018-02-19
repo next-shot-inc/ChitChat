@@ -19,6 +19,7 @@ protocol DBProtocol {
     func getMessagesForThread(threadId: RecordId, dateLimit: (min: Int, max: Int), completion: @escaping ([Message]) -> ())
     func getMessageStartingThread(conversationThread: ConversationThread, completion: @escaping (Message) -> ())
     func getMessageLargeImage(message: Message, completion: @escaping () -> ())
+    func getUserActivityDates(userId: RecordId, completion: @escaping ([Date]) -> ())
     func getUser(userId: RecordId, completion: @escaping (User) -> ())
     func getUser(phoneNumber: String, completion: @escaping (User?) -> ())
     func getUserInvitations(to_user: String, completion: @escaping ([UserInvitation], [Group]) -> ())
@@ -29,7 +30,7 @@ protocol DBProtocol {
     func getActivitiesForGroups(groups: [Group], completion: @escaping ([GroupActivity]) -> ())
     func getDecorationThemes(completion: @escaping ([DecorationTheme]) -> ())
     func getDecorationStamps(theme: DecorationTheme, completion: @escaping ([DecorationStamp]) -> ())
-    func getMessageRecords(message: Message, completion: @escaping ([MessageRecord]) -> Void )
+    func getMessageRecords(message: Message, type: String, completion: @escaping ([MessageRecord]) -> Void )
     func setMessageFetchTimeLimit(numberOfDays: TimeInterval)
     
     func saveUser(user: User, completion: @escaping (_ status: Bool) -> ())
@@ -45,7 +46,7 @@ protocol DBProtocol {
     func saveDecorationStamps(stamps: [DecorationStamp])
     func saveMessageRecord(messageRecord: MessageRecord)
     
-    func setupNotifications(cthread: ConversationThread)
+    func setupNotifications(cthread: ConversationThread, groupId: RecordId)
     func removeConversationThreadNotification(cthreadId: RecordId)
     func setupNotifications(groupId: RecordId)
     func setupNotifications(userId: RecordId)
@@ -57,6 +58,7 @@ protocol DBProtocol {
     
     func deleteRecord(record: RecordId, completion: @escaping () -> Void)
     func deleteConversation(cthread: ConversationThread, messages: [Message], user: User, completion: @escaping () -> ())
+    func deleteGroup(group: Group, completion: @escaping () -> ())
     func deleteOldConversationThread(olderThan: Date, user: User, completion: @escaping () -> ())
     func deleteOldMessages(olderThan: Date, user: User, completion: @escaping () -> ())
     func deleteIrrelevantInvitations(olderThan: Date, user: User, completion: @escaping () -> ())
@@ -143,6 +145,9 @@ class InMemoryDB : DBProtocol {
     func getMessageStartingThread(conversationThread: ConversationThread, completion: @escaping (Message) -> ()) {
     }
     
+    func getUserActivityDates(userId: RecordId, completion: @escaping ([Date]) -> ()) {
+    }
+    
     func getMessageLargeImage(message: Message, completion: @escaping () -> ()) {
         completion()
     }
@@ -207,7 +212,7 @@ class InMemoryDB : DBProtocol {
     func getDecorationThemes(completion: @escaping ([DecorationTheme]) -> ()) {
         // TODO
     }
-    func getMessageRecords(message: Message, completion: @escaping ([MessageRecord]) -> Void ) {
+    func getMessageRecords(message: Message, type: String, completion: @escaping ([MessageRecord]) -> Void ) {
         // TODO
     }
     func saveMessageRecord(messageRecord: MessageRecord) {
@@ -262,7 +267,7 @@ class InMemoryDB : DBProtocol {
         // TODO
     }
     
-    func setupNotifications(cthread: ConversationThread) {
+    func setupNotifications(cthread: ConversationThread, groupId: RecordId) {
     }
     func removeConversationThreadNotification(cthreadId: RecordId) {
     }
@@ -283,6 +288,9 @@ class InMemoryDB : DBProtocol {
     }
     
     func deleteRecord(record: RecordId, completion: @escaping () -> Void) {
+    }
+    
+    func deleteGroup(group: Group, completion: @escaping () -> ()) {
     }
     
     func deleteConversation(cthread: ConversationThread, messages: [Message], user: User, completion: @escaping () -> ()) {

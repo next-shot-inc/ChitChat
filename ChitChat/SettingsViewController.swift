@@ -108,8 +108,8 @@ class SettingsViewController: UIViewController, UIImagePickerControllerDelegate,
     
     var changedIcon = false
     var iapView : SettingsInAppPurchaseView?
-    let defaultMaximumKeepDays = 30
-    let increaseNbDaysWithX2 = 330
+    let defaultMaximumKeepDays = 90
+    let increaseNbDaysWithX2 = 275
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -305,6 +305,8 @@ class SettingsViewController: UIViewController, UIImagePickerControllerDelegate,
                 ccpc!.settingsController = self
                 ccpc!.preferredContentSize = CGSize(width: 340, height: 340)
             }
+        } else if( segue.identifier == "showUserActivity" ) {
+            
         }
     }
 }

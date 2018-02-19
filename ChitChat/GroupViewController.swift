@@ -34,11 +34,11 @@ class GroupTableDelegate : NSObject, UITableViewDelegate {
     
     func tableView(_ tableView: UITableView, editActionsForRowAt indexPath: IndexPath) -> [UITableViewRowAction]? {
         if( indexPath.section == 1 ) {
-            return nil
+            return []
         }
         let group = controller!.data!.groups[indexPath.row]
         if( group.name == "%%Symetric%%" ) {
-            return nil
+            return []
         }
         
         let canEdit = controller != nil && controller!.data != nil ? model.db_model.isCreatedByUser(record: controller!.data!.groups[indexPath.row].id) : false
@@ -47,8 +47,20 @@ class GroupTableDelegate : NSObject, UITableViewDelegate {
             let cell = tableView.cellForRow(at: indexPath)
             self.controller?.performSegue(withIdentifier: "newGroupSegue", sender: cell)
         }
-        return [edit]
+        if( canEdit ) {
+            let deleteGroup = UITableViewRowAction(style: .destructive, title: "Delete" ) { action, index in
+                let group = self.controller!.data!.groups[indexPath.row]
+                model.deleteGroup(group: group)
+                
+                self.controller!.data!.groups.remove(at: indexPath.row)
+                tableView.deleteRows(at: [indexPath], with: UITableViewRowAnimation.automatic)
+            }
+            return [edit, deleteGroup]
+        } else {
+           return [edit]
+        }
     }
+    
 }
 
 class GroupModelView : ModelView {
@@ -59,6 +71,7 @@ class GroupModelView : ModelView {
         
         self.notify_edit_group_activity = edit_group_activity
         self.notify_new_group = new_group
+        self.notify_edit_group = edit_group
     }
     
     func new_group(group: Group) {
@@ -66,6 +79,10 @@ class GroupModelView : ModelView {
     }
     
     func edit_group_activity(groupActivity: GroupActivity) {
+        controller?.groupsModified()
+    }
+    
+    func edit_group(group: Group, user: User) {
         controller?.groupsModified()
     }
 }
@@ -195,7 +212,9 @@ class GroupViewController: UITableViewController {
             } else if( cleanSubscriptions ) {
                 cloudDB.deleteAllRecords(subscriptionsOnly: true) {
                     // Once all records have been deleted.
-                    self.doSetup(db: cloudDB, restart: restart)
+                    DispatchQueue.main.async(execute: {
+                       self.doSetup(db: cloudDB, restart: restart)
+                    })
                 }
             } else {
                doSetup(db: cloudDB, restart: restart)

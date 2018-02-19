@@ -256,9 +256,9 @@ extension ConversationThread {
         record["id"] = NSString(string: self.id.id)
         record["group_id"] = NSString(string: self.group_id.id)
         if( self.group_id is CloudRecordId ) {
-            record["group_reference"] = CKReference(record: (self.group_id as! CloudRecordId).record, action: .none)
+            record["group_reference"] = CKReference(record: (self.group_id as! CloudRecordId).record, action: .deleteSelf)
         } else if( self.group_id is ReferenceCloudRecordId ) {
-            record["group_reference"] = CKReference(recordID: (self.group_id as! ReferenceCloudRecordId).recordId, action: .none)
+            record["group_reference"] = CKReference(recordID: (self.group_id as! ReferenceCloudRecordId).recordId, action: .deleteSelf)
         }
         record["title"] = NSString(string: self.title)
         record["last_modified"] = NSDate(timeIntervalSince1970: self.last_modified.timeIntervalSince1970)
@@ -278,9 +278,18 @@ extension ConversationThread {
 
 extension Message {
     convenience init(record: CKRecord) {
+        let thread_ref = record["thread_reference"] as? CKReference
+        let thread_id : RecordId
+        if( thread_ref == nil ) {
+            thread_id = RecordId(record: record, forKey: "thread_id")
+        } else {
+            let id = String(record["thread_id"] as! NSString)
+            thread_id = ReferenceCloudRecordId(recordId: thread_ref!.recordID, id: id)
+        }
+        
         self.init(
             id: CloudRecordId(record: record),
-            threadId: RecordId(record: record, forKey: "thread_id"),
+            threadId: thread_id,
             user_id: RecordId(record: record, forKey: "user_id")
         )
         self.text = String(record["text"] as! NSString)
@@ -319,7 +328,7 @@ extension Message {
         
         record["thread_id"] = NSString(string: self.conversation_id.id)
         if( self.conversation_id is CloudRecordId ) {
-            record["thread_reference"] = CKReference(record: (self.conversation_id as! CloudRecordId).record, action: .none)
+            record["thread_reference"] = CKReference(record: (self.conversation_id as! CloudRecordId).record, action: .deleteSelf)
         }
         
         if( self.group_id != nil ) {
@@ -482,9 +491,19 @@ extension MessageRecord {
         if( typeRecord != nil ) {
             recordType = (typeRecord as! NSString) as String
         }
+        
+        let message_ref = record["message_reference"] as? CKReference
+        let message_id : RecordId
+        if( message_ref == nil ) {
+            message_id = RecordId(record: record, forKey: "poll_id")
+        } else {
+            let id = String(record["poll_id"] as! NSString)
+            message_id = ReferenceCloudRecordId(recordId: message_ref!.recordID, id: id)
+        }
+        
         self.init(
             id: CloudRecordId(record: record),
-            message_id: RecordId(record: record, forKey: "poll_id"),
+            message_id: message_id,
             user_id: RecordId(record: record, forKey: "user_id"),
             type: recordType
         )
@@ -520,6 +539,11 @@ extension MessageRecord {
         record["type"] = NSString(string: self.type)
         if( group_id != nil ) {
             record["group_id"] = NSString(string: self.group_id!.id)
+        }
+        if( self.message_id is CloudRecordId ) {
+            record["message_reference"] = CKReference(record: (self.message_id as! CloudRecordId).record, action: .deleteSelf)
+        } else if( self.message_id is ReferenceCloudRecordId ) {
+            record["message_reference"] = CKReference(recordID: (self.message_id as! ReferenceCloudRecordId).recordId, action: .deleteSelf)
         }
     }
 }
@@ -610,41 +634,16 @@ class CloudDBModel : DBProtocol {
     
     // Notify (with an alert) when a new Message has been added to the thread
     // Notify when a message has been edited.
-    func setupNotifications(cthread: ConversationThread) {
+    func setupNotifications(cthread: ConversationThread, groupId: RecordId) {
         
-        let predicateFormat = "(thread_id == %@) AND (user_id != %@)"
+        let predicateFormat = "group_id == %@"
         
-        /*
-         * Superseeded by the group based notification of new messages.
-        let new_key = "new_type_Message_thread_id_\(cthread.id.id)_user_id\(model.me().id.id)"
+        let edit_message_key = "edit_type_Message_group_id_\(groupId.id)"
         
-        subscribe(subscriptionId: new_key, predicateFormat: predicateFormat, createSubscription: { () -> Void in
-            let new_message_subscription = CKQuerySubscription(
-                recordType: "Message", predicate: NSPredicate(format: predicateFormat, argumentArray: [cthread.id.id, model.me().id.id]),
-                subscriptionID: new_key, options: [CKQuerySubscriptionOptions.firesOnRecordCreation]
-            )
-            let notificationInfo = CKNotificationInfo()
-            notificationInfo.alertLocalizationKey = "New message fom %1$@ in %2$@: %3$@"
-            notificationInfo.shouldBadge = true
-            notificationInfo.alertLocalizationArgs = ["fromName", "inThread", "text"]
-            notificationInfo.soundName = "default"
-            
-            new_message_subscription.notificationInfo = notificationInfo
-            
-            self.publicDB.save(new_message_subscription, completionHandler: { (sub, error) -> Void in
-                if( error != nil ) {
-                    print(error!)
-                }
-            })
-        })
-        */
-        
-        let edit_key = "edit_type_Message_thread_id_\(cthread.id.id)_user_id\(model.me().id.id)"
-        
-        subscribe(subscriptionId: edit_key, predicateFormat: predicateFormat, createSubscription: { () -> Void in
+        subscribe(subscriptionId: edit_message_key, predicateFormat: predicateFormat, createSubscription: { () -> Void in
             let edit_message_subscription = CKQuerySubscription(
-                recordType: "Message", predicate: NSPredicate(format: predicateFormat, argumentArray: [cthread.id.id, model.me().id.id]),
-                subscriptionID: edit_key, options: [CKQuerySubscriptionOptions.firesOnRecordUpdate]
+                recordType: "Message", predicate: NSPredicate(format: predicateFormat, argumentArray: [groupId.id]),
+                subscriptionID: edit_message_key, options: [CKQuerySubscriptionOptions.firesOnRecordUpdate]
             )
             
             // If you don’t set any of the alertBody, soundName, or shouldBadge properties,
@@ -664,30 +663,29 @@ class CloudDBModel : DBProtocol {
     }
     
     func removeConversationThreadNotification(cthreadId: RecordId) {
-        //let new_key = "new_type_Message_thread_id_\(cthreadId.id)_user_id\(model.me().id.id)"
-        //unsubscribe(key: new_key, completionHandler: {})
-        
-        let edit_key = "edit_type_Message_thread_id_\(cthreadId.id)_user_id\(model.me().id.id)"
+        let edit_key = "edit_type_Message_thread_id_\(cthreadId.id)"
         unsubscribe(key: edit_key, completionHandler: {})
     }
     
-    // Notify (with an alert) when a user has been added to a group
+    //
     func setupNotifications(userId: RecordId) {
+        let new_key = "new_type_GroupUserFolder_user_id\(model.me().id.id)"
+        
+        /*
+         Notify when a user has been added to a group
+         */
         let predicateFormat = "user_id == %@"
-        
-        let new_key = "new_type_Group_user_id\(model.me().id.id)"
-        
         subscribe(subscriptionId: new_key, predicateFormat: predicateFormat, createSubscription: { () -> Void in
             let new_group_subscription = CKQuerySubscription(
                 recordType: "GroupUserFolder", predicate: NSPredicate(format: predicateFormat, argumentArray: [model.me().id.id]),
                 subscriptionID: new_key, options: [CKQuerySubscriptionOptions.firesOnRecordCreation]
             )
             let notificationInfo = CKNotificationInfo()
-            notificationInfo.alertLocalizationKey = "New group %1$@ fom %2$@"
-            notificationInfo.shouldBadge = true
-            notificationInfo.alertLocalizationArgs = ["groupName", "fromName"]
+            //notificationInfo.alertLocalizationKey = "New group %1$@ fom %2$@"
+            //notificationInfo.shouldBadge = true
+            //notificationInfo.alertLocalizationArgs = ["groupName", "fromName"]
 
-            notificationInfo.soundName = "default"
+            //notificationInfo.soundName = "default"
             notificationInfo.shouldSendContentAvailable = true // To make sure it is sent
             
             new_group_subscription.notificationInfo = notificationInfo
@@ -774,14 +772,13 @@ class CloudDBModel : DBProtocol {
  
 
         // New Message
-        let new_message_predicateFormat = "(group_id == %@) AND (user_id != %@)"
         
-        let new_message_key = "new_type_Message_group_id_\(groupId.id)_user_id\(model.me().id.id)"
+        let new_message_key = "new_type_Message_group_id_\(groupId.id)"
         
-        subscribe(subscriptionId: new_message_key, predicateFormat: new_message_predicateFormat, createSubscription: { () -> Void in
+        subscribe(subscriptionId: new_message_key, predicateFormat: predicateFormat, createSubscription: { () -> Void in
             let new_message_subscription = CKQuerySubscription(
                 recordType: "Message",
-                predicate: NSPredicate(format: new_message_predicateFormat, argumentArray: [groupId.id, model.me().id.id]),
+                predicate: NSPredicate(format: predicateFormat, argumentArray: [groupId.id]),
                 subscriptionID: new_message_key,
                 options: [CKQuerySubscriptionOptions.firesOnRecordCreation]
             )
@@ -802,14 +799,12 @@ class CloudDBModel : DBProtocol {
 
          
         // New Message Record
-        let new_message_record_predicateFormat = "(group_id == %@) AND (user_id != %@)"
+        let new_message_record_key = "new_type_PollRecord_group_id_\(groupId.id)"
         
-        let new_message_record_key = "new_type_PollRecord_group_id_\(groupId.id)_user_id\(model.me().id.id)"
-        
-        subscribe(subscriptionId: new_message_record_key, predicateFormat: new_message_record_predicateFormat, createSubscription: { () -> Void in
+        subscribe(subscriptionId: new_message_record_key, predicateFormat: predicateFormat, createSubscription: { () -> Void in
             let new_message_record_subscription = CKQuerySubscription(
                 recordType: "PollRecord",
-                predicate: NSPredicate(format: new_message_record_predicateFormat, argumentArray: [groupId.id, model.me().id.id]),
+                predicate: NSPredicate(format: predicateFormat, argumentArray: [groupId.id]),
                 subscriptionID: new_message_record_key,
                 options: [CKQuerySubscriptionOptions.firesOnRecordCreation]
             )
@@ -826,12 +821,12 @@ class CloudDBModel : DBProtocol {
             })
         })
         
-        let mrecord_predicateFormat = "(group_id == %@) AND (user_id != %@) AND (type == 'LocationRecord')"
-        let edit_mrecord_key = "edit_type_PollRecord_thread_id_\(groupId.id)_user_id\(model.me().id.id)_LR"
+        let mrecord_predicateFormat = "(group_id == %@) AND (type == 'LocationRecord')"
+        let edit_mrecord_key = "edit_type_PollRecord_group_id_\(groupId.id)_LR"
         
         subscribe(subscriptionId: edit_mrecord_key, predicateFormat: predicateFormat, createSubscription: { () -> Void in
             let edit_mrecord_subscription = CKQuerySubscription(
-                recordType: "PollRecord", predicate: NSPredicate(format: mrecord_predicateFormat, argumentArray: [groupId.id, model.me().id.id]),
+                recordType: "PollRecord", predicate: NSPredicate(format: mrecord_predicateFormat, argumentArray: [groupId.id]),
                 subscriptionID: edit_mrecord_key, options: [CKQuerySubscriptionOptions.firesOnRecordUpdate]
             )
             
@@ -849,6 +844,21 @@ class CloudDBModel : DBProtocol {
             })
         })
 
+    }
+    
+    func removeGroupNotification(groupId: RecordId) {
+         let new_key = "new_type_ConversationThread_group_id_\(groupId.id)"
+        unsubscribe(key: new_key, completionHandler: {})
+        let delete_key = "delete_type_ConversationThread_group_id_\(groupId.id)"
+         unsubscribe(key: delete_key, completionHandler: {})
+        let new_message_key = "new_type_Message_group_id_\(groupId.id)"
+         unsubscribe(key: new_message_key, completionHandler: {})
+        let edit_message_key = "edit_type_Message_group_id_\(groupId.id)"
+        unsubscribe(key: edit_message_key, completionHandler: {})
+        let new_message_record_key = "new_type_PollRecord_group_id_\(groupId.id)"
+        unsubscribe(key: new_message_record_key, completionHandler: {})
+        let edit_mrecord_key = "edit_type_PollRecord_group_id_\(groupId.id)_LR"
+        unsubscribe(key: edit_mrecord_key, completionHandler: {})
     }
     
     // If the subscription exists and the predicate is the same, then we don't need to create this subscrioption.
@@ -940,22 +950,20 @@ class CloudDBModel : DBProtocol {
                             }
                         } else if( record!.recordType == "GroupUserFolder" ) {
                             let group_ref = record!["group_reference"] as! CKReference
-                            // Get the group newly added to the user
-                            self.publicDB.fetch(withRecordID: group_ref.recordID, completionHandler: { (grp_record, error) -> Void in
-                                if( grp_record != nil ) {
-                                    let group = Group(record: grp_record!)
-                                    DispatchQueue.main.async {
-                                        if( queryNotification.queryNotificationReason == .recordCreated ) {
-                                            for view in views {
-                                                if( view.notify_new_group != nil ) {
-                                                    view.notify_new_group!(group)
-                                                }
+                            let user_id = String(record!["user_id"] as! NSString)
+                            if( user_id == model.me().id.id ) {
+                                // Get the group newly added to the user
+                                self.publicDB.fetch(withRecordID: group_ref.recordID, completionHandler: { (grp_record, error) -> Void in
+                                    if( grp_record != nil ) {
+                                        let group = Group(record: grp_record!)
+                                        DispatchQueue.main.async {
+                                            if( queryNotification.queryNotificationReason == .recordCreated ) {
+                                                model.addMeToGroup(group: group)
                                             }
                                         }
                                     }
-                                }
-                            })
-
+                                })
+                            }
                         } else if( record!.recordType == "PollRecord" ) {
                             let messageRecord = MessageRecord(record: record!)
                             DispatchQueue.main.async {
@@ -971,7 +979,7 @@ class CloudDBModel : DBProtocol {
                                             view.notify_edit_message_record!(messageRecord)
                                         }
                                     }
-                            }
+                                }
                             }
                         }
                     }
@@ -981,18 +989,9 @@ class CloudDBModel : DBProtocol {
     }
     
     func setAppBadgeNumber(number: Int) {
-        let badgeResetOperation = CKModifyBadgeOperation(badgeValue: number)
-        badgeResetOperation.modifyBadgeCompletionBlock = { (error) -> Void in
-            if error != nil {
-                print("Error resetting badge: \(String(describing: error!))")
-            }
-            else {
-                DispatchQueue.main.async(execute: {
-                   UIApplication.shared.applicationIconBadgeNumber = number
-                })
-            }
+        DispatchQueue.main.async {
+            UIApplication.shared.applicationIconBadgeNumber = number
         }
-        CKContainer.default().add(badgeResetOperation)
     }
     
     /*******************************************************************************/
@@ -1600,6 +1599,32 @@ class CloudDBModel : DBProtocol {
         publicDB.add(queryOperation)
     }
     
+    func getUserActivityDates(userId: RecordId, completion: @escaping ([Date]) -> ()) {
+        let query = CKQuery(recordType: "Message", predicate: NSPredicate(format: String("user_id = %@"), argumentArray: [userId.id]))
+        
+        var dates = [Date]()
+        
+        let queryOperation = CKQueryOperation(query: query)
+        queryOperation.desiredKeys = ["last_modified"]
+        queryOperation.recordFetchedBlock = { record -> Void in
+            let date = Date(timeIntervalSince1970: (record["last_modified"] as! NSDate).timeIntervalSince1970)
+            dates.append(date)
+        }
+        
+        queryOperation.queryCompletionBlock = { cursor, error -> Void in
+            if( cursor == nil ) {
+                completion(dates)
+            } else {
+                let nqueryOperation = CKQueryOperation(cursor: cursor!)
+                nqueryOperation.queryCompletionBlock = queryOperation.queryCompletionBlock
+                nqueryOperation.recordFetchedBlock = queryOperation.recordFetchedBlock
+                nqueryOperation.desiredKeys = queryOperation.desiredKeys
+                self.publicDB.add(nqueryOperation)
+            }
+        }
+        publicDB.add(queryOperation)
+    }
+    
     func getActivity(userId: RecordId, threadId: RecordId, completion: @escaping (UserActivity?) -> ()) {
         let query = CKQuery(recordType: "UserActivity", predicate: NSPredicate(format: String("(thread_id = %@) AND (user_id = %@)"), argumentArray: [threadId.id, userId.id]))
         publicDB.perform(query, inZoneWith: nil, completionHandler: { results, error -> Void in
@@ -1664,8 +1689,8 @@ class CloudDBModel : DBProtocol {
         })
     }
     
-    func getMessageRecords(message: Message, completion: @escaping ([MessageRecord]) -> Void ) {
-        let query = CKQuery(recordType: "PollRecord", predicate: NSPredicate(format: "poll_id = %@", argumentArray: [message.id.id]))
+    func getMessageRecords(message: Message, type: String, completion: @escaping ([MessageRecord]) -> Void ) {
+        let query = CKQuery(recordType: "PollRecord", predicate: NSPredicate(format: "poll_id = %@ and type = %@", argumentArray: [message.id.id, type]))
         publicDB.perform(query, inZoneWith: nil, completionHandler: { results, error -> Void in
             var records = [MessageRecord]()
             if results!.count > 0 {
@@ -1698,6 +1723,27 @@ class CloudDBModel : DBProtocol {
 
     
     /******************************************************************************************************/
+    
+    func deleteGroup(group: Group, completion: @escaping ()-> ()) {
+        let cloudRecordId = group.id as? CloudRecordId
+        if( cloudRecordId == nil ) {
+            return
+        }
+        var recordIDsArray: [CKRecordID] = [cloudRecordId!.record.recordID]
+        
+        let operation = CKModifyRecordsOperation(recordsToSave: nil, recordIDsToDelete: recordIDsArray)
+        operation.modifyRecordsCompletionBlock = {
+            (savedRecords: [CKRecord]?, deletedRecordIDs: [CKRecordID]?, error: Error?) in
+            
+            print("delete group ", group.name)
+            
+            completion()
+        }
+        
+        self.publicDB.add(operation)
+        
+        removeGroupNotification(groupId: group.id)
+    }
     
     func deleteConversation(cthread: ConversationThread, messages: [Message], user: User, completion: @escaping () -> ()) {
         let cloudRecordId = cthread.id as? CloudRecordId
@@ -1868,12 +1914,78 @@ class CloudDBModel : DBProtocol {
         self.publicDB.add(operation)
 
     }
+    // Filter message records which are still unread by some users of the group.
+    func doDeleteOldMessage(records: [CKRecord], user: User, completion: @escaping ()-> ()) {
+        var toDeleteRecords = [CKRecord]()
+        var processedRecord = 0
+        for record in records {
+            let message = Message(record: record)
+            self.getMessageRecords(message: message, type: "ReadMessageRecord", completion: { (readRecords) in
+                if( readRecords.count > 0 ) {
+                    self.getUsersForGroup(groupId: message.group_id!, completion: { (users) in
+                        // For all users of the group
+                        var allFound = true
+                        for group_user in users {
+                            var foundReadRecord = false
+                            if( group_user.id == user.id ) {
+                                // The author of the message automatically reads it.
+                                foundReadRecord = true
+                            } else {
+                                // See if there is a read Record for this user
+                                for readRecord in readRecords {
+                                    if( group_user.id == readRecord.user_id ) {
+                                        foundReadRecord = true
+                                        break
+                                    }
+                                }
+                            }
+                            if( !foundReadRecord) {
+                                // This user has no read records of this message. Cannot delete it.
+                                allFound = false
+                                break
+                            }
+                        }
+                        if( allFound ) {
+                            toDeleteRecords.append(record)
+                        }
+                        processedRecord += 1
+                        if( processedRecord == records.count ) {
+                            self.deleteUserRecords(records: toDeleteRecords, error: nil, user: user, message: "Delete old Messages for ", completion: completion)
+                        }
+                    })
+                } else {
+                    processedRecord += 1
+                    if( processedRecord == records.count ) {
+                        self.deleteUserRecords(records: toDeleteRecords, error: nil, user: user, message: "Delete old Messages for ", completion: completion)
+                    }
+                }
+            })
+        }
+    }
     
     func deleteOldMessages(olderThan: Date, user: User, completion: @escaping () -> ()) {
         let query = CKQuery(recordType: "Message", predicate: NSPredicate(format: String("(user_id = %@) AND (last_modified <= %@)"), argumentArray: [user.id.id, olderThan]))
-        publicDB.perform(query, inZoneWith: nil, completionHandler: { (records, error) in
-            self.deleteUserRecords(records: records, error: error, user: user, message: "Delete old Messages for ", completion: completion)
-        })
+        
+        var records = [CKRecord]()
+        let queryOperation = CKQueryOperation(query: query)
+        queryOperation.desiredKeys = Message.getDesiredKeys()
+        queryOperation.recordFetchedBlock = { record -> Void in
+            records.append(record)
+        }
+        
+        queryOperation.queryCompletionBlock = { cursor, error -> Void in
+            if( cursor == nil ) {
+                self.doDeleteOldMessage(records: records, user: user, completion: completion)
+               
+            } else {
+                let nqueryOperation = CKQueryOperation(cursor: cursor!)
+                nqueryOperation.queryCompletionBlock = queryOperation.queryCompletionBlock
+                nqueryOperation.recordFetchedBlock = queryOperation.recordFetchedBlock
+                nqueryOperation.desiredKeys = queryOperation.desiredKeys
+                self.publicDB.add(nqueryOperation)
+            }
+        }
+        publicDB.add(queryOperation)
     }
     
     func deleteOldConversationThread(olderThan: Date, user: User, completion: @escaping () -> ()) {
@@ -1915,9 +2027,13 @@ class CloudDBModel : DBProtocol {
     }
 
     func deleteOldMessageRecords(olderThan: Date, user: User, completion: @escaping () -> ()) {
+        // They are now deleted by deleting the Message.
+        /*
         let query = CKQuery(recordType: "PollRecord", predicate: NSPredicate(format: String("(user_id = %@) AND (date_created <= %@)"), argumentArray: [user.id.id, olderThan]))
         publicDB.perform(query, inZoneWith: nil, completionHandler: { (records, error) in
+           
             self.deleteUserRecords(records: records, error: error, user: user, message: "Delete old Message Records for ", completion: completion)
         })
+        */
     }
 }

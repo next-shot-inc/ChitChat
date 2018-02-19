@@ -66,12 +66,28 @@ class MessageCell : UICollectionViewCell, MessageBaseCellDelegate {
     
         fromLabel.text = getFromName(message: message)
         
-        editButton.isHidden = !(message.user_id.id == model.me().id.id &&
+        editButton.isHidden = !(message.user_id == model.me().id &&
             controller?.data?.messages.last === message)
         
+        model.db_model.getMessageRecords(message: message, type: "ReadMessageRecord", completion: { (records) in
+            if( records.count != 0 ) {
+              DispatchQueue.main.async(execute: {
+                  self.editButton.isHidden = true
+              })
+            }
+        })
+        
+        if( controller?.conversationThread?.createdFromMessage_id == message.id ) {
+            // Do not show the goto-thread or fork-thread button on the starting thread message.
+            forkThreadButton.isHidden = true
+        }
         let forkedThread = model.memory_model.getConversationThreadCreatedFrom(message: message)
         if( forkedThread == nil ) {
             forkThreadButton.setImage(UIImage(named: "fork2-32"), for: .normal)
+            if( message.user_id == model.me().id ) {
+                // Do not show the fork-thread button on an self-message
+                forkThreadButton.isHidden = true
+            }
         }
         
         if( settingsDB.settings.round_bubbles == false ) {
@@ -687,8 +703,15 @@ class MessagesViewController: UIViewController, UIImagePickerControllerDelegate,
             var count = 0
             for m in data!.messages {
                 let date = m.getCreationDate()
+                if( m.user_id == model.me().id ) {
+                    continue
+                }
                 if( date != nil && (myActivity == nil || myActivity!.last_read < date!) ) {
                     count += 1
+                    
+                    // Make this message as Read
+                    let mr = MessageRecord(message: m, user: model.me(), type: "ReadMessageRecord")
+                    model.saveReadMessageRecord(messageRecord: mr)
                 }
             }
             if( count < UIApplication.shared.applicationIconBadgeNumber ) {

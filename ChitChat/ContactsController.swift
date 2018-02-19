@@ -349,6 +349,8 @@ class NewGroupController : UIViewController, CNContactPickerDelegate, UIImagePic
             group.icon = groupIconButton.image(for: .normal)
             
             let groupActivity = GroupActivity(group_id: group.id)
+            groupActivity.last_userId = model.me().id
+            groupActivity.last_message = "Creation of group \(groupName.text!)"
             model.saveActivity(groupActivity: groupActivity)
             group.activity_id = groupActivity.id
             
